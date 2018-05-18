@@ -1,7 +1,7 @@
 
-from .fit_loo import  loo_v_matrix, loo_score
-from .fit_ct import  ct_v_matrix, ct_score
-from .optimizers.cd_line_search import cdl_search
+from fit_loo import  loo_v_matrix, loo_score
+from fit_ct import  ct_v_matrix, ct_score
+from optimizers.cd_line_search import cdl_search
 import numpy as np
 from concurrent import futures
 
@@ -49,7 +49,8 @@ def score_train_test(X,
                      L2_PEN_W = l2_pen_w)
 
         
-        print("LAMBDA: %0.1f, zeros %s (of %s), Score: %0.1f / %0.1f " % (kwargs["LAMBDA"],
+        if False:
+            print("LAMBDA: %0.1f, zeros %s (of %s), Score: %0.1f / %0.1f " % (kwargs["LAMBDA"],
                                                                           sum(np.diag(v_mat == 0)),
                                                                           v_mat.shape[0],
                                                                           s,

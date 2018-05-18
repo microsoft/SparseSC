@@ -5,7 +5,7 @@ import itertools
 import timeit
 import warnings
 from utils.sub_matrix_inverse import subinv_k, all_subinverses
-from .optimizers.cd_line_search import cdl_search
+from optimizers.cd_line_search import cdl_search
 warnings.filterwarnings('ignore')
 
 def loo_v_matrix(X,

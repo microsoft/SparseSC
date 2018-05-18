@@ -4,7 +4,7 @@ import pandas as pd
 import itertools
 import timeit
 import warnings
-from .optimizers.cd_line_search import cdl_search
+from optimizers.cd_line_search import cdl_search
 warnings.filterwarnings('ignore')
 
 def ct_v_matrix(X,
