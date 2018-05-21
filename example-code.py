@@ -20,8 +20,12 @@ import random
 if __name__ == "__main__":
 
     # ------------------------------------------------------------
-    # CONTROL PARAMETERS
     # ------------------------------------------------------------
+    # SECTION 1: GENERATE SOME TOY DATA
+    # ------------------------------------------------------------
+    # ------------------------------------------------------------
+
+    # CONTROL PARAMETERS
 
     random.seed(12345)
     np.random.seed(10101)
@@ -36,9 +40,6 @@ if __name__ == "__main__":
     beta_scale,confounders_scale = 4,1
 
     # ------------------------------------------------------------
-    # SIMULATE SOME DATA
-    # ------------------------------------------------------------
-
 
     # COVARIATE EFFECTS
     X_control = np.matrix(np.random.normal(0,1,((C)*groups, K+S+R)))
@@ -121,7 +122,9 @@ if __name__ == "__main__":
     # treated_units = np.arange( N * groups ) + C
 
     # ------------------------------------------------------------
+    # ------------------------------------------------------------
     # find default penalties
+    # ------------------------------------------------------------
     # ------------------------------------------------------------
 
     # get starting point for the L2 penalty 
@@ -130,8 +133,11 @@ if __name__ == "__main__":
 
     # get the maximum value for the L1 Penalty parameter conditional on the guestimate for the L2 penalty
     L1_max_ct  = SC.get_max_lambda(X_control,Y_pre_control,X_treat=X_treated,Y_treat=Y_pre_treated)
-    L1_max_loo = SC.get_max_lambda(X_and_Y_pre,Y_post)
-    print("Max L1")
+    if False:
+        L1_max_loo = SC.get_max_lambda(X_and_Y_pre[np.arange(100)],Y_post[np.arange(100)])
+        print("Max L1 loo %s " % L1_max_loo)
+    else:
+        L1_max_loo = np.float(147975295.9121998)
 
     if False:
         "Demonstrate relations between the L1 and L2 penalties"
@@ -182,6 +188,7 @@ if __name__ == "__main__":
     # ------------------------------------------------------------
 
     if False:
+
         print("starting grid scoring for treat / control scenario", grid*L1_max_ct)
         grid_scores_ct = SC.CV_score(
             X = X_control,
@@ -208,8 +215,36 @@ if __name__ == "__main__":
         best_L1_penalty_ct = (grid * L1_max_ct)[np.argmin(grid_scores_ct)]
 
     if False:
+
+        print("Starting grid scoring for Controls Only scenario with 5-fold gradient descent", grid*L1_max_ct)
+        grid_scores_loo = SC.CV_score(
+            X = X_and_Y_pre, # limit the amount of time...
+            Y = Y_post     , # limit the amount of time...
+
+            # this is what enables the k-fold gradient descent
+            grad_splits = 5,
+
+            # L1 Penalty. if LAMBDA is a single value (value), we get a single score, If it's an array of values, we get an array of scores.
+            LAMBDA = grid * L1_max_loo,
+
+            # L2 Penalty (float)
+            L2_PEN_W = L2_pen_start_loo,
+
+            # CACHE THE V MATRIX BETWEEN LAMBDA PARAMETERS (generally faster, but path dependent)
+            #cache = True, # False by Default
+
+            # Run each of the Cross-validation folds in parallel? Often slower
+            # for large sample sizes because numpy.linalg.solve() already runs
+            # in parallel for large matrices
+            parallel=False,
+
+            # ANNOUNCE COMPLETION OF EACH ITERATION
+            progress = True)
+
+    if False:
+
         # even with smaller data, this takes a while.
-        print("starting grid scoring for Controls Only scenario", grid*L1_max_ct)
+        print("Starting grid scoring for Controls Only scenario with leave-one-out gradient descent", grid*L1_max_ct)
         grid_scores_loo = SC.CV_score(
             X = X_and_Y_pre [np.arange(100)], # limit the amount of time...
             Y = Y_post      [np.arange(100)], # limit the amount of time...
@@ -295,7 +330,6 @@ if __name__ == "__main__":
         import pdb; pdb.set_trace()
 
 
-
     # ---------------------------------------------------------------------------
     # ---------------------------------------------------------------------------
     # Optimization of the L1 and L2 parameters together (second order)
@@ -306,8 +340,11 @@ if __name__ == "__main__":
     import time
 
     # -----------------------------------------------------------------
-    # Optimization of the L2 and L1 Penalties Simultaneously, keeping their product constant
+    # Optimization of the L2 and L1 Penalties Simultaneously, keeping their
+    # product constant.  Heuristically, this has been most efficient means of
+    # optimizing the L2 Parameter.
     # -----------------------------------------------------------------
+
 
     # build the objective function to be minimized
 

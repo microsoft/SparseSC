@@ -1,8 +1,10 @@
 
+from fit_fold import  fold_v_matrix#, fold_score
 from fit_loo import  loo_v_matrix, loo_score
 from fit_ct import  ct_v_matrix, ct_score
 from optimizers.cd_line_search import cdl_search
 import numpy as np
+import itertools
 from concurrent import futures
 
 def score_train_test(X, 
@@ -11,7 +13,8 @@ def score_train_test(X,
                       test,
                       X_treat=None,
                       Y_treat=None,
-                      FoldNumber=None, # for consistency with score_train_test_sorted_lambdas()
+                      FoldNumber=None, # For consistency with score_train_test_sorted_lambdas()
+                      grad_splits=None, #  If present, use  k fold gradient descent. See fold_v_matrix for details
                       **kwargs):
     """ presents a unified api for ct_v_matrix and loo_v_matrix
         and returns the v_mat, l2_pen_w (possibly calculated, possibly a parameter), and the score 
@@ -59,14 +62,27 @@ def score_train_test(X,
     else: 
         ">> K-fold validation on the only control units; assuming that Y contains post-intervention outcomes"
 
-        # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
-        # note that the weights, score, and loss function value returned here are for the in-sample predictions
-        weights, v_mat, ts_score, loss, l2_pen_w, _ = \
-                loo_v_matrix(X = X[train, :],
-                             Y = Y[train, :], 
-                             # treated_units = [X.shape[0] + i for i in  range(len(train))],
-                             method = cdl_search,
-                             **kwargs)
+        if grad_splits is not None:
+
+            # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
+            # note that the weights, score, and loss function value returned here are for the in-sample predictions
+            weights, v_mat, ts_score, loss, l2_pen_w, _ = \
+                    fold_v_matrix(X = X[train, :],
+                                 Y = Y[train, :], 
+                                 # treated_units = [X.shape[0] + i for i in  range(len(train))],
+                                 method = cdl_search,
+                                 **kwargs)
+
+        else:
+
+            # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
+            # note that the weights, score, and loss function value returned here are for the in-sample predictions
+            weights, v_mat, ts_score, loss, l2_pen_w, _ = \
+                    loo_v_matrix(X = X[train, :],
+                                 Y = Y[train, :], 
+                                 # treated_units = [X.shape[0] + i for i in  range(len(train))],
+                                 method = cdl_search,
+                                 **kwargs)
 
         # GET THE OUT-OF-SAMPLE PREDICTION ERROR
         s = loo_score(X = X, Y = Y, 
@@ -149,17 +165,20 @@ def CV_score(X,Y,LAMBDA,X_treat=None,Y_treat=None,splits=5,sub_splits=None,quiet
         if X_treat.shape[0] != Y_treat.shape[0]: 
             raise ValueError("X_treat and Y_treat have different number of rows (%s and %s)" % (X.shape[0], Y.shape[0],))
 
-        # MESSAGING
-        if not quiet: 
-            print("K-fold validation with %s control and %s treated units %s predictors and %s outcomes, holding out one fold among Treated units; Assumes that `Y` and `Y_treat` are pre-intervention outcomes" % 
-                    (X.shape[0] , X_treat.shape[0],X.shape[1],Y.shape[1],))
 
-        if isinstance(splits, (int)) or np.issubdtype(splits, np.integer): 
+
+        try:
+            iter(splits)
+        except TypeError: 
             from sklearn.model_selection import KFold
             splits = KFold(splits).split(np.arange(X_treat.shape[0]))
         train_test_splits = [ x for x in splits ]
         n_splits = len(train_test_splits)
 
+        # MESSAGING
+        if not quiet: 
+            print("%s-fold validation with %s control and %s treated units %s predictors and %s outcomes, holding out one fold among Treated units; Assumes that `Y` and `Y_treat` are pre-intervention outcomes" % 
+                    (n_splits, X.shape[0] , X_treat.shape[0],X.shape[1],Y.shape[1],))
 
         if parallel: 
 
@@ -209,16 +228,19 @@ def CV_score(X,Y,LAMBDA,X_treat=None,Y_treat=None,splits=5,sub_splits=None,quiet
 
 
     else: # X_treat *is* None
-        # MESSAGING
-        if not quiet: 
-            print("Leave-one-out Cross Validation with %s control units, %s predictors and %s outcomes; Y may contain post-intervention outcomes" % 
-                    (X.shape[0],X.shape[1],Y.shape[1],) )
 
-        if isinstance(splits, (int)) or np.issubdtype(splits, np.integer): 
+        try:
+            iter(splits)
+        except TypeError: 
             from sklearn.model_selection import KFold
             splits = KFold(splits).split(np.arange(X.shape[0]))
         train_test_splits = [ x for x in splits ]
         n_splits = len(train_test_splits)
+
+        # MESSAGING
+        if not quiet: 
+            print("%s-fold Cross Validation with %s control units, %s predictors and %s outcomes; Y may contain post-intervention outcomes" % 
+                    (n_splits, X.shape[0],X.shape[1],Y.shape[1],) )
 
         if parallel: 
 

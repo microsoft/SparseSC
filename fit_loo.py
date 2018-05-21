@@ -35,7 +35,7 @@ def loo_v_matrix(X,
     :param method: The name of a method to be used by scipy.optimize.minimize, or a callable with the same API as scipy.optimize.minimize
     :param intercept: If True, weights are penalized toward the 1 / the number of controls, else weights are penalized toward zero
     :;aram max_lambda: if True, the return value is the maximum L1 penalty for which at least one element of the tensor matrix is non-zero
-    :;aram solve_method: Method for solving A.I.dot(B). Either "standard" or "step-down".
+    :;aram solve_method: Method for solving A.I.dot(B). Either "standard" or "step-down". https://math.stackexchange.com/a/208021/252693
     :param **kwargs: additional arguments passed to the optimizer
 
     '''
@@ -244,40 +244,6 @@ def loo_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, inte
     else:
         raise ValueError("Unknown Solve Method: " + solve_method)
     return weights.T
-
-
-
-def __old__loo_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, intercept = True):
-    assert False
-    if treated_units is None: 
-        if control_units is None: 
-            # both not provided, include all samples as both treat and control unit.
-            control_units = list(range(X.shape[0]))
-            treated_units = control_units 
-        else:
-            # Set the treated units to the not-control units
-            treated_units = list(set(range(X.shape[0])) - set(control_units))  
-    else:
-        if control_units is None: 
-            # Set the control units to the not-treated units
-            control_units = list(set(range(X.shape[0])) - set(treated_units)) 
-    [C, N, K] = [len(control_units), len(treated_units), X.shape[1]]
-    index_i = [list(set(list(range(200))) - set([col])) for col in treated_units]
-
-    index_i2 = [np.ix_(i,i) for i in index_i] # this is a much faster alternative to A[:,index][index,:]
-    index_map = {c_unit : row_at for row_at, c_unit in enumerate(control_units)}
-
-    weights = zeros((C, N))
-    A = X.dot(V + V.T).dot(X.T) + 2 * L2_PEN_W * diag(ones(X.shape[0])) # 5
-    B = X.dot(V + V.T).dot(X.T).T # 6
-    for col, index in enumerate(index_i):
-        b = linalg.solve(A[index_i2[col]], B[index, col])
-        weights[np.vectorize(index_map.get)(index), col] = b.T
-        if intercept:
-            weights[index, col] += 1/len(index)
-    return weights
-
-
 
 
 def loo_score(Y, X, V, L2_PEN_W, LAMBDA = 0, treated_units = None, control_units = None,**kwargs):
