@@ -1,6 +1,7 @@
 
 from fit_loo import  loo_v_matrix
 from fit_ct import  ct_v_matrix
+from fit_fold import fold_v_matrix
 from optimizers.cd_line_search import cdl_search
 import numpy as np
 
@@ -62,18 +63,37 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
         try:
             _LAMBDA = iter(L2_PEN_W)
         except TypeError:
-            # L2_PEN_W is a single value 
-            return loo_v_matrix(X = X,
-                               Y = Y,
-                               L2_PEN_W = L2_PEN_W,
-                               max_lambda = True,  # this is terrible at least without documentation...
-                               **kwargs)
-        else:
-            # L2_PEN_W is an iterable of values
-            return [ loo_v_matrix(X = X,
+            if "grad_splits" in kwargs:
+                # L2_PEN_W is a single value 
+                return fold_v_matrix(X = X,
                                    Y = Y,
-                                   L2_PEN_W = l2_pen,
+                                   L2_PEN_W = L2_PEN_W,
                                    max_lambda = True,  # this is terrible at least without documentation...
                                    **kwargs)
-                        for l2_pen in L2_PEN_W ] 
+            else:
+                # L2_PEN_W is a single value 
+                return loo_v_matrix(X = X,
+                                   Y = Y,
+                                   L2_PEN_W = L2_PEN_W,
+                                   max_lambda = True,  # this is terrible at least without documentation...
+                                   **kwargs)
+        else:
+            if "grad_splits" in kwargs:
+
+                # L2_PEN_W is an iterable of values
+                return [ fold_v_matrix(X = X,
+                                       Y = Y,
+                                       L2_PEN_W = l2_pen,
+                                       max_lambda = True,  # this is terrible at least without documentation...
+                                       **kwargs)
+                            for l2_pen in L2_PEN_W ] 
+            else:
+
+                # L2_PEN_W is an iterable of values
+                return [ loo_v_matrix(X = X,
+                                       Y = Y,
+                                       L2_PEN_W = l2_pen,
+                                       max_lambda = True,  # this is terrible at least without documentation...
+                                       **kwargs)
+                            for l2_pen in L2_PEN_W ] 
 
