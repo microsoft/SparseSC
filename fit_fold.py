@@ -21,6 +21,8 @@ def fold_v_matrix(X,
                  intercept = True,
                  max_lambda = False,  # this is terrible at least without documentation...
                  grad_splits = 5,
+                 random_state = 10101,
+                 verbose = False,
                  **kwargs):
     '''
     Computes and sets the optimal v_matrix for the given moments and 
@@ -76,13 +78,15 @@ def fold_v_matrix(X,
     assert not non_neg_weights, "Bounds not implemented"
 
     splits = grad_splits # for readability...
-    if isinstance(splits, (int)) or np.issubdtype(splits, np.integer): 
+    try:
+        iter(splits)
+    except TypeError: 
         from sklearn.model_selection import KFold
-        splits = KFold(splits).split(np.arange(len(control_units)))
+        splits = KFold(splits, shuffle=True, random_state = random_state).split(np.arange(len(treated_units)))
     splits = list(splits)
 
     for i in range(len(splits)):
-        assert len(splits[i][0]) + len(splits[i][1]) == len(treated_units), ("Splits for fold %s do not match the number of treated units" % i)
+        assert len(splits[i][0]) + len(splits[i][1]) == len(treated_units), ("Splits for fold %s do not match the number of treated units.  Expected %s; got %s + %s " % (i, len(treated_units),len(splits[i][0]), len(splits[i][1]), ))
 
     # CONSTANTS
     C, N, K = len(control_units), len(treated_units), X.shape[1]
@@ -136,8 +140,12 @@ def fold_v_matrix(X,
         dGamma0_dV_term2 = zeros(K)
         dPI_dV = zeros((C, N))
         for k in range(K):
+            if verbose:  # for large sample sizes, linalg.solve is a huge bottle neck,
+                print("Calculating gradient, for moment %s of %s" % (k ,K,))
             dPI_dV.fill(0) # faster than re-allocating the memory each loop.
             for i, (index, (train, test)) in enumerate(zip(in_controls,splits)):
+                if verbose >=2:  # for large sample sizes, linalg.solve is a huge bottle neck,
+                    print("Calculating gradient, linalg.solve() call %s of %s" % (i + k*len(splits) ,K*len(splits),))
                 dA = dA_dV_ki[k][i]
                 dB = dB_dV_ki[k][i]
                 b = linalg.solve(A[in_controls2[i]],dB - dA.dot(b_i[i]))
@@ -151,6 +159,8 @@ def fold_v_matrix(X,
         A = X.dot(V + V.T).dot(X.T) + 2 * L2_PEN_W * diag(ones(X.shape[0])) # 5
         B = X.dot(V + V.T).dot(X.T).T # 6
         for i, (train,test) in enumerate(splits):
+            if verbose >=2:  # for large sample sizes, linalg.solve is a huge bottle neck,
+                print("Calculating weights, linalg.solve() call %s of %s" % (i,len(splits),))
             (b) = b_i[i] = linalg.solve(A[in_controls2[i]], B[np.ix_(in_controls[i], treated_units[test])])
             weights[np.ix_(out_controls[i], test)] = b
         return weights, A, B
@@ -181,8 +191,7 @@ def fold_v_matrix(X,
 
 
 
-# NOTE: this is here for completeness, but you will generally want to use loo_weights instead. a single set of weights is a lot less costly than a full gradient descent...
-def fold_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, intercept = True, splits = 5):
+def fold_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, intercept = True, grad_splits = 5, random_state = 10101, verbose=False):
     if treated_units is None: 
         if control_units is None: 
             # both not provided, include all samples as both treat and control unit.
@@ -199,9 +208,12 @@ def fold_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, int
     treated_units = np.array(treated_units)
     [C, N, K] = [len(control_units), len(treated_units), X.shape[1]]
 
-    if isinstance(splits, (int)) or np.issubdtype(splits, np.integer): 
+    splits = grad_splits # for readability...
+    try:
+        iter(splits)
+    except TypeError: 
         from sklearn.model_selection import KFold
-        splits = KFold(splits).split(np.arange(len(control_units)))
+        splits = KFold(splits, shuffle=True, random_state = random_state).split(np.arange(len(treated_units)))
     splits = list(splits)
 
     # index with positions of the controls relative to the incoming data
@@ -222,17 +234,20 @@ def fold_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, int
     B = X.dot(V + V.T).dot(X.T).T # 6
 
     for i, (train,test) in enumerate(splits):
+        if verbose >=2:  # for large sample sizes, linalg.solve is a huge bottle neck,
+            print("Calculating weights, linalg.solve() call %s of %s" % (i,len(splits),))
         (b) = linalg.solve(A[in_controls2[i]], B[np.ix_(in_controls[i], treated_units[test])])
-        indx2 = np.ix_(out_controls[i], train)
-        weights[indx2] = b.T
+        indx2 = np.ix_(out_controls[i], test)
+        try:
+            weights[indx2] = b
+        except:
+            import pdb; pdb.set_trace()
         if intercept:
             weights[indx2] += 1/len(out_controls[i])
     return weights.T
 
 
 
-
-# NOTE: this is here for completeness, but you will almost always want to use loo_score instead. 
 def fold_score(Y, X, V, L2_PEN_W, LAMBDA = 0, treated_units = None, control_units = None,**kwargs):
     if treated_units is None: 
         if control_units is None: 

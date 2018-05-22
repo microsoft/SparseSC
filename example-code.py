@@ -223,6 +223,7 @@ if __name__ == "__main__":
 
             # this is what enables the k-fold gradient descent
             grad_splits = 5,
+            random_state = 10101, # random_state for the splitting during k-fold gradient descent
 
             # L1 Penalty. if LAMBDA is a single value (value), we get a single score, If it's an array of values, we get an array of scores.
             LAMBDA = grid * L1_max_loo,
@@ -237,6 +238,9 @@ if __name__ == "__main__":
             # for large sample sizes because numpy.linalg.solve() already runs
             # in parallel for large matrices
             parallel=False,
+
+            # announce each call to `numpy.linalg.solve(A,B)` (the major bottleneck)
+            verbose = False, # it's kind of obnoxious, but gives a sense of running time per gradient calculation
 
             # ANNOUNCE COMPLETION OF EACH ITERATION
             progress = True)
@@ -249,6 +253,9 @@ if __name__ == "__main__":
             X = X_and_Y_pre [np.arange(100)], # limit the amount of time...
             Y = Y_post      [np.arange(100)], # limit the amount of time...
 
+            # with `grad_splits = None` (the default behavior) we get leave-one-out gradient descent.
+            grad_splits = None,
+
             # L1 Penalty. if LAMBDA is a single value (value), we get a single score, If it's an array of values, we get an array of scores.
             LAMBDA = grid * L1_max_loo,
 
@@ -263,9 +270,11 @@ if __name__ == "__main__":
             # in parallel for large matrices
             parallel=False,
 
+            # announce each call to `numpy.linalg.solve(A,B)` (the major bottleneck)
+            verbose = False, # it's kind of obnoxious, but gives a sense of running time per gradient calculation
+
             # ANNOUNCE COMPLETION OF EACH ITERATION
             progress = True)
-
 
     # ---------------------------------------------------------------------------
     # Calculate Synthetic Control weights for a fixed pair of penalty parameters

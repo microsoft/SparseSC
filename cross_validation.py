@@ -1,5 +1,5 @@
 
-from fit_fold import  fold_v_matrix#, fold_score
+from fit_fold import  fold_v_matrix, fold_score
 from fit_loo import  loo_v_matrix, loo_score
 from fit_ct import  ct_v_matrix, ct_score
 from optimizers.cd_line_search import cdl_search
@@ -8,14 +8,14 @@ import itertools
 from concurrent import futures
 
 def score_train_test(X, 
-                      Y,
-                      train,
-                      test,
-                      X_treat=None,
-                      Y_treat=None,
-                      FoldNumber=None, # For consistency with score_train_test_sorted_lambdas()
-                      grad_splits=None, #  If present, use  k fold gradient descent. See fold_v_matrix for details
-                      **kwargs):
+                     Y,
+                     train,
+                     test,
+                     X_treat=None,
+                     Y_treat=None,
+                     FoldNumber=None, # For consistency with score_train_test_sorted_lambdas()
+                     grad_splits=None, #  If present, use  k fold gradient descent. See fold_v_matrix for details
+                     **kwargs):
     """ presents a unified api for ct_v_matrix and loo_v_matrix
         and returns the v_mat, l2_pen_w (possibly calculated, possibly a parameter), and the score 
     """
@@ -64,6 +64,14 @@ def score_train_test(X,
 
         if grad_splits is not None:
 
+            try:
+                iter(grad_splits)
+                # grad_splits may be a generator...
+                grad_splits_1, grad_splits_2  = itertools.tee(grad_splits)
+            except TypeError:
+                # grad_splits is an integer (most common)
+                grad_splits_1, grad_splits_2  = (grad_splits,grad_splits)
+
             # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
             # note that the weights, score, and loss function value returned here are for the in-sample predictions
             weights, v_mat, ts_score, loss, l2_pen_w, _ = \
@@ -71,7 +79,16 @@ def score_train_test(X,
                                  Y = Y[train, :], 
                                  # treated_units = [X.shape[0] + i for i in  range(len(train))],
                                  method = cdl_search,
+                                 grad_splits = grad_splits_1,
                                  **kwargs)
+
+            # GET THE OUT-OF-SAMPLE PREDICTION ERROR (could also use loo_score, actually...)
+            s = fold_score(X = X, Y = Y, 
+                          treated_units = test,
+                          V = v_mat,
+                          grad_splits = grad_splits_1,
+                          L2_PEN_W = l2_pen_w)
+            
 
         else:
 
@@ -84,11 +101,11 @@ def score_train_test(X,
                                  method = cdl_search,
                                  **kwargs)
 
-        # GET THE OUT-OF-SAMPLE PREDICTION ERROR
-        s = loo_score(X = X, Y = Y, 
-                      treated_units = test,
-                      V = v_mat,
-                      L2_PEN_W = l2_pen_w)
+            # GET THE OUT-OF-SAMPLE PREDICTION ERROR
+            s = loo_score(X = X, Y = Y, 
+                          treated_units = test,
+                          V = v_mat,
+                          L2_PEN_W = l2_pen_w)
 
     return v_mat, l2_pen_w, s
 
@@ -166,13 +183,12 @@ def CV_score(X,Y,LAMBDA,X_treat=None,Y_treat=None,splits=5,sub_splits=None,quiet
             raise ValueError("X_treat and Y_treat have different number of rows (%s and %s)" % (X.shape[0], Y.shape[0],))
 
 
-
         try:
             iter(splits)
         except TypeError: 
             from sklearn.model_selection import KFold
             splits = KFold(splits).split(np.arange(X_treat.shape[0]))
-        train_test_splits = [ x for x in splits ]
+        train_test_splits = list(splits)
         n_splits = len(train_test_splits)
 
         # MESSAGING

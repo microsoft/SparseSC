@@ -20,6 +20,7 @@ def loo_v_matrix(X,
                  intercept = True,
                  max_lambda = False,  # this is terrible at least without documentation...
                  solve_method = "standard",
+                 verbose = False,
                  **kwargs):
     '''
     Computes and sets the optimal v_matrix for the given moments and 
@@ -125,6 +126,8 @@ def loo_v_matrix(X,
         if solve_method == "step-down":
             Ai_cache = all_subinverses(A)
         for k in range(K):
+            if verbose:  # for large sample sizes, linalg.solve is a huge bottle neck,
+                print("Calculating gradient, for moment %s of %s" % (k ,K,))
             dPI_dV.fill(0) # faster than re-allocating the memory each loop.
             for i, index in enumerate(in_controls):
                 dA = dA_dV_ki[k][i]
@@ -132,6 +135,8 @@ def loo_v_matrix(X,
                 if solve_method == "step-down":
                     b = Ai_cache[i].dot(dB - dA.dot(b_i[i]))
                 else:
+                    if verbose >=2:  # for large sample sizes, linalg.solve is a huge bottle neck,
+                        print("Calculating weights, linalg.solve() call %s of %s" % ((i + k*K ,K*len(splits),), K * len(splits),))
                     b = linalg.solve(A[in_controls2[i]],dB - dA.dot(b_i[i]))
                 dPI_dV[index, i] = b.flatten() # TODO: is the Transpose  an error???
             dGamma0_dV_term2[k] = (Ey * Y_control.T.dot(dPI_dV).T.getA()).sum()
@@ -155,6 +160,8 @@ def loo_v_matrix(X,
             A = X.dot(V + V.T).dot(X.T) + 2 * L2_PEN_W * diag(ones(X.shape[0])) # 5
             B = X.dot(V + V.T).dot(X.T).T # 6
             for i, trt_unit in enumerate(treated_units):
+                if verbose >= 2:  # for large sample sizes, linalg.solve is a huge bottle neck,
+                    print("Calculating weights, linalg.solve() call %s of %s" % (i,len(splits),))
                 (b) = b_i[i] = linalg.solve(A[in_controls2[i]], B[in_controls[i], trt_unit])
                 weights[out_controls[i], i] = b.flatten()
         else:
@@ -187,7 +194,7 @@ def loo_v_matrix(X,
             weights[out_controls[i], i] += 1/len(out_controls[i])
     return weights, v_mat, ts_score, ts_loss, L2_PEN_W, opt
 
-def loo_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, intercept = True, solve_method = "standard"):
+def loo_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, intercept = True, solve_method = "standard", verbose = False):
     if treated_units is None: 
         if control_units is None: 
             # both not provided, include all samples as both treat and control unit.
@@ -236,6 +243,8 @@ def loo_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, inte
         A = X.dot(V + V.T).dot(X.T) + 2 * L2_PEN_W * diag(ones(X.shape[0])) # 5
         B = X.dot(V + V.T).dot(X.T).T # 6
         for i, trt_unit in enumerate(treated_units):
+            if verbose >= 2:  # for large sample sizes, linalg.solve is a huge bottle neck,
+                print("Calculating weights, linalg.solve() call %s of %s" % (i,len(splits),))
             (b) = linalg.solve(A[in_controls2[i]], B[in_controls[i], trt_unit])
 
             weights[out_controls[i], i] = b.flatten()

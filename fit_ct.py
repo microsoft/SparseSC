@@ -17,6 +17,7 @@ def ct_v_matrix(X,
                 method = cdl_search, 
                 intercept = True,
                 max_lambda = False,  # this is terrible at least without documentation...
+                verbose = True,
                 **kwargs):
     '''
     Computes and sets the optimal v_matrix for the given moments and 
@@ -91,6 +92,8 @@ def ct_v_matrix(X,
         dPI_dV = zeros((C, N))
         #Ai = A.I
         for k in range(K):
+            if verbose:  # for large sample sizes, linalg.solve is a huge bottle neck,
+                print("Calculating gradient, linalg.solve() call %s of %s" % (k ,K,))
             dPI_dV.fill(0) # faster than re-allocating the memory each loop.
             dA = dA_dV_ki[k]
             dB = dB_dV_ki[k]
