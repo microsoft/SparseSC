@@ -86,7 +86,7 @@ def score_train_test(X,
             s = fold_score(X = X, Y = Y, 
                           treated_units = test,
                           V = v_mat,
-                          grad_splits = grad_splits_1,
+                          grad_splits = grad_splits_2,
                           L2_PEN_W = l2_pen_w)
             
 

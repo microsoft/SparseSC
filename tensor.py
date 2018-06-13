@@ -1,3 +1,4 @@
+from fit_fold import fold_v_matrix
 from fit_loo import loo_v_matrix
 from fit_ct import ct_v_matrix
 import numpy as np

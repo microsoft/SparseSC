@@ -103,6 +103,7 @@ def fold_v_matrix(X,
     out_treated  = [ctrl_rng[               np.isin(control_units, treated_units[test]) ] for train,test in splits] # this is non-trivial when there control units are also being predicted.
 
     if intercept:
+        Y = Y.copy()
         for in_ctrl, (train, test) in zip(in_controls,splits):
             Y[treated_units[test],:] -= Y[in_ctrl,:].mean(axis=0) 
 

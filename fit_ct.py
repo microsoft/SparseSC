@@ -17,7 +17,7 @@ def ct_v_matrix(X,
                 method = cdl_search, 
                 intercept = True,
                 max_lambda = False,  # this is terrible at least without documentation...
-                verbose = True,
+                verbose = False,
                 **kwargs):
     '''
     Computes and sets the optimal v_matrix for the given moments and 
@@ -66,6 +66,7 @@ def ct_v_matrix(X,
     X_control = X[control_units,:]
 
     if intercept: 
+        Y = Y.copy()
         Y_treated -= Y_control.mean(axis=0) 
 
     # INITIALIZE PARTIAL DERIVATIVES

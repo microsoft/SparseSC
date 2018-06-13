@@ -83,6 +83,7 @@ def loo_v_matrix(X,
     out_treated  = [ctrl_rng[control_units == trt_unit] for trt_unit in treated_units] # this is non-trivial when there control units are also being predicted.
 
     if intercept:
+        Y = Y.copy()
         for i, trt_unit in enumerate(treated_units):
             Y[trt_unit,:] -= Y[in_controls[i],:].mean(axis=0) 
 
@@ -190,6 +191,7 @@ def loo_v_matrix(X,
     #    _do_gradient_check()
 
     if intercept:
+        Y = Y.copy()
         for i, trt_unit in enumerate(treated_units):
             weights[out_controls[i], i] += 1/len(out_controls[i])
     return weights, v_mat, ts_score, ts_loss, L2_PEN_W, opt
