@@ -1,6 +1,5 @@
 from numpy import dot, ones, diag, matrix, zeros, array,absolute, mean,var, linalg, prod,shape,sqrt
 import numpy as np
-import pandas as pd
 import itertools
 import timeit
 import warnings
