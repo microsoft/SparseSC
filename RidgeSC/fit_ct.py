@@ -3,7 +3,7 @@ import numpy as np
 import itertools
 import timeit
 import warnings
-from optimizers.cd_line_search import cdl_search
+from RidgeSC.optimizers.cd_line_search import cdl_search
 warnings.filterwarnings('ignore')
 
 def ct_v_matrix(X,

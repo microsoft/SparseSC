@@ -1,8 +1,8 @@
 
-from fit_loo import  loo_v_matrix
-from fit_ct import  ct_v_matrix
-from fit_fold import fold_v_matrix
-from optimizers.cd_line_search import cdl_search
+from RidgeSC.fit_loo import  loo_v_matrix
+from RidgeSC.fit_ct import  ct_v_matrix
+from RidgeSC.fit_fold import fold_v_matrix
+from RidgeSC.optimizers.cd_line_search import cdl_search
 import numpy as np
 
 def L2_pen_guestimate(X):

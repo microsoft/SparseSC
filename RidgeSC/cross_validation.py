@@ -1,8 +1,8 @@
 
-from fit_fold import  fold_v_matrix, fold_score
-from fit_loo import  loo_v_matrix, loo_score
-from fit_ct import  ct_v_matrix, ct_score
-from optimizers.cd_line_search import cdl_search
+from RidgeSC.fit_fold import  fold_v_matrix, fold_score
+from RidgeSC.fit_loo import  loo_v_matrix, loo_score
+from RidgeSC.fit_ct import  ct_v_matrix, ct_score
+from RidgeSC.optimizers.cd_line_search import cdl_search
 import numpy as np
 import itertools
 from concurrent import futures
