@@ -22,7 +22,7 @@ the remaining data that may be used to fit synthetic controls, and each has
 it's advantages and disadvantages.
 
 The first cut of the data includes all the pre-intervention data from the
-treated and control units. This cut is called the "controls-only" cut, and
+treated and control units. This cut is called the "pre-only" cut, and
 in this scenario, cross validation is performed by holding out a single
 fold from the treated units and applying the fitted model to the held out
 units. 
@@ -50,10 +50,11 @@ validation is conducted by dividing the control units into folds, fitting
 the model on all but a hold-out fold, and creating synthetic controls for
 the held-out fold using the fitted model. 
 
-To implement this scenario, we can use `CV_score` to calculate
-out-of-sample prediction errors by passing matrices containing (1) the
-covariates and some or all of the pre-intervention outcomes and (2) the
-post-intervention outcomes for the control units. 
+This cut is called the "controls-only" cut, and to implement this scenario,
+we can use `CV_score` to calculate out-of-sample prediction errors by
+passing matrices containing (1) the covariates and some or all of the
+pre-intervention outcomes and (2) the post-intervention outcomes for the
+control units. 
 
 ```python
 CV_score(X = x_and_y_pre, # Covariates and pre-intervention outcomes from the control units
@@ -61,8 +62,9 @@ CV_score(X = x_and_y_pre, # Covariates and pre-intervention outcomes from the co
 		 ...)
 ```
 
-Note that the parameters `x_treat` and `y_treat` are omitted, as treatment
-observations are not used in this scenario.
+Note that the parameters `x_treat` and `y_treat` are omitted, as
+observations from the treated units are not used to optimize the penalty
+parameters in this scenario.
 
 This scenario has the advantage that if shocks to the system that affect a
 subset of factor loadings only in the post-intervention period, the
@@ -179,36 +181,39 @@ synthetic_conrols = weights.dot(Y)
 ### Performance Notes
 
 The function `get_max_lambda()` requires a single calculation of the
-gradient of the in-sample prediction error using all of the available data.
-In contrast, ` SC.CV_score()` performs gradient descent within each fold of
-the data.  Furthermore, in the 'pre-only' scenario the gradient is
-calculated once for in each iteration of the gradient descent, whereas in
-the 'controls-only' scenario the gradient is calculated once for each
-control unit.  Specifically, each control unit is excluded from the set of
-units that can be used to predict it's post-intervention outcomes,
-resulting in leave-one-out gradient descent.
+gradient using all of the available data.  In contrast, ` SC.CV_score()`
+performs gradient descent within each cross-validation fold of the data.
+Furthermore, in the 'pre-only' scenario the gradient is calculated once for
+in each iteration of the gradient descent, whereas in the 'controls-only'
+scenario the gradient is calculated once for each control unit.
+Specifically, each control unit is excluded from the set of units that can
+be used to predict it's own post-intervention outcomes, resulting in
+leave-one-out gradient descent.
 
 For large sample sizes in the 'controls-only' scenario, it may be
-sufficient to divide the non-held out units into folds such that controls
-within the same fold are not used to predict the post-intervention outcomes
-of other control units in the same fold.  This resulting in K-fold gradient
-descent, which improves the speed of calculating the overall gradient by a
-factor slightly greater than `c/k` (where `c` is the number of control
-units) with an even greater reduction in memory usage.
+sufficient to divide the non-held out units into "gradient folds", such
+that controls within the same gradient-fold are not used to predict the
+post-intervention outcomes of other control units in the same fold.  This
+resulting in K-fold gradient descent, which improves the speed of
+calculating the overall gradient by a factor slightly greater than `c/k`
+(where `c` is the number of control units) with an even greater reduction
+in memory usage.
 
 K-fold gradient descent is enabled by passing the parameter `grad_splits`
-to `CV_score()`, and for consistency across calls, it is recommended to
-also pass a value to the parameter `random_state`, which is used in
-selecting the gradient folds.
+to `CV_score()`, and for consistency across calls to `CV_score()`, it is
+recommended to also pass a value to the parameter `random_state`, which is
+used in selecting the gradient folds.
 
 ### Additional Performance Considerations
 
-If you have the BLAS / LAPACK libraries installed and available to python,
+If you have the BLAS / LAPACK libraries installed and available to Python,
 you should not need to do any further optimization to ensure that maximum
 number of processors are used.  If not, you may wish to set the parameter
-`paralell=True` when you call `CV_score()`.  (Note that setting
-`paralell=True` when the BLAS / LAPACK are available will tend to increase
-running times.)
+`paralell=True` when you call `CV_score()` which will split the work across
+N - 2 sub-processes where N is the [number of cores in your
+machine](https://docs.python.org/2/library/multiprocessing.html#miscellaneous).
+(Note that setting `paralell=True` when the BLAS / LAPACK are available
+will tend to increase running times.)
 
 ### Logging
 
