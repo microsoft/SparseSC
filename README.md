@@ -21,9 +21,42 @@ post-intervention outcomes from treated units are not used in the fitting
 process.  There are two cuts from the remaining data that may be used to
 fit synthetic controls, and each has it's advantages and disadvantages.
 
+### Fitting to control observations
+
+The first cut of the data involves only the control units, but **includes
+both pre and post intervention outcomes**.  In general, any available
+covariates along with some or all of the pre-treatment outcomes are
+included in with the predictors (`X`), and cross validation is conducted by
+dividing the control units into folds, fitting the model on all but a
+hold-out fold, and creating synthetic controls for the held-out fold using
+the fitted model. 
+
+This cut is called the "controls-only" cut, and to implement this scenario,
+we can use `CV_score()` to calculate out-of-sample prediction errors by
+passing matrices containing (1) the covariates and some or all of the
+pre-intervention outcomes and (2) the post-intervention outcomes for the
+control units. 
+
+```python
+CV_score(X = x_and_y_pre, # Covariates and pre-intervention outcomes from the control units
+		 Y = y_post_control, # Post-intervention outcomes from the control units
+		 ...)
+```
+
+Note that the observations from the treated units are not used to optimize 
+the penalty parameters in this scenario.
+
+This scenario has the advantage that if shocks to the system which affect a
+subset of factor loadings occur only in the post-intervention period, the
+prediction accuracy will be superior to that of the later "pre-only" model.
+However, this model has the disadvantage that it is computationally slower,
+owing to the fact that individual components of the gradients must be
+calculated for each control unit during gradient descent.  This is
+discussed more thoroughly in the Optimization section below. 
+
 ### Fitting to pre-treatment observations
 
-The first cut of the data includes all the pre-intervention data
+The second cut of the data includes all the pre-intervention data
 **including both treated and control units**. This cut is called the
 "pre-only" cut, and in this scenario, cross validation is performed by
 holding out a single fold from the treated units, fitting a set of
@@ -59,40 +92,6 @@ CV_score(X = x_control, # Covariates from the control units
 This scenario has the advantage of being the fastest to compute, and may
 have superior prediction (for example in A/A tests) if the treated units
 vary systemically from the control units.
-
-### Fitting to control observations
-
-The second cut of the data involves only the control units, but **includes
-both pre and post intervention outcomes**.  In general, any available
-covariates along with some or all of the pre-treatment outcomes are
-included in with the predictors (`X`), and cross validation is conducted by
-dividing the control units into folds, fitting the model on all but a
-hold-out fold, and creating synthetic controls for the held-out fold using
-the fitted model. 
-
-This cut is called the "controls-only" cut, and to implement this scenario,
-we can use `CV_score()` to calculate out-of-sample prediction errors by
-passing matrices containing (1) the covariates and some or all of the
-pre-intervention outcomes and (2) the post-intervention outcomes for the
-control units. 
-
-```python
-CV_score(X = x_and_y_pre, # Covariates and pre-intervention outcomes from the control units
-		 Y = y_post_control, # Post-intervention outcomes from the control units
-		 ...)
-```
-
-Note that the parameters `x_treat` and `y_treat` are omitted, as
-observations from the treated units are not used to optimize the penalty
-parameters in this scenario.
-
-This scenario has the advantage that if shocks to the system which affect a
-subset of factor loadings occur only in the post-intervention period, the
-prediction accuracy will be superior to that of the pre-only model.
-However, this model has the disadvantage that it is computationally slower,
-owing to the fact that individual components of the gradients must be
-calculated for each control unit during gradient descent.  This is
-discussed more thoroughly in the Optimization section below. 
 
 ### Penalty Parameters
 
