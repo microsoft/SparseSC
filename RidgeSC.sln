@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28010.2016
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "RidgeSC", "RidgeSC\RidgeSC.pyproj", "{3FDC664A-C1C8-47F0-8D77-8E0679E53C82}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Misc", "Misc", "{AA17F266-A75A-4FDE-A774-168EADE9A32E}"
+	ProjectSection(SolutionItems) = preProject
+		example-code.py = example-code.py
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3FDC664A-C1C8-47F0-8D77-8E0679E53C82}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3FDC664A-C1C8-47F0-8D77-8E0679E53C82}.Release|Any CPU.ActiveCfg = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {9EE1A574-A448-4146-B4A8-998CAEAFDD85}
+	EndGlobalSection
+EndGlobal
