@@ -20,7 +20,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="cross_validation.py" />
-    <Compile Include="example-code.py" />
     <Compile Include="fit_ct.py" />
     <Compile Include="fit_fold.py" />
     <Compile Include="fit_loo.py" />

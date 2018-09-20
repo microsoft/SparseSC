@@ -121,44 +121,28 @@ class TestDGPs(unittest.TestCase):
         K, R, F = 5, 5, 5
         X_control, X_treated, Y_pre_control, Y_pre_treated, Y_post_control, Y_post_treated = factor_dgp(C,N,T0,T1,K,R,F,beta_scale = 1)
         
-        X = np.vstack( (X_control, X_treated,) )
-        Y_pre  = np.vstack( (Y_pre_control,  Y_pre_treated, ) )
         Y_post = np.vstack( (Y_post_control, Y_post_treated,) )
-        X_and_Y_pre = np.hstack( ( X, Y_pre,) )
+        X_and_Y_pre_control = np.hstack( ( X_control, Y_pre_control,) )
 
         
         # get the maximum value for the L1 Penalty parameter conditional on the guestimate for the L2 penalty
-        L2_pen_start_loo = SC.L2_pen_guestimate(X_and_Y_pre)
-        L1_max_ct  = SC.get_max_lambda(X_control,Y_pre_control,X_treat=X_treated,Y_treat=Y_pre_treated)
-        L1_max_loo = np.float(147975295.9121998)
+        L2_pen_start_loo = SC.L2_pen_guestimate(X_and_Y_pre_control)
+        L1_max_loo = SC.get_max_lambda(X_and_Y_pre_control[np.arange(100)],Y_post[np.arange(100)]) ####
         
         # ------------------------------------------------------------
         # create a grid of penalties to try 
         # ------------------------------------------------------------
         n_points = 10 # number of points in the grid
 
-        grid_type = "log-linear" # Usually the optimal penalties are quite Small
-
-        if grid_type == "simple":
-            # An equally spaced linear grid that does not include 0 or 1
-            grid = ( 1 + np.arange(n_points) ) / ( 1 + n_points )
-        elif grid_type == "linear":
-            # Another equally spaced linear grid
-            fmax = 1e-3 # lowest point in the grid relative to the max-lambda
-            fmin = 1e-5 # highest point in the grid relative to the max-lambda
-            grid = np.linspace(fmin,fmax,n_points)
-        elif grid_type == "log-linear":
-            # Another equally spaced linear grid
-            fmax = 1e-2 # lowest point in the grid relative to the max-lambda
-            fmin = 1e-4 # highest point in the grid relative to the max-lambda
-            grid = np.exp(np.linspace(np.log(fmin),np.log(fmax),n_points))
-        else:
-            raise ValueError("Unknown grid type: %s" % grid_type)
+        # Another equally spaced linear grid
+        fmax = 1e-2 # lowest point in the grid relative to the max-lambda
+        fmin = 1e-4 # highest point in the grid relative to the max-lambda
+        grid = np.exp(np.linspace(np.log(fmin),np.log(fmax),n_points))
         
-        print("Starting grid scoring for Controls Only scenario with 5-fold gradient descent", grid*L1_max_ct)
+        print("Starting grid scoring for Controls Only scenario with 5-fold gradient descent", grid*L1_max_loo)
         grid_scores_loo = SC.CV_score(
-            X = X_and_Y_pre, # limit the amount of time...
-            Y = Y_post     , # limit the amount of time...
+            X = X_and_Y_pre_control, # limit the amount of time...
+            Y = Y_post_control     , # limit the amount of time...
 
             # this is what enables the k-fold gradient descent
             grad_splits = 5,
@@ -183,6 +167,21 @@ class TestDGPs(unittest.TestCase):
 
             # ANNOUNCE COMPLETION OF EACH ITERATION
             progress = True)
+        best_LAMBDA = (grid * L1_max_loo)[np.argmin(grid_scores_loo)]
+        V_loo = SC.tensor(X = X_and_Y_pre_control,
+			  Y = Y_post_control,
+
+			  LAMBDA = best_LAMBDA,
+
+			  # Also optional
+			  L2_PEN_W = L2_pen_start_loo)
+        SC_weights_loo = SC.weights(X = X_and_Y_pre_control,
+                            V = V_loo,
+                            L2_PEN_W = L2_pen_start_loo)
+        Y_pre  = np.vstack( (Y_pre_control,  Y_pre_treated, ) )
+        Y_post = np.vstack( (Y_post_control, Y_post_treated,) )
+        Y = np.hstack( (Y_pre, Y_post) )
+        synthetic_conrols = SC_weights_loo.dot(Y_control)
 
         #self.failUnlessEqual(calc, truth)
 

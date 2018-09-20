@@ -7,10 +7,11 @@ python example-code.py
 
 import os
 import sys
-sys.path.append(os.path.join(os.getcwd(),"../RidgeSC"))
+sys.path.append(os.path.join(os.getcwd(),"RidgeSC"))
 
 import time
 import RidgeSC as SC
+from RidgeSC.tests import ge_dgp
 import numpy as np
 import random
 
@@ -39,75 +40,8 @@ if __name__ == "__main__":
     # Scale of the Correlation of the Causal Covariates
     beta_scale,confounders_scale = 4,1
 
-    # ------------------------------------------------------------
-
-    # COVARIATE EFFECTS
-    X_control = np.matrix(np.random.normal(0,1,((C)*groups, K+S+R)))
-    X_treated = np.matrix(np.random.normal(0,1,((N)*groups, K+S+R)))
-
-    # CAUSAL 
-    b_cause = np.random.exponential(1,K)
-    b_cause *= beta_scale / b_cause.max()
-
-    # CONFOUNDERS 
-    b_confound = np.random.exponential(1,S)
-    b_confound *= confounders_scale / b_confound.max()
-
-    beta_control = np.matrix(np.concatenate( ( b_cause ,b_confound,  np.zeros(R)) ) ).T
-    beta_treated = np.matrix(np.concatenate( ( b_cause ,np.zeros(S), np.zeros(R)) ) ).T
-
-    # GROUP EFFECTS (hidden)
-
-    Y_pre_group_effects = np.random.normal(0,group_scale,(groups,T0))
-    Y_pre_ge_control = Y_pre_group_effects[np.repeat(np.arange(groups),C)]
-    Y_pre_ge_treated = Y_pre_group_effects[np.repeat(np.arange(groups),N)]
-
-    Y_post_group_effects = np.random.normal(0,group_scale,(groups,T1))
-    Y_post_ge_control = Y_post_group_effects[np.repeat(np.arange(groups),C)]
-    Y_post_ge_treated = Y_post_group_effects[np.repeat(np.arange(groups),N)]
-
-    # RANDOM ERRORS
-    Y_pre_err_control = np.matrix(np.random.random( ( C*groups, T0, ) )) 
-    Y_pre_err_treated = np.matrix(np.random.random( ( N*groups, T0, ) )) 
-
-    Y_post_err_control = np.matrix(np.random.random( ( C*groups, T1, ) )) 
-    Y_post_err_treated = np.matrix(np.random.random( ( N*groups, T1, ) )) 
-
-    # THE DATA GENERATING PROCESS
-    model = "full"
-
-    if model == "full":
-        """ In the full model, covariates (X) are correlated with pre and post
-            outcomes, and variance of the outcomes pre- and post- outcomes is
-            lower within groups which span both treated and control units.
-        """
-        Y_pre_control = X_control.dot(beta_control) + Y_pre_ge_control + Y_pre_err_control 
-        Y_pre_treated = X_treated.dot(beta_treated) + Y_pre_ge_treated + Y_pre_err_treated 
-
-        Y_post_control = X_control.dot(beta_control) + Y_post_ge_control + Y_post_err_control 
-        Y_post_treated = X_treated.dot(beta_treated) + Y_post_ge_treated + Y_post_err_treated 
-
-    elif model == "hidden":
-        """ In the hidden model outcomes are independent of the covariates, but
-            variance of the outcomes pre- and post- outcomes is lower within
-            groups which span both treated and control units.
-        """
-        Y_pre_control = Y_pre_ge_control + Y_pre_err_control 
-        Y_pre_treated = Y_pre_ge_treated + Y_pre_err_treated 
-
-        Y_post_control = Y_post_ge_control + Y_post_err_control 
-        Y_post_treated = Y_post_ge_treated + Y_post_err_treated 
-
-    elif model == "null":
-        "Purely random data" 
-        Y_pre_control = Y_pre_err_control 
-        Y_pre_treated = Y_pre_err_treated 
-
-        Y_post_control = Y_post_err_control 
-        Y_post_treated = Y_post_err_treated 
-
-    else:
-        raise ValueError("Unknown model type: "+model)
+    X_control, X_treated, Y_pre_control, Y_pre_treated, \
+        Y_post_control, Y_post_treated = ge_dgp(C,N,T0,T1,K,S,R,groups,group_scale,beta_scale,confounders_scale,model= "full")
 
     # JOIN THE TREAT AND CONTROL DATA
     X = np.vstack( (X_control, X_treated,) )
@@ -116,6 +50,7 @@ if __name__ == "__main__":
 
     # in the leave-one-out scneario, the pre-treatment outcomes will be part of the covariates
     X_and_Y_pre = np.hstack( ( X, Y_pre,) )
+    X_and_Y_pre_control = np.hstack( ( X_control, Y_pre_control,) )
 
     # IDENTIFIERS FOR TREAT AND CONTROL UNITS
     # control_units = np.arange( C * groups )
@@ -129,12 +64,12 @@ if __name__ == "__main__":
 
     # get starting point for the L2 penalty 
     L2_pen_start_ct  = SC.L2_pen_guestimate(X_control)
-    L2_pen_start_loo = SC.L2_pen_guestimate(X_and_Y_pre)
+    L2_pen_start_loo = SC.L2_pen_guestimate(X_and_Y_pre_control)
 
     # get the maximum value for the L1 Penalty parameter conditional on the guestimate for the L2 penalty
     L1_max_ct  = SC.get_max_lambda(X_control,Y_pre_control,X_treat=X_treated,Y_treat=Y_pre_treated)
     if False:
-        L1_max_loo = SC.get_max_lambda(X_and_Y_pre[np.arange(100)],Y_post[np.arange(100)])
+        L1_max_loo = SC.get_max_lambda(X_and_Y_pre_control[np.arange(100)],Y_post[np.arange(100)])
         print("Max L1 loo %s " % L1_max_loo)
     else:
         L1_max_loo = np.float(147975295.9121998)
@@ -216,10 +151,10 @@ if __name__ == "__main__":
 
     if False:
 
-        print("Starting grid scoring for Controls Only scenario with 5-fold gradient descent", grid*L1_max_ct)
+        print("Starting grid scoring for Controls Only scenario with 5-fold gradient descent", grid*L1_max_loo)
         grid_scores_loo = SC.CV_score(
-            X = X_and_Y_pre, # limit the amount of time...
-            Y = Y_post     , # limit the amount of time...
+            X = X_and_Y_pre_control, # limit the amount of time...
+            Y = Y_post_control     , # limit the amount of time...
 
             # this is what enables the k-fold gradient descent
             grad_splits = 5,
@@ -248,10 +183,10 @@ if __name__ == "__main__":
     if False:
 
         # even with smaller data, this takes a while.
-        print("Starting grid scoring for Controls Only scenario with leave-one-out gradient descent", grid*L1_max_ct)
+        print("Starting grid scoring for Controls Only scenario with leave-one-out gradient descent", grid*L1_max_loo)
         grid_scores_loo = SC.CV_score(
-            X = X_and_Y_pre [np.arange(100)], # limit the amount of time...
-            Y = Y_post      [np.arange(100)], # limit the amount of time...
+            X = X_and_Y_pre_control [np.arange(100)], # limit the amount of time...
+            Y = Y_post_control     [np.arange(100)], # limit the amount of time...
 
             # with `grad_splits = None` (the default behavior) we get leave-one-out gradient descent.
             grad_splits = None,
@@ -319,22 +254,22 @@ if __name__ == "__main__":
         V_loo = SC.tensor(
                 X = X_and_Y_pre [np.arange(100)], # limit the amount of time...
                 Y = Y_post      [np.arange(100)], # limit the amount of time...
-                LAMBDA = best_L1_penalty_ct,
+                LAMBDA = best_L1_penalty_loo,
                 L2_PEN_W = L2_pen_start_loo)
 
         SC_weights_loo = SC.weights(X = X_control,
-                                    V = V_ct,
+                                    V = V_loo,
                                     L2_PEN_W = L2_pen_start_loo)
 
         # in progress...
         import pdb; pdb.set_trace()
 
-        Y_post_treated_synthetic_conrols_loo = SC_weights_ct.dot(Y_post_control)
+        Y_post_treated_synthetic_conrols_loo = SC_weights_loo.dot(Y_post_control)
         loo_prediction_error = Y_post_treated_synthetic_conrols_loo - Y_post_treated
         null_model_error = Y_post_treated - np.mean(Y_pre_treated)
-        R_squared_post_ct = 1 - np.power(loo_prediction_error,2).sum() / np.power(null_model_error,2).sum()
+        R_squared_post_loo = 1 - np.power(loo_prediction_error,2).sum() / np.power(null_model_error,2).sum()
 
-        print( "LOO: Out of Sample post intervention R squared: %0.2f%% " % (100*R_squared_post_ct,))
+        print( "LOO: Out of Sample post intervention R squared: %0.2f%% " % (100*R_squared_post_loo,))
 
         import pdb; pdb.set_trace()
 
