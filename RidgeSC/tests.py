@@ -178,14 +178,17 @@ class TestDGPs(unittest.TestCase):
         SC_weights_loo = SC.weights(X = X_and_Y_pre_control,
                             V = V_loo,
                             L2_PEN_W = L2_pen_start_loo)
-        Y_pre  = np.vstack( (Y_pre_control,  Y_pre_treated, ) )
-        Y_post = np.vstack( (Y_post_control, Y_post_treated,) )
+        Y_pre  = np.vstack( (Y_pre_treated, Y_pre_control,  ) )
+        Y_post = np.vstack( (Y_post_treated, Y_post_control, ) )
         Y = np.hstack( (Y_pre, Y_post) )
-        synthetic_conrols = SC_weights_loo.dot(Y_control)
+
+        est_res = SC.estimate_effects(Y_pre, Y_post, X_and_Y_pre_control, V_loo, [1], L2_pen_start_loo)
+
 
         #self.failUnlessEqual(calc, truth)
 
 if __name__ == '__main__':
     random.seed(12345)
     np.random.seed(10101)
+
     unittest.main()
