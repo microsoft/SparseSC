@@ -34,9 +34,9 @@ def loo_v_matrix(X,
     :param L2_PEN_W: L2 penalty on the magnitude of the deviance of the weight vector from null. Optional.
     :param method: The name of a method to be used by scipy.optimize.minimize, or a callable with the same API as scipy.optimize.minimize
     :param intercept: If True, weights are penalized toward the 1 / the number of controls, else weights are penalized toward zero
-    :;aram max_lambda: if True, the return value is the maximum L1 penalty for which at least one element of the tensor matrix is non-zero
-    :;aram solve_method: Method for solving A.I.dot(B). Either "standard" or "step-down". https://math.stackexchange.com/a/208021/252693
-    :param **kwargs: additional arguments passed to the optimizer
+    :param max_lambda: if True, the return value is the maximum L1 penalty for which at least one element of the tensor matrix is non-zero
+    :param solve_method: Method for solving A.I.dot(B). Either "standard" or "step-down". https://math.stackexchange.com/a/208021/252693
+    :param kwargs: additional arguments passed to the optimizer
 
     '''
     # (by default all the units are treated and all are controls)

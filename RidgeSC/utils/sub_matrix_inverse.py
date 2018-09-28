@@ -39,9 +39,10 @@ import numpy as np
 #-- jjkkjtu = x[np.ix_(k_rng,k_rng)].I
 
 def all_subinverses(x,eps=None):
-    """ Given an matrix (x), calculate all the inverses of leave-one-out sub-matrices. 
-    param: x a square matrix for which to find the inverses of all it's leave one out sub-matrices.
-    param: eps If not None, used to assert that the each calculated
+    """ Given an matrix (x), calculate all the inverses of leave-one-out sub-matrices.
+    
+    :param x: a square matrix for which to find the inverses of all it's leave one out sub-matrices.
+    :param eps: If not None, used to assert that the each calculated
            sub-matrix-inverse is within eps of the brute force calculation.
            Testing only, this slows the process way down since the inverse of
            each sub-matrix is calculated by the brute force method. Typically
@@ -62,9 +63,10 @@ def all_subinverses(x,eps=None):
 
 def subinv_k(xi,k,eps=None):
     """ Given an matrix (x), calculate all the inverses of leave-one-out sub-matrices. 
-    param: x a square matrix for which to find the inverses of all it's leave one out sub-matrices.
-    param: k the column and row to leave out
-    param: eps If not None, used to assert that the each calculated
+
+    :param x: a square matrix for which to find the inverses of all it's leave one out sub-matrices.
+    :param k: the column and row to leave out
+    :param eps: If not None, used to assert that the each calculated
            sub-matrix-inverse is within eps of the brute force calculation.
            Testing only, this slows the process way down since the inverse of
            each sub-matrix is calculated by the brute force method. Typically

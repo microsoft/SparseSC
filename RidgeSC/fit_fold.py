@@ -39,13 +39,13 @@ def fold_v_matrix(X,
                    or a callable with the same API as scipy.optimize.minimize
     :param intercept: If True, weights are penalized toward the 1 / the number
                     of controls, else weights are penalized toward zero
-    :;aram max_lambda: if True, the return value is the maximum L1 penalty for
+    :param max_lambda: if True, the return value is the maximum L1 penalty for
                        which at least one element of the tensor matrix is
                        non-zero
-    :;aram grad_splits: Splits for Fitted v.s. Control units in each gradient
+    :param grad_splits: Splits for Fitted v.s. Control units in each gradient
                         descent step. An integer, or a list/generator of train
                         and test units in each fold of the gradient descent.
-    :param **kwargs: additional arguments passed to the optimizer
+    :param kwargs: additional arguments passed to the optimizer
 
     '''
     # (by default all the units are treated and all are controls)

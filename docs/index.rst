@@ -10,7 +10,7 @@ Welcome to RidgeSC's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   build/apidoc/RidgeSC
+   build/apidoc/RidgeSC/RidgeSC
 
 
 Indices and tables

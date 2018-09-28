@@ -15,7 +15,7 @@ readmedocs:
 	pandoc README.md -f markdown -t docx -o docs/SyntheticControlsReadme.docx
 
 pylint:
-	pylint RidgeSC
+	pylint RidgeSC > build/pylint_msgs.txt
 
 # You can set these variables from the command line.
 SPHINXOPTS    =
@@ -28,6 +28,7 @@ BUILDAPIDOCDIR= docs\build\apidoc
 SPHINXAPIDOC  = sphinx-apidoc
 htmldocs:
 	-rmdir /S /Q $(BUILDDIRHTML)
+	-rmdir /S /Q $(BUILDAPIDOCDIR)
 	$(SPHINXAPIDOC) -f -o $(BUILDAPIDOCDIR)/RidgeSC RidgeSC
-  del $(BUILDAPIDOCDIR)\modules.rst
+  del $(BUILDAPIDOCDIR)\RidgeSC\modules.rst
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
