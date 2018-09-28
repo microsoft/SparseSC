@@ -7,6 +7,8 @@ This package requires [numpy](http://www.numpy.org/),
 Numpy 1.14.1, and Scipy 1.0.0 )  and ( Python 3.5.5, Numpy 1.13.1, and
 Scipy 1.0.1 )
 
+To build the documentation you will need Sphinx and recommonmark (to incorporate .md files)
+
 # Overview 
 
 When estimating synthetic controls, units of observation are divided into

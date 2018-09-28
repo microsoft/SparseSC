@@ -23,6 +23,7 @@ persistent=yes
 #load-plugins=
 #If we want to check the format of the docstrins https://docs.pylint.org/en/pylint-1.5/extensions.html
 # (see also the missing-docstring checker which is disabled below)
+# This is called docparams in pylint version 1.6
 load-plugins=pylint.extensions.check_docs
 
 # Use multiple processes to speed up Pylint.

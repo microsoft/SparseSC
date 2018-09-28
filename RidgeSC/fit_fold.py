@@ -44,7 +44,6 @@ def fold_v_matrix(X,
     :param grad_splits: Splits for Fitted v.s. Control units in each gradient
                         descent step. An integer, or a list/generator of train
                         and test units in each fold of the gradient descent.
-
     :param random_state: Integer, used for setting the random state for consistency of fold splits across calls
     :param verbose: If true, print progress to the console (default: false)
     :param kwargs: additional arguments passed to the optimizer

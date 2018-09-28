@@ -27,9 +27,9 @@ def ct_v_matrix(X,
     :param control_units: a list containing the position (rows) of the control units within X and Y
     :param start: initial values for the diagonals of the tensor matrix
     :param L2_PEN_W: L2 penalty on the magnitude of the deviance of the weight vector from null. Optional.
-    :param method: The name of a method to be used by scipy.optimize.minimize,
+    :param method: The name of a method to be used by scipy.optimize.minimize, 
         or a callable with the same API as scipy.optimize.minimize
-    :param intercept: If True, weights are penalized toward the 1 / the number
+    :param intercept: If True, weights are penalized toward the 1 / the number 
         of controls, else weights are penalized toward zero
     :param max_lambda: if True, the return value is the maximum L1 penalty for
         which at least one element of the tensor matrix is non-zero
