@@ -1,7 +1,5 @@
-from numpy import dot, ones, diag, matrix, zeros, array,absolute, mean,var, linalg, prod,shape,sqrt
+from numpy import ones, diag, matrix, zeros, absolute, mean,var, linalg, prod, sqrt
 import numpy as np
-import itertools
-import timeit
 import warnings
 from RidgeSC.optimizers.cd_line_search import cdl_search
 warnings.filterwarnings('ignore')
@@ -29,11 +27,20 @@ def ct_v_matrix(X,
     :param control_units: a list containing the position (rows) of the control units within X and Y
     :param start: initial values for the diagonals of the tensor matrix
     :param L2_PEN_W: L2 penalty on the magnitude of the deviance of the weight vector from null. Optional.
-    :param method: The name of a method to be used by scipy.optimize.minimize, or a callable with the same API as scipy.optimize.minimize
-    :param intercept: If True, weights are penalized toward the 1 / the number of controls, else weights are penalized toward zero
-    :;aram max_lambda: if True, the return value is the maximum L1 penalty for which at least one element of the tensor matrix is non-zero
-    :param **kwargs: additional arguments passed to the optimizer
+    :param method: The name of a method to be used by scipy.optimize.minimize,
+        or a callable with the same API as scipy.optimize.minimize
+    :param intercept: If True, weights are penalized toward the 1 / the number
+        of controls, else weights are penalized toward zero
+    :param max_lambda: if True, the return value is the maximum L1 penalty for
+        which at least one element of the tensor matrix is non-zero
+    :param verbose: If true, print progress to the console (default: false)
+    :param kwargs: additional arguments passed to the optimizer
 
+    :raises ValueError: raised when parameter values are invalid
+    :raises TypeError: raised when parameters are of the wrong type
+
+    :return: something something
+    :rtype: something something
     '''
     # DEFAULTS
     if treated_units is None: 
@@ -45,20 +52,29 @@ def ct_v_matrix(X,
         control_units = list(set(range(X.shape[0])) - set(treated_units)) 
 
     # Parameter QC
-    if len(set(treated_units).intersection(control_units)):
+    if set(treated_units).intersection(control_units):
         raise ValueError("Treated and Control units must be exclusive")
-    if not isinstance(X, matrix): raise TypeError("X is not a matrix")
-    if not isinstance(Y, matrix): raise TypeError("Y is not a matrix")
-    if X.shape[1] == 0: raise ValueError("X.shape[1] == 0")
-    if Y.shape[1] == 0: raise ValueError("Y.shape[1] == 0")
-    if X.shape[0] != Y.shape[0]: raise ValueError("X and Y have different number of rows (%s and %s)" % (X.shape[0], Y.shape[0],))
-    if not isinstance(LAMBDA, (float, int)): raise TypeError( "LAMBDA is not a number")
-    if L2_PEN_W is None: L2_PEN_W = mean(var(X, axis = 0))
-    if not isinstance(L2_PEN_W, (float, int)): raise TypeError( "L2_PEN_W is not a number")
+    if not isinstance(X, matrix):
+        raise TypeError("X is not a matrix")
+    if not isinstance(Y, matrix):
+        raise TypeError("Y is not a matrix")
+    if X.shape[1] == 0:
+        raise ValueError("X.shape[1] == 0")
+    if Y.shape[1] == 0:
+        raise ValueError("Y.shape[1] == 0")
+    if X.shape[0] != Y.shape[0]: 
+        raise ValueError("X and Y have different number of rows (%s and %s)" % (X.shape[0], Y.shape[0],))
+    if not isinstance(LAMBDA, (float, int)):
+        raise TypeError( "LAMBDA is not a number")
+    if L2_PEN_W is None:
+        L2_PEN_W = mean(var(X, axis = 0))
+    if not isinstance(L2_PEN_W, (float, int)):
+        raise TypeError( "L2_PEN_W is not a number")
 
     # CONSTANTS
     C, N, K = len(control_units), len(treated_units), X.shape[1]
-    if start is None: start = zeros(K) # formerly: .1 * ones(K) 
+    if start is None: 
+        start = zeros(K) # formerly: .1 * ones(K) 
     Y_treated = Y[treated_units,:]
     Y_control = Y[control_units,:]
     X_treated = X[treated_units,:]
@@ -78,7 +94,8 @@ def ct_v_matrix(X,
         dv = diag(V)
         weights, _, _ ,_ = _weights(dv)
         Ey = (Y_treated - weights.T.dot(Y_control)).getA()
-        return ((Ey **2).sum() + LAMBDA * absolute(V).sum()).copy() # (...).copy() assures that x.flags.writeable is True
+        # note that (...).copy() assures that x.flags.writeable is True:
+        return ((Ey **2).sum() + LAMBDA * absolute(V).sum()).copy() 
 
     def _grad(V):
         """ Calculates just the diagonal of dGamma0_dV
@@ -86,7 +103,7 @@ def ct_v_matrix(X,
             There is an implementation that allows for all elements of V to be varied...
         """
         dv = diag(V)
-        weights, A, B, AinvB = _weights(dv)
+        weights, A, _, AinvB = _weights(dv)
         Ey = (Y_treated - weights.T.dot(Y_control)).getA()
         dGamma0_dV_term2 = zeros(K)
         dPI_dV = zeros((C, N))
@@ -149,7 +166,7 @@ def ct_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, inter
     if control_units is None: 
         control_units = list(set(range(X.shape[0])) - set(treated_units)) 
 
-    C, N, K = len(control_units), len(treated_units), X.shape[1]
+    C = len(control_units)
     X_treated = X[treated_units,:]
     X_control = X[control_units,:]
 
@@ -169,10 +186,14 @@ def ct_score(Y, X, V, L2_PEN_W, LAMBDA = 0, treated_units = None, control_units 
         treated_units = list(set(range(X.shape[0])) - set(control_units))  
     if control_units is None: 
         control_units = list(set(range(X.shape[0])) - set(treated_units)) 
-    weights = ct_weights(X = X, V = V, L2_PEN_W = L2_PEN_W, treated_units = treated_units, control_units = control_units,**kwargs)
+    weights = ct_weights(X = X,
+                         V = V,
+                         L2_PEN_W = L2_PEN_W,
+                         treated_units = treated_units,
+                         control_units = control_units,
+                         **kwargs)
     Y_tr = Y[treated_units, :]
     Y_c = Y[control_units, :]
     Ey = (Y_tr - weights.dot(Y_c)).getA()
     np.power(Y_tr - np.mean(Y_tr),2).sum()
     return (Ey **2).sum() + LAMBDA * V.sum()
-
