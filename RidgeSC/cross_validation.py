@@ -337,6 +337,42 @@ def CV_score(X,Y,
 
     return total_score
 
+def joint_penalty_optimzation(X, Y, L1_pen_start, L2_pen_start, bounds, X_treat = None, Y_treat = None):
+    from scipy.optimize import fmin_l_bfgs_b, differential_evolution 
+    import time
+
+    # -----------------------------------------------------------------
+    # Optimization of the L2 and L1 Penalties Simultaneously, keeping their
+    # product constant.  Heuristically, this has been most efficient means of
+    # optimizing the L2 Parameter.
+    # -----------------------------------------------------------------
+
+
+    # build the objective function to be minimized
+
+    # cache for L2_obj_func
+    n_calls = [0,]
+    temp_results =[]
+
+    def L1_L2_obj_func (x): 
+        n_calls[0] += 1
+        t1 = time.time();
+        score = CV_score(X = X, Y = Y,
+                            X_treat = X_treat, Y_treat = Y_treat,
+                            # if LAMBDA is a single value, we get a single score, If it's an array of values, we get an array of scores.
+                            LAMBDA = L1_pen_start * np.exp(x[0]),
+                            L2_PEN_W = L2_pen_start / np.exp(x[0]),
+                            # suppress the analysis type message
+                            quiet = True)
+        t2 = time.time(); 
+        temp_results.append((n_calls[0],x,score))
+        print("calls: %s, time: %0.4f, x0: %0.4f, Cross Validation Error: %s" % (n_calls[0], t2 - t1, x[0], score))
+        #print("calls: %s, time: %0.4f, x0: %0.4f, x1: %0.4f, Cross Validation Error: %s, R-Squared: %s" % (n_calls[0], t2 - t1, x[0], x[1], score, 1 - score / SS ))
+        return score
+
+    # the actual optimization
+    diff_results = differential_evolution(L1_L2_obj_func, bounds = bounds)
+    return diff_results
 
 # ------------------------------------------------------------
 # utilities for maintaining a worker pool
