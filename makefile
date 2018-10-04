@@ -23,12 +23,29 @@ SPHINXBUILD   = python -msphinx
 SPHINXPROJ    = RidgeSC
 SOURCEDIR     = docs/
 BUILDDIR      = docs/build
-BUILDDIRHTML  = docs\build\html
-BUILDAPIDOCDIR= docs\build\apidoc
 SPHINXAPIDOC  = sphinx-apidoc
+
+# \
+!ifndef 0 # \
+# nmake code here \
+RMDIR_CMD = rmdir /S /Q # \
+RM_CMD = del # \
+BUILDDIRHTML  = docs\build\html # \
+BUILDAPIDOCDIR= docs\build\apidoc # \
+MOD_FILENAME = $(BUILDAPIDOCDIR)\RidgeSC\modules.rst # \
+!else
+# make code here
+RMDIR_CMD = rm -rf
+RM_CMD = rm
+BUILDDIRHTML  = docs/build/html
+BUILDAPIDOCDIR= docs/build/apidoc
+MOD_FILENAME = $(BUILDAPIDOCDIR)/RidgeSC/modules.rst
+# \
+!endif
+
 htmldocs:
-	-rmdir /S /Q $(BUILDDIRHTML)
-	-rmdir /S /Q $(BUILDAPIDOCDIR)
+	-$(RMDIR_CMD) $(BUILDDIRHTML)
+	-$(RMDIR_CMD) $(BUILDAPIDOCDIR)
 	$(SPHINXAPIDOC) -f -o $(BUILDAPIDOCDIR)/RidgeSC RidgeSC
-  del $(BUILDAPIDOCDIR)\RidgeSC\modules.rst
+	$(RM_CMD) $(MOD_FILENAME)
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
