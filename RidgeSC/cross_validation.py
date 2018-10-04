@@ -361,7 +361,7 @@ def joint_penalty_optimzation(X, Y, L1_pen_start, L2_pen_start, bounds, X_treat 
                             X_treat = X_treat, Y_treat = Y_treat,
                             # if LAMBDA is a single value, we get a single score, If it's an array of values, we get an array of scores.
                             LAMBDA = L1_pen_start * np.exp(x[0]),
-                            L2_PEN_W = L2_pen_start / np.exp(x[0]),
+                            L2_PEN_W = L2_pen_start * np.exp(x[1]),
                             # suppress the analysis type message
                             quiet = True)
         t2 = time.time(); 
@@ -372,6 +372,8 @@ def joint_penalty_optimzation(X, Y, L1_pen_start, L2_pen_start, bounds, X_treat 
 
     # the actual optimization
     diff_results = differential_evolution(L1_L2_obj_func, bounds = bounds)
+    diff_results.x[0] = L1_pen_start * np.exp(diff_results.x[0])
+    diff_results.x[1] = L2_pen_start * np.exp(diff_results.x[1])
     return diff_results
 
 # ------------------------------------------------------------

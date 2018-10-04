@@ -381,8 +381,8 @@ if __name__ == "__main__":
     results = SC.joint_penalty_optimzation(X = X_control, Y = Y_pre_control, L1_pen_start = best_L1_penalty_ct, L2_pen_start = L2_pen_start_ct, bounds = ((-6,6,),)*2, X_treat = X_treated, Y_treat = Y_pre_treated)
 
     import pdb; pdb.set_trace()
-    NEW_best_L1_penalty_ct = best_L1_penalty_ct * np.exp(results.x[0])
-    best_L2_penalty = L2_pen_start_ct * np.exp(results.x[1])
+    NEW_best_L1_penalty_ct = results.x[0]
+    best_L2_penalty = results.x[1]
 
     print("DE optimized L2 Penalty: %s, DE optimized  L1 penalty: %s"  % (NEW_best_L1_penalty_ct, best_L2_penalty,) )
 
