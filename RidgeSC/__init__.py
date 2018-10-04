@@ -1,6 +1,6 @@
 
 # PRIMARY FITTING FUNCTIONS
-from RidgeSC.fit_loo import loo_v_matrix, loo_weights, loo_score
+from RidgeSC.fit_loo import loo_v_matrix, loo_weights, loo_score, estimate_effects
 from RidgeSC.fit_ct import ct_v_matrix, ct_weights, ct_score
 
 # Public API
