@@ -288,122 +288,97 @@ if __name__ == "__main__":
     # product constant.  Heuristically, this has been most efficient means of
     # optimizing the L2 Parameter.
     # -----------------------------------------------------------------
+    if False:
+        # build the objective function to be minimized
 
+        # cache for L2_obj_func
+        n_calls = [0,]
+        temp_results =[]
+        SS = np.power(Y_pre_treated - np.mean(Y_pre_treated),2).sum()
+        best_L1_penalty_ct = np.float(1908.9329)
 
-    # build the objective function to be minimized
+        def L1_L2_const_obj_func (x): 
+            n_calls[0] += 1
+            t1 = time.time();
+            score = SC.CV_score(X = X_control,
+                                Y = Y_pre_control,
+                                X_treat = X_treated,
+                                Y_treat = Y_pre_treated,
+                                # if LAMBDA is a single value, we get a single score, If it's an array of values, we get an array of scores.
+                                LAMBDA = best_L1_penalty_ct * np.exp(x[0]),
+                                L2_PEN_W = L2_pen_start_ct / np.exp(x[0]),
+                                # suppress the analysis type message
+                                quiet = True)
+            t2 = time.time(); 
+            temp_results.append((n_calls[0],x,score))
+            print("calls: %s, time: %0.4f, x0: %0.4f, Cross Validation Error: %s, out-of-sample R-Squared: %s" % (n_calls[0], t2 - t1, x[0], score, 1 - score / SS ))
+            #print("calls: %s, time: %0.4f, x0: %0.4f, x1: %0.4f, Cross Validation Error: %s, R-Squared: %s" % (n_calls[0], t2 - t1, x[0], x[1], score, 1 - score / SS ))
+            return score
 
-    # cache for L2_obj_func
-    n_calls = [0,]
-    temp_results =[]
-    SS = np.power(Y_pre_treated - np.mean(Y_pre_treated),2).sum()
-    best_L1_penalty_ct = np.float(1908.9329)
+        # the actual optimization
+        print("Starting L1-L2 Penalty (product constant) optimization")
 
-    def L1_L2_obj_func (x): 
-        n_calls[0] += 1
-        t1 = time.time();
-        score = SC.CV_score(X = X_control,
-                            Y = Y_pre_control,
-                            X_treat = X_treated,
-                            Y_treat = Y_pre_treated,
-                            # if LAMBDA is a single value, we get a single score, If it's an array of values, we get an array of scores.
-                            LAMBDA = best_L1_penalty_ct * np.exp(x[0]),
-                            L2_PEN_W = L2_pen_start_ct / np.exp(x[0]),
-                            # suppress the analysis type message
-                            quiet = True)
-        t2 = time.time(); 
-        temp_results.append((n_calls[0],x,score))
-        print("calls: %s, time: %0.4f, x0: %0.4f, Cross Validation Error: %s, out-of-sample R-Squared: %s" % (n_calls[0], t2 - t1, x[0], score, 1 - score / SS ))
-        #print("calls: %s, time: %0.4f, x0: %0.4f, x1: %0.4f, Cross Validation Error: %s, R-Squared: %s" % (n_calls[0], t2 - t1, x[0], x[1], score, 1 - score / SS ))
-        return score
+        #results = differential_evolution(L1_L2_const_obj_func, bounds = ((-6,6,),)  )
+        #results = differential_evolution(L1_L2_obj_func, bounds = ((-6,6,),)*2  )
 
-    # the actual optimization
-    print("Starting L2 Penalty optimization")
+        import pdb; pdb.set_trace()
+        NEW_best_L1_penalty_ct = best_L1_penalty_ct * np.exp(results.x[0])
+        best_L2_penalty = L2_pen_start_ct * np.exp(results.x[1])
 
-    results = differential_evolution(L1_L2_obj_func, bounds = ((-6,6,),)  )
-    #results = differential_evolution(L1_L2_obj_func, bounds = ((-6,6,),)*2  )
-
-    import pdb; pdb.set_trace()
-    NEW_best_L1_penalty_ct = best_L1_penalty_ct * np.exp(results.x[0])
-    best_L2_penalty = L2_pen_start_ct * np.exp(results.x[1])
-
-    print("DE optimized L2 Penalty: %s, DE optimized  L1 penalty: %s"  % (NEW_best_L1_penalty_ct, best_L2_penalty,) )
+        print("DE optimized L2 Penalty: %s, DE optimized  L1 penalty: %s"  % (NEW_best_L1_penalty_ct, best_L2_penalty,) )
 
     # -----------------------------------------------------------------
     # Optimization of the L2 Parameter alone
     # -----------------------------------------------------------------
+    if False:
+        # -----------------------
+        # build the objective function to be minimized
+        # -----------------------
 
-    # -----------------------
-    # build the objective function to be minimized
-    # -----------------------
+        # OBJECTIVE FUNCTION(S) TO MINIMIZE USING DE
 
-    # OBJECTIVE FUNCTION(S) TO MINIMIZE USING DE
+        # cache for L2_obj_func
+        n_calls = [0,]
+        temp_results =[]
+        SS = np.power(Y_pre_treated - np.mean(Y_pre_treated),2).sum()
+        best_L1_penalty_ct = np.float(1908.9329)
 
-    # cache for L2_obj_func
-    n_calls = [0,]
-    temp_results =[]
-    SS = np.power(Y_pre_treated - np.mean(Y_pre_treated),2).sum()
-    best_L1_penalty_ct = np.float(1908.9329)
+        def L2_obj_func (x): 
+            n_calls[0] += 1
+            t1 = time.time();
 
-    def L2_obj_func (x): 
-        n_calls[0] += 1
-        t1 = time.time();
-
-        score = SC.CV_score(X = X_control,
-                            Y = Y_pre_control,
-                            X_treat = X_treated,
-                            Y_treat = Y_pre_treated,
-                            # if LAMBDA is a single value, we get a single score, If it's an array of values, we get an array of scores.
-                            LAMBDA = best_L1_penalty_ct,
-                            L2_PEN_W = L2_pen_start_ct * np.exp(x[0]),
-                            # suppress the analysis type message
-                            quiet = True)
+            score = SC.CV_score(X = X_control,
+                                Y = Y_pre_control,
+                                X_treat = X_treated,
+                                Y_treat = Y_pre_treated,
+                                # if LAMBDA is a single value, we get a single score, If it's an array of values, we get an array of scores.
+                                LAMBDA = best_L1_penalty_ct,
+                                L2_PEN_W = L2_pen_start_ct * np.exp(x[0]),
+                                # suppress the analysis type message
+                                quiet = True)
         
-        t2 = time.time(); 
-        temp_results.append((n_calls[0],x,score))
-        print("calls: %s, time: %0.4f, x0: %0.4f, Cross Validation Error: %s, out-of-sample R-Squared: %s" %
-                (n_calls[0], t2 - t1, x[0], score, 1 - score / SS ))
-        return score
+            t2 = time.time(); 
+            temp_results.append((n_calls[0],x,score))
+            print("calls: %s, time: %0.4f, x0: %0.4f, Cross Validation Error: %s, out-of-sample R-Squared: %s" %
+                    (n_calls[0], t2 - t1, x[0], score, 1 - score / SS ))
+            return score
 
-    # the actual optimization
-    print("Starting L2 Penalty optimization")
+        # the actual optimization
+        print("Starting L2 Penalty optimization")
 
-    results = differential_evolution(L2_obj_func, bounds = ((-6,6,),))
-    NEW_L2_pen_start_ct = L2_pen_start_ct * np.exp(results.x[1])
-    print("DE optimized L2 Penalty: %s, using fixed L1 penalty: %s"  % (NEW_L2_pen_start_ct, best_L1_penalty_ct,) )
+        results = differential_evolution(L2_obj_func, bounds = ((-6,6,),))
+        NEW_L2_pen_start_ct = L2_pen_start_ct * np.exp(results.x[0])
+        print("DE optimized L2 Penalty: %s, using fixed L1 penalty: %s"  % (NEW_L2_pen_start_ct, best_L1_penalty_ct,) )
 
     # -----------------------------------------------------------------
     # Optimization of the L2 and L1 Penalties Simultaneously
     # -----------------------------------------------------------------
-
-    # build the objective function to be minimized
-
-    # cache for L2_obj_func
-    n_calls = [0,]
-    temp_results =[]
-    SS = np.power(Y_pre_treated - np.mean(Y_pre_treated),2).sum()
     best_L1_penalty_ct = np.float(1908.9329)
 
-    def L1_L2_obj_func (x): 
-        n_calls[0] += 1
-        t1 = time.time();
-        score = SC.CV_score(X = X_control,
-                            Y = Y_pre_control,
-                            X_treat = X_treated,
-                            Y_treat = Y_pre_treated,
-                            # if LAMBDA is a single value, we get a single score, If it's an array of values, we get an array of scores.
-                            LAMBDA = best_L1_penalty_ct * np.exp(x[0]),
-                            L2_PEN_W = L2_pen_start_ct * np.exp(x[1]),
-                            # suppress the analysis type message
-                            quiet = True)
-        t2 = time.time(); 
-        temp_results.append((n_calls[0],x,score))
-        print("calls: %s, time: %0.4f, x0: %0.4f, x1: %0.4f, Cross Validation Error: %s, out-of-sample R-Squared: %s" % (n_calls[0], t2 - t1, x[0], x[1], score, 1 - score / SS ))
-        return score
-
     # the actual optimization
-    print("Starting L2 Penalty optimization")
+    print("Starting L1-L2 Joint Penalty optimization")
 
-    results = differential_evolution(L1_L2_obj_func, bounds = ((-6,6,),)*2  )
+    results = SC.joint_penalty_optimzation(X = X_control, Y = Y_pre_control, L1_pen_start = best_L1_penalty_ct, L2_pen_start = L2_pen_start_ct, bounds = ((-6,6,),)*2, X_treat = X_treated, Y_treat = Y_pre_treated)
 
     import pdb; pdb.set_trace()
     NEW_best_L1_penalty_ct = best_L1_penalty_ct * np.exp(results.x[0])

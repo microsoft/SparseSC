@@ -23,6 +23,7 @@ persistent=yes
 #load-plugins=
 #If we want to check the format of the docstrins https://docs.pylint.org/en/pylint-1.5/extensions.html
 # (see also the missing-docstring checker which is disabled below)
+# This is called docparams in pylint version 1.6
 load-plugins=pylint.extensions.check_docs
 
 # Use multiple processes to speed up Pylint.
@@ -68,7 +69,7 @@ confidence=
 # --enable=similarities". If you want to run only the classes checker, but have
 # no Warning level messages displayed, use"--disable=all --enable=classes
 # --disable=W"
-disable=map-builtin-not-iterating,nonzero-method,range-builtin-not-iterating,file-builtin,basestring-builtin,coerce-method,parameter-unpacking,intern-builtin,coerce-builtin,hex-method,old-division,cmp-method,old-ne-operator,raising-string,round-builtin,unichr-builtin,delslice-method,old-raise-syntax,suppressed-message,next-method-called,backtick,long-builtin,reduce-builtin,indexing-exception,unpacking-in-except,dict-iter-method,zip-builtin-not-iterating,getslice-method,print-statement,old-octal-literal,no-absolute-import,long-suffix,xrange-builtin,using-cmp-argument,unicode-builtin,useless-suppression,buffer-builtin,oct-method,raw_input-builtin,execfile-builtin,cmp-builtin,reload-builtin,standarderror-builtin,metaclass-assignment,dict-view-method,setslice-method,filter-builtin-not-iterating,input-builtin,import-star-module-level,apply-builtin,too-few-public-methods,too-many-public-methods,too-many-arguments,missing-docstring,no-self-use,bare-except,trailing-whitespace,broad-except,import-error,locally-disabled,missing-type-doc,unused-import,wrong-import-order,invalid-name,too-many-locals,bad-whitespace
+disable=map-builtin-not-iterating,nonzero-method,range-builtin-not-iterating,file-builtin,basestring-builtin,coerce-method,parameter-unpacking,intern-builtin,coerce-builtin,hex-method,old-division,cmp-method,old-ne-operator,raising-string,round-builtin,unichr-builtin,delslice-method,old-raise-syntax,suppressed-message,next-method-called,backtick,long-builtin,reduce-builtin,indexing-exception,unpacking-in-except,dict-iter-method,zip-builtin-not-iterating,getslice-method,print-statement,old-octal-literal,no-absolute-import,long-suffix,xrange-builtin,using-cmp-argument,unicode-builtin,useless-suppression,buffer-builtin,oct-method,raw_input-builtin,execfile-builtin,cmp-builtin,reload-builtin,standarderror-builtin,metaclass-assignment,dict-view-method,setslice-method,filter-builtin-not-iterating,input-builtin,import-star-module-level,apply-builtin,too-few-public-methods,too-many-public-methods,too-many-arguments,missing-docstring,no-self-use,bare-except,trailing-whitespace,broad-except,import-error,locally-disabled,missing-type-doc,wrong-import-order,invalid-name,too-many-locals,bad-whitespace,superfluous-parens,too-many-statements,too-many-branches
 #common others: line-too-long
 [REPORTS]
 

@@ -105,3 +105,6 @@ venv.bak/
 
 #Visual Studio
 .vs/
+
+# own-generated content
+docs/SyntheticControlsReadme.*
