@@ -116,73 +116,18 @@ def factor_dgp(C,N,T0,T1,K,R,F,beta_scale = 1):
 
 class TestDGPs(unittest.TestCase):
     def testFactorDGP(self):
-        C,N = 100, 1
+        N, C = 1,100
         T0,T1 = 20, 10
         K, R, F = 5, 5, 5
         X_control, X_treated, Y_pre_control, Y_pre_treated, Y_post_control, Y_post_treated = factor_dgp(C,N,T0,T1,K,R,F,beta_scale = 1)
         
-        Y_post = np.vstack( (Y_post_control, Y_post_treated,) )
-        X_and_Y_pre_control = np.hstack( ( X_control, Y_pre_control,) )
+        Y_post = np.vstack( (Y_post_treated,Y_post_control, ) )
+        X = np.vstack( (X_treated, X_control, ) )
+        Y_pre  = np.vstack( (Y_pre_treated, Y_pre_control, ) )
+        treated_units = [0]
+        X_and_Y_pre = np.hstack( ( X, Y_pre,) )
 
-        
-        # get the maximum value for the L1 Penalty parameter conditional on the guestimate for the L2 penalty
-        L2_pen_start_loo = SC.L2_pen_guestimate(X_and_Y_pre_control)
-        L1_max_loo = SC.get_max_lambda(X_and_Y_pre_control[np.arange(100)],Y_post[np.arange(100)]) ####
-        
-        # ------------------------------------------------------------
-        # create a grid of penalties to try 
-        # ------------------------------------------------------------
-        n_points = 10 # number of points in the grid
-
-        # Another equally spaced linear grid
-        fmax = 1e-2 # lowest point in the grid relative to the max-lambda
-        fmin = 1e-4 # highest point in the grid relative to the max-lambda
-        grid = np.exp(np.linspace(np.log(fmin),np.log(fmax),n_points))
-        
-        print("Starting grid scoring for Controls Only scenario with 5-fold gradient descent", grid*L1_max_loo)
-        grid_scores_loo = SC.CV_score(
-            X = X_and_Y_pre_control, # limit the amount of time...
-            Y = Y_post_control     , # limit the amount of time...
-
-            # this is what enables the k-fold gradient descent
-            grad_splits = 5,
-            random_state = 10101, # random_state for the splitting during k-fold gradient descent
-
-            # L1 Penalty. if LAMBDA is a single value (value), we get a single score, If it's an array of values, we get an array of scores.
-            LAMBDA = grid * L1_max_loo,
-
-            # L2 Penalty (float)
-            L2_PEN_W = L2_pen_start_loo,
-
-            # CACHE THE V MATRIX BETWEEN LAMBDA PARAMETERS (generally faster, but path dependent)
-            #cache = True, # False by Default
-
-            # Run each of the Cross-validation folds in parallel? Often slower
-            # for large sample sizes because numpy.linalg.solve() already runs
-            # in parallel for large matrices
-            parallel=False,
-
-            # announce each call to `numpy.linalg.solve(A,B)` (the major bottleneck)
-            verbose = False, # it's kind of obnoxious, but gives a sense of running time per gradient calculation
-
-            # ANNOUNCE COMPLETION OF EACH ITERATION
-            progress = True)
-        best_LAMBDA = (grid * L1_max_loo)[np.argmin(grid_scores_loo)]
-        V_loo = SC.tensor(X = X_and_Y_pre_control,
-			  Y = Y_post_control,
-
-			  LAMBDA = best_LAMBDA,
-
-			  # Also optional
-			  L2_PEN_W = L2_pen_start_loo)
-        SC_weights_loo = SC.weights(X = X_and_Y_pre_control,
-                            V = V_loo,
-                            L2_PEN_W = L2_pen_start_loo)
-        Y_pre  = np.vstack( (Y_pre_treated, Y_pre_control,  ) )
-        Y_post = np.vstack( (Y_post_treated, Y_post_control, ) )
-        Y = np.hstack( (Y_pre, Y_post) )
-
-        est_res = SC.estimate_effects(Y_pre, Y_post, X_and_Y_pre_control, V_loo, [1], L2_pen_start_loo)
+        est_res = SC.estimate_effects(X, Y_pre, Y_post, treated_units)
 
 
         #self.failUnlessEqual(calc, truth)

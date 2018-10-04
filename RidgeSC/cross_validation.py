@@ -3,6 +3,7 @@ from RidgeSC.fit_fold import  fold_v_matrix, fold_score
 from RidgeSC.fit_loo import  loo_v_matrix, loo_score
 from RidgeSC.fit_ct import  ct_v_matrix, ct_score
 from RidgeSC.optimizers.cd_line_search import cdl_search
+from RidgeSC.lambda_utils import get_max_lambda, L2_pen_guestimate
 import atexit
 import numpy as np
 import itertools
@@ -337,26 +338,26 @@ def CV_score(X,Y,
 
     return total_score
 
-def joint_penalty_optimzation(X, Y, L1_pen_start, L2_pen_start, bounds, X_treat = None, Y_treat = None):
+def joint_penalty_optimzation(X, Y, L1_pen_start = None, L2_pen_start = None, bounds = ((-6,6,),)*2, X_treat = None, Y_treat = None):
+    #TODO: Default bounds?
+    # -----------------------------------------------------------------
+    # Optimization of the L2 and L1 Penalties Simultaneously
+    # -----------------------------------------------------------------
     from scipy.optimize import fmin_l_bfgs_b, differential_evolution 
     import time
 
-    # -----------------------------------------------------------------
-    # Optimization of the L2 and L1 Penalties Simultaneously, keeping their
-    # product constant.  Heuristically, this has been most efficient means of
-    # optimizing the L2 Parameter.
-    # -----------------------------------------------------------------
+    if L2_pen_start is None:
+        L2_pen_start = L2_pen_guestimate(X)
 
+    L1_pen_start  = get_max_lambda(X,Y,X_treat=X_treat,Y_treat=Y_treat) #TODO: is this right?
 
     # build the objective function to be minimized
-
-    # cache for L2_obj_func
     n_calls = [0,]
     temp_results =[]
 
     def L1_L2_obj_func (x): 
         n_calls[0] += 1
-        t1 = time.time();
+        t1 = time.time()
         score = CV_score(X = X, Y = Y,
                             X_treat = X_treat, Y_treat = Y_treat,
                             # if LAMBDA is a single value, we get a single score, If it's an array of values, we get an array of scores.
@@ -364,7 +365,7 @@ def joint_penalty_optimzation(X, Y, L1_pen_start, L2_pen_start, bounds, X_treat 
                             L2_PEN_W = L2_pen_start * np.exp(x[1]),
                             # suppress the analysis type message
                             quiet = True)
-        t2 = time.time(); 
+        t2 = time.time()
         temp_results.append((n_calls[0],x,score))
         print("calls: %s, time: %0.4f, x0: %0.4f, Cross Validation Error: %s" % (n_calls[0], t2 - t1, x[0], score))
         #print("calls: %s, time: %0.4f, x0: %0.4f, x1: %0.4f, Cross Validation Error: %s, R-Squared: %s" % (n_calls[0], t2 - t1, x[0], x[1], score, 1 - score / SS ))

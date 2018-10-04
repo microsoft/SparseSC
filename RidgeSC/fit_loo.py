@@ -7,6 +7,7 @@ from collections import namedtuple
 # only used by the step-down method (currently not implemented):
 # from RidgeSC.utils.sub_matrix_inverse import subinv_k, all_subinverses
 from RidgeSC.optimizers.cd_line_search import cdl_search
+from RidgeSC.cross_validation import joint_penalty_optimzation
 warnings.filterwarnings('ignore')
 
 def complete_treated_control_list(C_N, treated_units = None, control_units = None):
@@ -293,14 +294,17 @@ def loo_score(Y, X, V, L2_PEN_W, LAMBDA = 0, treated_units = None, control_units
 def _ncr(n, r):
     #https://stackoverflow.com/questions/4941753/is-there-a-math-ncr-function-in-python
     import operator as op
+    import functools
     r = min(r, n-r)
-    numer = reduce(op.mul, xrange(n, n-r, -1), 1)
-    denom = reduce(op.mul, xrange(1, r+1), 1)
+    numer = functools.reduce(op.mul, range(n, n-r, -1), 1) #from py2 xrange()
+    denom = functools.reduce(op.mul, range(1, r+1), 1) #from py2 xrange()
     return numer//denom
 
 def random_combination(iterable, r):
     "Random selection from itertools.combinations(iterable, r)"
     #https://stackoverflow.com/questions/22229796/choose-at-random-from-combinations
+    import random
+
     pool = tuple(iterable)
     n = len(pool)
     indices = sorted(random.sample(range(n), r))
@@ -311,30 +315,114 @@ def repeatfunc(func, times=None, *args):
 
     Example:  repeatfunc(random.random)
     """
-    if times is None:
-        return starmap(func, repeat(args))
-    return starmap(func, repeat(args, times))
+    import itertools
 
-def estimate_effects(Y_pre, Y_post, X, V, treated_units, L2_PEN_W, max_n_pl = 1000000, ret_pl = False, ret_CI=False, ret_p1s=False, level=0.95, **kwargs):
-    #TODO: Add pre-treatment match quality filter
-    #TODO: Cleanup returning placebo distribution (incl pre?)
+    if times is None:
+        return itertools.starmap(func, itertools.repeat(args))
+    return itertools.starmap(func, itertools.repeat(args, times))
+
+def _gen_placebo_stats_from_diffs(N, effect_vec, std_effect_vec, joint_effect, joint_std_effect,
+                                 control_effect_vecs, control_std_effect_vecs, control_joint_effects, control_joint_std_effects,
+                                 max_n_pl = 1000000, ret_pl = False, ret_CI=False, level=0.95):
+    #ret_p1s=False
     keep_pl = ret_pl or ret_CI
+    C = control_effect_vecs.shape[0]
+    T1 = len(effect_vec)
+    effect_vec_sgn = np.sign(effect_vec)
+    n_pl = _ncr(C, N)
+    if (max_n_pl > 0 & n_pl > max_n_pl): #randomize
+        comb_iter = itertools.combinations(range(C), N)
+        comb_len = max_n_pl
+    else:
+        comb_iter = repeatfunc(random_combination, n_pl, range(C), N)
+        comb_len = n_pl
+    n_bigger = 0
+    placebo_effect_vecs = None
+    if keep_pl:
+        placebo_effect_vecs = np.empty((comb_len,T1))
+    #p1s = np.zero((1,T1))
+    p2s = np.zero((1,T1))
+    #p1s_std = np.zero((1,T1))
+    p2s_std = np.zero((1,T1))
+    joint_p = 0
+    joint_std_p = 0
+    for idx, comb in enumerate(comb_iter):
+        placebo_effect_vec = np.mean(control_effect_vecs[comb,:], 2)
+        placebo_std_effect_vec = np.mean(control_std_effect_vecs[comb,:], 2)
+        placebo_joint_effect = np.mean(control_joint_effects[comb,:])
+        placebo_joint_std_effect = np.mean(control_joint_std_effects[comb,:])
+
+        #p1s += (effect_vec_sgn*placebo_effect_vec >= effect_vec_sgn*effect_vec)
+        p2s += (abs(placebo_effect_vec) >= abs(effect_vec))
+        #p1s_std += (effect_vec_sgn*placebo_std_effect_vec >= effect_vec_sgn*std_effect_vec)
+        p2s_std += (abs(placebo_std_effect_vec) >= abs(std_effect_vec))
+        joint_p += (placebo_joint_effect >= joint_effect)
+        joint_std_p += (placebo_joint_std_effect >= joint_std_effect)
+        if keep_pl:
+            placebo_effect_vecs[idx,:] = placebo_effect_vec
+    #p1s = p1s/comb_len
+    p2s = p2s/comb_len
+    #p1s_std = p1s_std/comb_len
+    p2s_std = p2s_std/comb_len
+    joint_p = joint_p/comb_len
+    joint_std_p = joint_std_p/comb_len
+    #p2s = 2*p1s #Ficher 2-sided p-vals (less common)
+    if ret_CI:
+        #CI - All hypothetical true effects (beta0) that would not be reject at the certain level
+        # To test non-zero beta0, apply beta0 to get unexpected deviation beta_hat-beta0 and compare to permutation distribution
+        # This means that we take the level-bounds of the permutation distribution then "flip it around beta_hat"
+        # To make the math a bit nicer, I will reject a hypothesis if pval<=(1-level)
+        assert level<=1; "Use a level in [0,1]"
+        alpha = (1-level)
+        p2min = 2/n_pl
+        alpha_ind = max((1,round(alpha/p2min)))
+        alpha = alpha_ind* p2min
+        CIs = np.empty((2,T1))
+        for t in range(T1):
+            sorted = np.sort(placebo_effect_vecs[:,t]) #TODO: check with Stata about sort order
+            low_effect = sorted[alpha_ind]
+            high_effect = sorted[(comb_len+1)-alpha_ind]
+            if np.sign(low_effect)==np.sign(high_effect):
+                warnings.warn("CI doesn't containt effect. You might not have enough placebo effects.")
+            CIs[:,t] = (effect_vec[t] - high_effect, effect_vec[t] - low_effect) 
+    else:
+        CIs = None
+
+    EstResultCI = namedtuple('EstResults', 'effect p ci')
+    
+    RidgeSCEstResults = namedtuple('RidgeSCEstResults', 'effect_vec_res std_p joint_p joint_std_p N_placebo placebo_effect_vecs')
+    ret_struct = RidgeSCEstResults(EstResultCI(effect_vec, p2s, CIs), p2s_std, joint_p, joint_std_p, comb_len, placebo_effect_vecs)
+    return ret_struct
+
+def estimate_effects(X, Y_pre, Y_post, treated_units, max_n_pl = 1000000, ret_pl = False, ret_CI=False, level=0.95, **kwargs):
+    #TODO: Cleanup returning placebo distribution (incl pre?)
     N = len(treated_units)
-    C_N = X.shape[0]
+    X_and_Y_pre = np.hstack( ( X, Y_pre,) )
+    C_N = X_and_Y_pre.shape[0]
     C = C_N - N
     T1 = Y_post.shape[1]
     control_units = list(set(range(C_N)) - set(treated_units)) 
     all_units = list(range(C_N))
-    weights = loo_weights(X = X,
-                           V = V,
-                           L2_PEN_W = L2_PEN_W,
-                           treated_units = all_units,
-                           control_units = control_units,
-                           **kwargs)
-    # Get post effects
-    Y_post_tr = Y_post[treated_units, :]
     Y_post_c = Y_post[control_units, :]
+    Y_post_tr = Y_post[treated_units, :]
+    X_and_Y_pre_c = X_and_Y_pre[control_units, :]
+    
+    results = joint_penalty_optimzation(X = X_and_Y_pre_c, Y = Y_post_c)
+
+    best_L1_penalty = results.x[0]
+    best_L2_penalty = results.x[1]
+
+    V = loo_v_matrix(X = X_and_Y_pre_c, 
+                     Y = Y_post_c,
+                     LAMBDA = best_L1_penalty, L2_PEN_W = best_L2_penalty)
+
+    weights = loo_weights(X = X_and_Y_pre,
+                          V = V,
+                          L2_PEN_W = best_L2_penalty,
+                          treated_units = all_units,
+                          control_units = control_units)
     Y_post_sc = weights.dot(Y_post_c)
+    # Get post effects
     Y_post_tr_sc = Y_post_sc[treated_units, :]
     Y_post_c_sc = Y_post_sc[control_units, :]
     effect_vecs = Y_post_tr - Y_post_tr_sc
@@ -355,77 +443,14 @@ def estimate_effects(Y_pre, Y_post, X, V, treated_units, L2_PEN_W, max_n_pl = 10
 
 
     control_std_effect_vecs = control_effect_vecs / pre_c_rmspes
-    control_joint_std_effect = control_joint_effects / pre_c_rmspes
+    control_joint_std_effects = control_joint_effects / pre_c_rmspes
 
     effect_vec = np.mean(effect_vecs, 2)
     std_effect_vec = np.mean(effect_vecs / pre_tr_rmspes, 2)
     joint_effect = np.mean(joint_effects)
     joint_std_effect = np.mean(joint_effects / pre_tr_rmspes)
 
-    effect_vec_sgn = np.sign(effect_vec)
-    n_pl = _ncr(C, N)
-    if (max_n_pl > 0 & n_pl > max_n_pl): #randomize
-        comb_iter = itertools.combinations(range(C), N)
-        comb_len = max_n_pl
-    else:
-        comb_iter = repeatfunc(random_combination, n_pl, range(C), N)
-        comb_len = n_pl
-    n_bigger = 0
-    placebo_effect_vecs = None
-    if keep_pl:
-        placebo_effect_vecs = np.empty((comb_len,T1))
-    p1s = np.zero((1,T1))
-    p2s = np.zero((1,T1))
-    p1s_std = np.zero((1,T1))
-    p2s_std = np.zero((1,T1))
-    joint_p = 0
-    joint_std_p = 0
-    for idx, comb in enumerate(comb_iter):
-        placebo_effect_vec = np.mean(control_effect_vecs[comb,:], 2)
-        placebo_std_effect_vec = np.mean(control_std_effect_vecs[comb,:], 2)
-        placebo_joint_effect = np.mean(control_joint_effects[comb,:])
-        placebo_joint_std_effect = np.mean(control_joint_std_effects[comb,:])
-
-        p1s += (effect_vec_sgn*placebo_effect_vec >= effect_vec_sgn*effect_vec)
-        p2s += (abs(placebo_effect_vec) >= abs(effect_vec))
-        p1s_std += (effect_vec_sgn*placebo_std_effect_vec >= effect_vec_sgn*std_effect_vec)
-        p2s_std += (abs(placebo_std_effect_vec) >= abs(std_effect_vec))
-        joint_p += (placebo_joint_effect >= joint_effect)
-        joint_std_p += (placebo_joint_std_effect >= joint_std_effect)
-        if keep_pl:
-            placebo_effect_vecs[idx,:] = placebo_effect_vec
-    p1s = p1s/comb_len
-    p2s = p2s/comb_len
-    p1s_std = p1s_std/comb_len
-    p2s_std = p2s_std/comb_len
-    joint_p = joint_p/comb_len
-    joint_std_p = joint_std_p/comb_len
-    #p2s = 2*p1s #Ficher 2-sided p-vals (less common)
-    if ret_CI:
-        #CI - All hypothetical true effects (beta0) that would not be reject at the certain level
-        # To test non-zero beta0, apply beta0 to get unexpected deviation beta_hat-beta0 and compare to permutation distribution
-        # This means that we take the level-bounds of the permutation distribution then "flip it around beta_hat"
-        # To make the math a bit nicer, I will reject a hypothesis if pval<=(1-level)
-        assert level<=1; "Use a level in [0,1]"
-        alpha = (1-level)
-        p2min = 2/n_pl
-        alpha_ind = max((1,round(alpha/p2min)))
-        alpha = alpha_ind* p2min
-        CIs = np.empty((2,T1))
-        for t in range(T1):
-            sorted = sort(placebo_effect_vecs[:,t])
-            low_effect = sorted[alpha_ind]
-            high_effect = sorted[(n_avgs+1)-alpha_ind]
-            if np.sign(low_effect)==np.sign(high_effect):
-                warnings.warn("CI doesn't containt effect. You might not have enough placebo effects.")
-            CIs[:,t] = (mean_effect[t] - high_effect, mean_effect[t] - low_effect) 
-    else:
-        CIs = None
-    if not ret_p1s:
-        p1s = None
-        p1s_std = None
-    
-    RidgeSCEstResults = namedtuple('RidgeSCEstResults', 'effect_vec p2s std_p2s joint_p joint_std_p N_placebo placebo_effect_vecs CIs p1s std_p1s')
-    ret_struct = RidgeSCEstResults(effect_vec, p2s, p2s_std, joint_p, joint_std_p, comb_len, placebo_effect_vecs, CIs, p1s, p1s_std)
-    return ret_struct
+    return _gen_placebo_stats_from_diffs(N, effect_vec, std_effect_vec, joint_effect, joint_std_effect,
+                                 control_effect_vecs, control_std_effect_vecs, control_joint_effects, control_joint_std_effects,
+                                 max_n_pl, ret_pl, ret_CI, level)
 
