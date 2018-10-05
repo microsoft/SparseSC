@@ -1,4 +1,3 @@
-
 from RidgeSC.fit_fold import  fold_v_matrix, fold_score
 from RidgeSC.fit_loo import  loo_v_matrix, loo_score, loo_weights
 from RidgeSC.fit_ct import  ct_v_matrix, ct_score
@@ -409,19 +408,19 @@ def repeatfunc(func, times=None, *args):
         return itertools.starmap(func, itertools.repeat(args))
     return itertools.starmap(func, itertools.repeat(args, times))
 
-def _gen_placebo_stats_from_diffs(N, effect_vec, std_effect_vec, joint_effect, joint_std_effect,
+def _gen_placebo_stats_from_diffs(N1, effect_vec, std_effect_vec, joint_effect, joint_std_effect,
                                  control_effect_vecs, control_std_effect_vecs, control_joint_effects, control_joint_std_effects,
                                  max_n_pl = 1000000, ret_pl = False, ret_CI=False, level=0.95):
     #ret_p1s=False
     keep_pl = ret_pl or ret_CI
-    C = control_effect_vecs.shape[0]
+    N0 = control_effect_vecs.shape[0]
     T1 = len(effect_vec)
-    n_pl = _ncr(C, N)
+    n_pl = _ncr(N0, N1)
     if (max_n_pl > 0 & n_pl > max_n_pl): #randomize
-        comb_iter = itertools.combinations(range(C), N)
+        comb_iter = itertools.combinations(range(N0), N1)
         comb_len = max_n_pl
     else:
-        comb_iter = repeatfunc(random_combination, n_pl, range(C), N)
+        comb_iter = repeatfunc(random_combination, n_pl, range(N0), N1)
         comb_len = n_pl
     placebo_effect_vecs = None
     if keep_pl:
@@ -483,13 +482,13 @@ def _gen_placebo_stats_from_diffs(N, effect_vec, std_effect_vec, joint_effect, j
 
 def estimate_effects(X, Y_pre, Y_post, treated_units, max_n_pl = 1000000, ret_pl = False, ret_CI=False, level=0.95, **kwargs):
     #TODO: Cleanup returning placebo distribution (incl pre?)
-    N = len(treated_units)
+    N1 = len(treated_units)
     X_and_Y_pre = np.hstack( ( X, Y_pre,) )
-    C_N = X_and_Y_pre.shape[0]
-    #C = C_N - N
+    N = X_and_Y_pre.shape[0]
+    #N0 = N - N1
     #T1 = Y_post.shape[1]
-    control_units = list(set(range(C_N)) - set(treated_units)) 
-    all_units = list(range(C_N))
+    control_units = list(set(range(N)) - set(treated_units)) 
+    all_units = list(range(N))
     Y_post_c = Y_post[control_units, :]
     Y_post_tr = Y_post[treated_units, :]
     X_and_Y_pre_c = X_and_Y_pre[control_units, :]
@@ -537,7 +536,7 @@ def estimate_effects(X, Y_pre, Y_post, treated_units, max_n_pl = 1000000, ret_pl
     joint_effect = np.mean(joint_effects)
     joint_std_effect = np.mean(joint_effects / pre_tr_rmspes)
 
-    return _gen_placebo_stats_from_diffs(N, effect_vec, std_effect_vec, joint_effect, joint_std_effect,
+    return _gen_placebo_stats_from_diffs(N1, effect_vec, std_effect_vec, joint_effect, joint_std_effect,
                                  control_effect_vecs, control_std_effect_vecs, control_joint_effects, control_joint_std_effects,
                                  max_n_pl, ret_pl, ret_CI, level)
 

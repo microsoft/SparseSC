@@ -16,7 +16,7 @@ import numpy as np
 import random
 
 
-# def setup(C,N,T,K,g,gs,bs ): # controls (C), treated units (N) , time periods (T), Predictors (K), groups (g), g-scale, b-scale
+# def setup(N0,N1,T,K,g,gs,bs ): # controls (N0), treated units (N1) , time periods (T), Predictors (K), groups (g), g-scale, b-scale
 
 if __name__ == "__main__":
 
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     np.random.seed(10101)
 
     # Controls (per group), Treated (per group), pre-intervention Time points,  post intervention time-periods
-    C,N,T0,T1 = 5,5,4,4
+    N0,N1,T0,T1 = 5,5,4,4
     # Causal Covariates, Confounders , Random Covariates 
     K,S,R = 7,4,5
     # Number of Groups, Scale of the Group Effect, (groups make the time series correlated for reasons other than the observed covariates...)
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     beta_scale,confounders_scale = 4,1
 
     X_control, X_treated, Y_pre_control, Y_pre_treated, \
-        Y_post_control, Y_post_treated = ge_dgp(C,N,T0,T1,K,S,R,groups,group_scale,beta_scale,confounders_scale,model= "full")
+        Y_post_control, Y_post_treated = ge_dgp(N0,N1,T0,T1,K,S,R,groups,group_scale,beta_scale,confounders_scale,model= "full")
 
     # JOIN THE TREAT AND CONTROL DATA
     X = np.vstack( (X_control, X_treated,) )
@@ -53,8 +53,8 @@ if __name__ == "__main__":
     X_and_Y_pre_control = np.hstack( ( X_control, Y_pre_control,) )
 
     # IDENTIFIERS FOR TREAT AND CONTROL UNITS
-    # control_units = np.arange( C * groups )
-    # treated_units = np.arange( N * groups ) + C
+    # control_units = np.arange( N0 * groups )
+    # treated_units = np.arange( N1 * groups ) + N0
 
     # ------------------------------------------------------------
     # ------------------------------------------------------------

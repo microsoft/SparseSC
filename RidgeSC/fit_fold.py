@@ -105,11 +105,11 @@ def fold_v_matrix(X,
                  (i, len(treated_units),len(split[0]), len(split[1]), ))
 
     # CONSTANTS
-    C, N, K = len(control_units), len(treated_units), X.shape[1]
+    N0, N1, K = len(control_units), len(treated_units), X.shape[1]
     if start is None: 
         start = zeros(K) # formerly: .1 * ones(K) 
-    assert N > 0, "No control units"
-    assert C > 0, "No treated units"
+    assert N1 > 0, "No control units"
+    assert N0 > 0, "No treated units"
     assert K > 0, "variables to fit (X.shape[1] == 0)"
 
     # CREATE THE INDEX THAT INDICATES THE ELIGIBLE CONTROLS FOR EACH TREATED UNIT
@@ -131,9 +131,9 @@ def fold_v_matrix(X,
     Y_control = Y[control_units,:]
 
     # INITIALIZE PARTIAL DERIVATIVES
-    dA_dV_ki = [ [None,] *N for i in range(K)]
-    dB_dV_ki = [ [None,] *N for i in range(K)]
-    b_i = [None,] *N 
+    dA_dV_ki = [ [None,] *N1 for i in range(K)]
+    dB_dV_ki = [ [None,] *N1 for i in range(K)]
+    b_i = [None,] *N1 
     for i, k in  itertools.product(range(len(splits)), range(K)): # TREATED unit i, moment k
         _, test = splits[i]
         Xc = X[in_controls[i], : ]
@@ -160,7 +160,7 @@ def fold_v_matrix(X,
         weights, A, _ = _weights(dv)
         Ey = (Y_treated - weights.T.dot(Y_control)).getA()
         dGamma0_dV_term2 = zeros(K)
-        dPI_dV = zeros((C, N))
+        dPI_dV = zeros((N0, N1))
         for k in range(K):
             if verbose:  # for large sample sizes, linalg.solve is a huge bottle neck,
                 print("Calculating gradient, for moment %s of %s" % (k ,K,))
@@ -176,7 +176,7 @@ def fold_v_matrix(X,
         return LAMBDA - 2 * dGamma0_dV_term2 
 
     def _weights(V):
-        weights = zeros((C, N))
+        weights = zeros((N0, N1))
         A = X.dot(V + V.T).dot(X.T) + 2 * L2_PEN_W * diag(ones(X.shape[0])) # 5
         B = X.dot(V + V.T).dot(X.T).T # 6
         for i, (_,test) in enumerate(splits):
@@ -235,7 +235,7 @@ def fold_weights(X,
             control_units = list(set(range(X.shape[0])) - set(treated_units)) 
     control_units = np.array(control_units)
     treated_units = np.array(treated_units)
-    [C, N] = [len(control_units), len(treated_units)]
+    [N0, N1] = [len(control_units), len(treated_units)]
 
     splits = grad_splits # for readability...
     try:
@@ -249,7 +249,7 @@ def fold_weights(X,
     in_controls = [list(set(control_units) - set(treated_units[test])) for _,test in splits]
     in_controls2 = [np.ix_(i,i) for i in in_controls] # this is a much faster alternative to A[:,index][index,:]
 
-    # index of the controls relative to the rows of the outgoing C x N matrix of weights
+    # index of the controls relative to the rows of the outgoing N0 x N1 matrix of weights
     ctrl_rng = np.arange(len(control_units))
     out_controls = [ctrl_rng[np.logical_not(np.isin(control_units, treated_units[test]))] for _,test in splits] 
     # this is non-trivial when there control units are also being predicted:
@@ -258,7 +258,7 @@ def fold_weights(X,
     # constants for indexing
     # X_control = X[control_units,:]
     # X_treat = X[treated_units,:]
-    weights = zeros((C, N))
+    weights = zeros((N0, N1))
 
     A = X.dot(V + V.T).dot(X.T) + 2 * L2_PEN_W * diag(ones(X.shape[0])) # 5
     B = X.dot(V + V.T).dot(X.T).T # 6

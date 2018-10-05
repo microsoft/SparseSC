@@ -7,19 +7,19 @@ import warnings
 from RidgeSC.optimizers.cd_line_search import cdl_search
 warnings.filterwarnings('ignore')
 
-def complete_treated_control_list(C_N, treated_units = None, control_units = None):
+def complete_treated_control_list(N, treated_units = None, control_units = None):
     if treated_units is None: 
         if control_units is None: 
             # both not provided, include all samples as both treat and control unit.
-            control_units = list(range(C_N))
+            control_units = list(range(N))
             treated_units = control_units 
         else:
             # Set the treated units to the not-control units
-            treated_units = list(set(range(C_N)) - set(control_units))  
+            treated_units = list(set(range(N)) - set(control_units))  
     else:
         if control_units is None: 
             # Set the control units to the not-treated units
-            control_units = list(set(range(C_N)) - set(treated_units)) 
+            control_units = list(set(range(N)) - set(treated_units)) 
     return(treated_units, control_units)
 
 def loo_v_matrix(X,
@@ -90,11 +90,11 @@ def loo_v_matrix(X,
     assert not non_neg_weights, "Bounds not implemented"
 
     # CONSTANTS
-    C, N, K = len(control_units), len(treated_units), X.shape[1]
+    N0, N1, K = len(control_units), len(treated_units), X.shape[1]
     if start is None:
         start = zeros(K) # formerly: .1 * ones(K) 
-    assert N > 0, "No control units"
-    assert C > 0, "No treated units"
+    assert N1 > 0, "No control units"
+    assert N0 > 0, "No treated units"
     assert K > 0, "variables to fit (X.shape[1] == 0)"
 
     # CREATE THE INDEX THAT INDICATES THE ELIGIBLE CONTROLS FOR EACH TREATED UNIT
@@ -117,10 +117,10 @@ def loo_v_matrix(X,
     # only used by step-down method: X_control = X[control_units,:]
 
     # INITIALIZE PARTIAL DERIVATIVES
-    dA_dV_ki = [ [None,] *N for i in range(K)]
-    dB_dV_ki = [ [None,] *N for i in range(K)]
-    b_i = [None,] *N 
-    for i, k in  itertools.product(range(N), range(K)): # TREATED unit i, moment k
+    dA_dV_ki = [ [None,] *N1 for i in range(K)]
+    dB_dV_ki = [ [None,] *N1 for i in range(K)]
+    b_i = [None,] *N1 
+    for i, k in  itertools.product(range(N1), range(K)): # TREATED unit i, moment k
         Xc = X[in_controls[i], : ]
         Xt = X[treated_units[i], : ]
         dA_dV_ki [k][i] = Xc[:, k ].dot(Xc[:, k ].T) + Xc[:, k ].dot(Xc[:, k ].T) # 8
@@ -148,7 +148,7 @@ def loo_v_matrix(X,
         weights, A, _ = _weights(dv)
         Ey = (Y_treated - weights.T.dot(Y_control)).getA()
         dGamma0_dV_term2 = zeros(K)
-        dPI_dV = zeros((C, N))
+        dPI_dV = zeros((N0, N1))
         # if solve_method == "step-down": Ai_cache = all_subinverses(A)
         for k in range(K):
             if verbose:  # for large sample sizes, linalg.solve is a huge bottle neck,
@@ -171,7 +171,7 @@ def loo_v_matrix(X,
         return LAMBDA - 2 * dGamma0_dV_term2 
 
     def _weights(V):
-        weights = zeros((C, N))
+        weights = zeros((N0, N1))
         if solve_method == "step-down":
             raise NotImplementedError("The solve_method 'step-down' is currently not implemented")
             # A = X_control.dot(V + V.T).dot(X_control.T) + 2 * L2_PEN_W * diag(ones(X_control.shape[0])) # 5
@@ -227,14 +227,14 @@ def loo_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, inte
     treated_units, control_units = complete_treated_control_list(X.shape[0], treated_units, control_units)
     control_units = np.array(control_units)
     treated_units = np.array(treated_units)
-    [C, N] = [len(control_units), len(treated_units)]
+    [N0, N1] = [len(control_units), len(treated_units)]
 
 
     # index with positions of the controls relative to the incoming data
     in_controls = [list(set(control_units) - set([trt_unit])) for trt_unit in treated_units]
     in_controls2 = [np.ix_(i,i) for i in in_controls] # this is a much faster alternative to A[:,index][index,:]
 
-    # index of the controls relative to the rows of the outgoing C x N matrix of weights
+    # index of the controls relative to the rows of the outgoing N0 x N1 matrix of weights
     ctrl_rng = np.arange(len(control_units))
     out_controls = [ctrl_rng[control_units != trt_unit] for trt_unit in treated_units] 
     # this is non-trivial when there control units are also being predicted:
@@ -243,7 +243,7 @@ def loo_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, inte
     # constants for indexing
     # > only used by the step-down method (currently not implemented) X_control = X[control_units,:]
     # > only used by the step-down method (currently not implemented) X_treat = X[treated_units,:]
-    weights = zeros((C, N))
+    weights = zeros((N0, N1))
 
     if solve_method == "step-down":
         raise NotImplementedError("The solve_method 'step-down' is currently not implemented")

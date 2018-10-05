@@ -72,7 +72,7 @@ def ct_v_matrix(X,
         raise TypeError( "L2_PEN_W is not a number")
 
     # CONSTANTS
-    C, N, K = len(control_units), len(treated_units), X.shape[1]
+    N0, N1, K = len(control_units), len(treated_units), X.shape[1]
     if start is None: 
         start = zeros(K) # formerly: .1 * ones(K) 
     Y_treated = Y[treated_units,:]
@@ -106,7 +106,7 @@ def ct_v_matrix(X,
         weights, A, _, AinvB = _weights(dv)
         Ey = (Y_treated - weights.T.dot(Y_control)).getA()
         dGamma0_dV_term2 = zeros(K)
-        dPI_dV = zeros((C, N))
+        dPI_dV = zeros((N0, N1))
         #Ai = A.I
         for k in range(K):
             if verbose:  # for large sample sizes, linalg.solve is a huge bottle neck,
@@ -121,12 +121,12 @@ def ct_v_matrix(X,
 
     L2_PEN_W_mat = 2 * L2_PEN_W * diag(ones(X_control.shape[0]))
     def _weights(V):
-        weights = zeros((C, N))
+        weights = zeros((N0, N1))
         A = X_control.dot(2*V).dot(X_control.T) + L2_PEN_W_mat # 5
         B = X_treated.dot(2*V).dot(X_control.T).T # 6
         b = linalg.solve(A,B)
         if intercept:
-            weights = b + 1/C
+            weights = b + 1/N0
         else:
             weights = b
         return weights, A, B,b
@@ -154,7 +154,7 @@ def ct_v_matrix(X,
     #    _do_gradient_check()
     if intercept: 
         # not above, b/c Y_treated was already offset at the start
-        weights += 1/C 
+        weights += 1/N0 
     return weights, v_mat, ts_score, ts_loss, L2_PEN_W, opt
 
 def ct_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, intercept = True):
@@ -166,7 +166,7 @@ def ct_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, inter
     if control_units is None: 
         control_units = list(set(range(X.shape[0])) - set(treated_units)) 
 
-    C = len(control_units)
+    N0 = len(control_units)
     X_treated = X[treated_units,:]
     X_control = X[control_units,:]
 
@@ -175,7 +175,7 @@ def ct_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, inter
 
     weights = linalg.solve(A,B)
     if intercept:
-        weights += 1/C
+        weights += 1/N0
     return weights.T
 
 def ct_score(Y, X, V, L2_PEN_W, LAMBDA = 0, treated_units = None, control_units = None,**kwargs):
