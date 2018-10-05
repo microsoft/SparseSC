@@ -5,6 +5,22 @@
 help:
 	@echo "Use one of the common targets: pylint, package, docs"
 
+#Allow for slightly different commands for nmake and make
+#NB: Don't always need the different DIR_SEP
+# \
+!ifndef 0 # \
+# nmake specific code here \
+RMDIR_CMD = rmdir /S /Q # \
+RM_CMD = del # \
+DIR_SEP = \ # \
+!else
+# make specific code here
+RMDIR_CMD = rm -rf
+RM_CMD = rm
+DIR_SEP = / # \
+# \
+!endif
+
 #Creates a "Source Distribution" and a "Pure Python Wheel" (which is a bit easier for user)
 package:
 	python setup.py sdist -d dist
@@ -15,37 +31,21 @@ readmedocs:
 	pandoc README.md -f markdown -t docx -o docs/SyntheticControlsReadme.docx
 
 pylint:
-	pylint RidgeSC > build/pylint_msgs.txt
+	-mkdir build
+	pylint RidgeSC > build$(DIR_SEP)pylint_msgs.txt
 
-# You can set these variables from the command line.
 SPHINXOPTS    =
 SPHINXBUILD   = python -msphinx
 SPHINXPROJ    = RidgeSC
 SOURCEDIR     = docs/
 BUILDDIR      = docs/build
 SPHINXAPIDOC  = sphinx-apidoc
-
-# \
-!ifndef 0 # \
-# nmake code here \
-RMDIR_CMD = rmdir /S /Q # \
-RM_CMD = del # \
-BUILDDIRHTML  = docs\build\html # \
-BUILDAPIDOCDIR= docs\build\apidoc # \
-MOD_FILENAME = $(BUILDAPIDOCDIR)\RidgeSC\modules.rst # \
-!else
-# make code here
-RMDIR_CMD = rm -rf
-RM_CMD = rm
-BUILDDIRHTML  = docs/build/html
-BUILDAPIDOCDIR= docs/build/apidoc
-MOD_FILENAME = $(BUILDAPIDOCDIR)/RidgeSC/modules.rst
-# \
-!endif
+BUILDDIRHTML  = docs$(DIR_SEP)build$(DIR_SEP)html
+BUILDAPIDOCDIR= docs$(DIR_SEP)build$(DIR_SEP)apidoc
 
 htmldocs:
 	-$(RMDIR_CMD) $(BUILDDIRHTML)
 	-$(RMDIR_CMD) $(BUILDAPIDOCDIR)
 	$(SPHINXAPIDOC) -f -o $(BUILDAPIDOCDIR)/RidgeSC RidgeSC
-	$(RM_CMD) $(MOD_FILENAME)
+	$(RM_CMD) $(BUILDAPIDOCDIR)$(DIR_SEP)RidgeSC$(DIR_SEP)modules.rst
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
