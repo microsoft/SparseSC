@@ -408,13 +408,25 @@ def repeatfunc(func, times=None, *args):
         return itertools.starmap(func, itertools.repeat(args))
     return itertools.starmap(func, itertools.repeat(args, times))
 
-def _gen_placebo_stats_from_diffs(N1, effect_vec, std_effect_vec, joint_effect, joint_std_effect,
-                                 control_effect_vecs, control_std_effect_vecs, control_joint_effects, control_joint_std_effects,
-                                 max_n_pl = 1000000, ret_pl = False, ret_CI=False, level=0.95):
+def _gen_placebo_stats_from_diffs(effect_vecs, pre_tr_rmspes,
+                                  control_effect_vecs, pre_c_rmspes,
+                                  max_n_pl = 1000000, ret_pl = False, ret_CI=False, level=0.95):
+    N1 = effect_vecs.shape[0]
+    N0 = control_effect_vecs.shape[0]
+    T1 = effect_vecs.shape[1]
     #ret_p1s=False
     keep_pl = ret_pl or ret_CI
-    N0 = control_effect_vecs.shape[0]
-    T1 = len(effect_vec)
+
+    effect_vec = np.mean(effect_vecs, axis=0)
+    joint_effects = np.sqrt(np.mean(np.square(effect_vecs), axis=1))
+    control_joint_effects = np.sqrt(np.mean(np.square(control_effect_vecs), axis=1))
+    std_effect_vecs = np.diag(1/pre_tr_rmspes).dot(effect_vecs)
+
+    std_effect_vec = np.mean(std_effect_vecs, axis=0)
+    joint_effect = np.mean(joint_effects)
+    joint_std_effect = np.mean((1 / pre_tr_rmspes) * joint_effects )
+    control_std_effect_vecs = np.diag(1/ pre_c_rmspes).dot(control_effect_vecs)
+    control_joint_std_effects = (1/ pre_c_rmspes) * control_joint_effects 
     n_pl = _ncr(N0, N1)
     if (max_n_pl > 0 & n_pl > max_n_pl): #randomize
         comb_iter = itertools.combinations(range(N0), N1)
@@ -433,8 +445,8 @@ def _gen_placebo_stats_from_diffs(N1, effect_vec, std_effect_vec, joint_effect, 
     joint_p = 0
     joint_std_p = 0
     for idx, comb in enumerate(comb_iter):
-        placebo_effect_vec = np.mean(control_effect_vecs[comb,:], 2)
-        placebo_std_effect_vec = np.mean(control_std_effect_vecs[comb,:], 2)
+        placebo_effect_vec = np.mean(control_effect_vecs[comb,:], 0)
+        placebo_std_effect_vec = np.mean(control_std_effect_vecs[comb,:], 0)
         placebo_joint_effect = np.mean(control_joint_effects[comb,:])
         placebo_joint_std_effect = np.mean(control_joint_std_effects[comb,:])
 
@@ -493,12 +505,12 @@ def estimate_effects(X, Y_pre, Y_post, treated_units, max_n_pl = 1000000, ret_pl
     Y_post_tr = Y_post[treated_units, :]
     X_and_Y_pre_c = X_and_Y_pre[control_units, :]
     
-    results = joint_penalty_optimzation(X = X_and_Y_pre_c, Y = Y_post_c, **kwargs)
+    best_L1_penalty,best_L2_penalty = 0,0.001
+    if False:
+        results = joint_penalty_optimzation(X = X_and_Y_pre_c, Y = Y_post_c, **kwargs)
+        best_L1_penalty,best_L2_penalty = results.x[0],results.x[1]
 
-    best_L1_penalty = results.x[0]
-    best_L2_penalty = results.x[1]
-
-    V = loo_v_matrix(X = X_and_Y_pre_c, 
+    weights, V, ts_score, ts_loss, L2_PEN_W, opt = loo_v_matrix(X = X_and_Y_pre_c, 
                      Y = Y_post_c,
                      LAMBDA = best_L1_penalty, L2_PEN_W = best_L2_penalty)
 
@@ -512,9 +524,7 @@ def estimate_effects(X, Y_pre, Y_post, treated_units, max_n_pl = 1000000, ret_pl
     Y_post_tr_sc = Y_post_sc[treated_units, :]
     Y_post_c_sc = Y_post_sc[control_units, :]
     effect_vecs = Y_post_tr - Y_post_tr_sc
-    joint_effects = np.sqrt(np.mean(effect_vecs^2, axis=1))
     control_effect_vecs = Y_post_c - Y_post_c_sc
-    control_joint_effects = np.sqrt(np.mean(control_effect_vecs^2, axis=1))
     
     # Get pre match MSE (match quality)
     Y_pre_tr = Y_pre[treated_units, :]
@@ -524,20 +534,12 @@ def estimate_effects(X, Y_pre, Y_post, treated_units, max_n_pl = 1000000, ret_pl
     Y_pre_c_sc = Y_pre_sc[control_units, :]
     pre_tr_pes = Y_pre_tr - Y_pre_tr_sc
     pre_c_pes = Y_pre_c - Y_pre_c_sc
-    pre_tr_rmspes = np.sqrt(np.mean(pre_tr_pes^2, axis=1))
-    pre_c_rmspes = np.sqrt(np.mean(pre_c_pes^2, axis=1))
+    pre_tr_rmspes = np.sqrt(np.mean(np.square(pre_tr_pes), axis=1))
+    pre_c_rmspes = np.sqrt(np.mean(np.square(pre_c_pes), axis=1))
 
 
-    control_std_effect_vecs = control_effect_vecs / pre_c_rmspes
-    control_joint_std_effects = control_joint_effects / pre_c_rmspes
-
-    effect_vec = np.mean(effect_vecs, 2)
-    std_effect_vec = np.mean(effect_vecs / pre_tr_rmspes, 2)
-    joint_effect = np.mean(joint_effects)
-    joint_std_effect = np.mean(joint_effects / pre_tr_rmspes)
-
-    return _gen_placebo_stats_from_diffs(N1, effect_vec, std_effect_vec, joint_effect, joint_std_effect,
-                                 control_effect_vecs, control_std_effect_vecs, control_joint_effects, control_joint_std_effects,
+    return _gen_placebo_stats_from_diffs(effect_vecs, pre_tr_rmspes,
+                                 control_effect_vecs, pre_c_rmspes,
                                  max_n_pl, ret_pl, ret_CI, level)
 
 # ------------------------------------------------------------

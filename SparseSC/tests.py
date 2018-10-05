@@ -136,4 +136,6 @@ if __name__ == '__main__':
     random.seed(12345)
     np.random.seed(10101)
 
-    unittest.main()
+    t = TestDGPs()
+    t.testFactorDGP()
+    #unittest.main()
