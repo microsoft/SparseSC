@@ -1,8 +1,8 @@
-from RidgeSC.fit_fold import  fold_v_matrix, fold_score
-from RidgeSC.fit_loo import  loo_v_matrix, loo_score, loo_weights
-from RidgeSC.fit_ct import  ct_v_matrix, ct_score
-from RidgeSC.optimizers.cd_line_search import cdl_search
-from RidgeSC.lambda_utils import get_max_lambda, L2_pen_guestimate
+from SparseSC.fit_fold import  fold_v_matrix, fold_score
+from SparseSC.fit_loo import  loo_v_matrix, loo_score, loo_weights
+from SparseSC.fit_ct import  ct_v_matrix, ct_score
+from SparseSC.optimizers.cd_line_search import cdl_search
+from SparseSC.lambda_utils import get_max_lambda, L2_pen_guestimate
 import atexit
 import numpy as np
 import itertools
@@ -476,8 +476,8 @@ def _gen_placebo_stats_from_diffs(N1, effect_vec, std_effect_vec, joint_effect, 
 
     EstResultCI = namedtuple('EstResults', 'effect p ci')
     
-    RidgeSCEstResults = namedtuple('RidgeSCEstResults', 'effect_vec_res std_p joint_p joint_std_p N_placebo placebo_effect_vecs')
-    ret_struct = RidgeSCEstResults(EstResultCI(effect_vec, p2s, CIs), p2s_std, joint_p, joint_std_p, comb_len, placebo_effect_vecs)
+    SparseSCEstResults = namedtuple('SparseSCEstResults', 'effect_vec_res std_p joint_p joint_std_p N_placebo placebo_effect_vecs')
+    ret_struct = SparseSCEstResults(EstResultCI(effect_vec, p2s, CIs), p2s_std, joint_p, joint_std_p, comb_len, placebo_effect_vecs)
     return ret_struct
 
 def estimate_effects(X, Y_pre, Y_post, treated_units, max_n_pl = 1000000, ret_pl = False, ret_CI=False, level=0.95, **kwargs):

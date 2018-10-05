@@ -1,4 +1,4 @@
-# Ridge Synthetic Controls
+# Sparse Synthetic Controls
 
 ### Setup
 
@@ -138,7 +138,7 @@ and one column per covariate or observed outcome, scores for a grid of
 parameters `LAMBDA` can be obtained as follows: 
 
 ```python
-import RidgeSC as SC
+import SparseSC as SC
 import numpy as np
 
 # Obtain LAMBDA_max and a grid over which to search

@@ -1,8 +1,8 @@
 
-from RidgeSC.fit_loo import  loo_v_matrix
-from RidgeSC.fit_ct import  ct_v_matrix
-from RidgeSC.fit_fold import fold_v_matrix
-# from RidgeSC.optimizers.cd_line_search import cdl_search
+from SparseSC.fit_loo import  loo_v_matrix
+from SparseSC.fit_ct import  ct_v_matrix
+from SparseSC.fit_fold import fold_v_matrix
+# from SparseSC.optimizers.cd_line_search import cdl_search
 import numpy as np
 
 def L2_pen_guestimate(X):

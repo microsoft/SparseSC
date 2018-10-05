@@ -32,11 +32,11 @@ readmedocs:
 
 pylint:
 	-mkdir build
-	pylint RidgeSC > build$(DIR_SEP)pylint_msgs.txt
+	pylint SparseSC > build$(DIR_SEP)pylint_msgs.txt
 
 SPHINXOPTS    =
 SPHINXBUILD   = python -msphinx
-SPHINXPROJ    = RidgeSC
+SPHINXPROJ    = SparseSC
 SOURCEDIR     = docs/
 BUILDDIR      = docs/build
 SPHINXAPIDOC  = sphinx-apidoc
@@ -46,6 +46,6 @@ BUILDAPIDOCDIR= docs$(DIR_SEP)build$(DIR_SEP)apidoc
 htmldocs:
 	-$(RMDIR_CMD) $(BUILDDIRHTML)
 	-$(RMDIR_CMD) $(BUILDAPIDOCDIR)
-	$(SPHINXAPIDOC) -f -o $(BUILDAPIDOCDIR)/RidgeSC RidgeSC
-	$(RM_CMD) $(BUILDAPIDOCDIR)$(DIR_SEP)RidgeSC$(DIR_SEP)modules.rst
+	$(SPHINXAPIDOC) -f -o $(BUILDAPIDOCDIR)/SparseSC SparseSC
+	$(RM_CMD) $(BUILDAPIDOCDIR)$(DIR_SEP)SparseSC$(DIR_SEP)modules.rst
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)

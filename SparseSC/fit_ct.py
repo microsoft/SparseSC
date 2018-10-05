@@ -1,7 +1,7 @@
 from numpy import ones, diag, matrix, zeros, absolute, mean,var, linalg, prod, sqrt
 import numpy as np
 import warnings
-from RidgeSC.optimizers.cd_line_search import cdl_search
+from SparseSC.optimizers.cd_line_search import cdl_search
 warnings.filterwarnings('ignore')
 
 def ct_v_matrix(X,

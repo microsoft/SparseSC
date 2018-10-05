@@ -1,6 +1,6 @@
-#from RidgeSC.fit_fold import fold_v_matrix
-from RidgeSC.fit_loo import loo_v_matrix
-from RidgeSC.fit_ct import ct_v_matrix
+#from SparseSC.fit_fold import fold_v_matrix
+from SparseSC.fit_loo import loo_v_matrix
+from SparseSC.fit_ct import ct_v_matrix
 import numpy as np
 
 def tensor(X, Y, X_treat=None, Y_treat=None, **kwargs):

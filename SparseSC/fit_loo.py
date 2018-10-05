@@ -3,8 +3,8 @@ import numpy as np
 import itertools
 import warnings
 # only used by the step-down method (currently not implemented):
-# from RidgeSC.utils.sub_matrix_inverse import subinv_k, all_subinverses
-from RidgeSC.optimizers.cd_line_search import cdl_search
+# from SparseSC.utils.sub_matrix_inverse import subinv_k, all_subinverses
+from SparseSC.optimizers.cd_line_search import cdl_search
 warnings.filterwarnings('ignore')
 
 def complete_treated_control_list(N, treated_units = None, control_units = None):

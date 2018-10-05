@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# RidgeSC documentation build configuration file, created by
+# SparseSC documentation build configuration file, created by
 # sphinx-quickstart on Thu Sep 27 14:53:55 2018.
 #
 # This file is execfile()d with the current directory set to its
@@ -51,7 +51,7 @@ source_suffix = ['.rst', '.md']
 master_doc = 'index'
 
 # General information about the project.
-project = 'RidgeSC'
+project = 'SparseSC'
 copyright = '2018, Jason Thorpe, Brian Quistorff, Matt Goldman'
 author = 'Jason Thorpe, Brian Quistorff, Matt Goldman'
 
@@ -59,7 +59,7 @@ author = 'Jason Thorpe, Brian Quistorff, Matt Goldman'
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
-from RidgeSC import __version__
+from SparseSC import __version__
 version = __version__
 # The full version, including alpha/beta/rc tags. (For now, keep the same)
 release = version
@@ -137,7 +137,7 @@ source_parsers = {'.md': 'recommonmark.parser.CommonMarkParser', }
 # -- Options for HTMLHelp output ------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'RidgeSCdoc'
+htmlhelp_basename = 'SparseSCdoc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -164,7 +164,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'RidgeSC.tex', 'RidgeSC Documentation',
+    (master_doc, 'SparseSC.tex', 'SparseSC Documentation',
      'Jason Thorpe, Brian Quistorff, Matt Goldman', 'manual'),
 ]
 
@@ -174,7 +174,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'ridgesc', 'RidgeSC Documentation',
+    (master_doc, 'sparsesc', 'SparseSC Documentation',
      [author], 1)
 ]
 
@@ -185,8 +185,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'RidgeSC', 'RidgeSC Documentation',
-     author, 'RidgeSC', 'One line description of project.',
+    (master_doc, 'SparseSC', 'SparseSC Documentation',
+     author, 'SparseSC', 'One line description of project.',
      'Miscellaneous'),
 ]
 

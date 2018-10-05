@@ -19,11 +19,11 @@ def find_version(*file_paths):
         return version_match.group(1)
     raise RuntimeError("Unable to find version string.")
 
-setup(name="RidgeSC", 
-      version=find_version('RidgeSC', '__init__.py'),
+setup(name="SparseSC", 
+      version=find_version('SparseSC', '__init__.py'),
       description="Sparse Synthetic Controls",
       author="Microsoft Research",
       url="https://github.com/Microsoft/SparseSyntheticControls",
-      packages=['RidgeSC'],
+      packages=['SparseSC'],
 	  license='MIT',
       install_requires=["numpy", "Scipy", "scikit-learn"])

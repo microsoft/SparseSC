@@ -2,8 +2,8 @@ from numpy import ones, diag, matrix, zeros, mean,var, linalg, prod, sqrt, absol
 import numpy as np
 import itertools
 import warnings
-#from RidgeSC.utils.sub_matrix_inverse import subinv_k, all_subinverses
-from RidgeSC.optimizers.cd_line_search import cdl_search
+#from SparseSC.utils.sub_matrix_inverse import subinv_k, all_subinverses
+from SparseSC.optimizers.cd_line_search import cdl_search
 warnings.filterwarnings('ignore')
 
 

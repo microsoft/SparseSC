@@ -1,5 +1,5 @@
-from RidgeSC.fit_loo import loo_weights
-from RidgeSC.fit_ct import ct_weights
+from SparseSC.fit_loo import loo_weights
+from SparseSC.fit_ct import ct_weights
 import numpy as np
 
 def weights(X, X_treat=None, **kwargs):

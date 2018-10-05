@@ -1,17 +1,17 @@
 """
 USAGE: 
 
-cd path/to/RidgeSC
+cd path/to/SparseSC
 python example-code.py
 """
 
 import os
 import sys
-sys.path.append(os.path.join(os.getcwd(),"RidgeSC"))
+#sys.path.append(os.path.join(os.getcwd(),"SparseSC"))
 
 import time
-import RidgeSC as SC
-from RidgeSC.tests import ge_dgp
+import SparseSC as SC
+from SparseSC.tests import ge_dgp
 import numpy as np
 import random
 

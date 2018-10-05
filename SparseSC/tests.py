@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 import random
-import RidgeSC as SC
+import SparseSC as SC
 
 def ge_dgp(N0,N1,T0,T1,K,S,R,groups,group_scale,beta_scale,confounders_scale,model= "full"):
     """
