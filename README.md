@@ -41,8 +41,8 @@ control units.
 
 ```python
 CV_score(X = x_and_y_pre, # Covariates and pre-intervention outcomes from the control units
-		 Y = y_post_control, # Post-intervention outcomes from the control units
-		 ...)
+         Y = y_post_control, # Post-intervention outcomes from the control units
+         ...)
 ```
 
 Note that the observations from the treated units are not used to optimize 
@@ -85,10 +85,10 @@ or more value of the penalty parameters:
 
 ```python
 CV_score(X = x_control, # Covariates from the control units
-		 Y = y_pre_control, # Pre-intervention outcomes from the control units
-		 x_treat = x_treated, # Covariates from the treated units
-		 y_treat = y_pre_treated, # Pre-intervention outcomes from the treated units
-		 ...)
+         Y = y_pre_control, # Pre-intervention outcomes from the control units
+         x_treat = x_treated, # Covariates from the treated units
+         y_treat = y_pre_treated, # Pre-intervention outcomes from the treated units
+         ...)
 ```
 
 This scenario has the advantage of being the fastest to compute, and may
@@ -147,31 +147,31 @@ fmax = 1e-2
 grid = np.exp(np.linspace(np.log(fmin),np.log(fmax),n_points))
 
 LAMBDA_max = SC.get_max_lambda(
-					X, Y, 
+                    X, Y, 
 
-					# OPTIONAL, used in the 'pre-only' scenario
-					X_treat=X_treat, Y_treat=Y_treat, 
+                    # OPTIONAL, used in the 'pre-only' scenario
+                    X_treat=X_treat, Y_treat=Y_treat, 
 
-					# OPTIONAL. Defaults to SC.L2_pen_guestimate(X)
-					# or SC.L2_pen_guestimate(np.vstack((X,X_treat))) as
-					# appropriate
-					L2_PEN_W = my_favorite_l2_penalty)
+                    # OPTIONAL. Defaults to SC.L2_pen_guestimate(X)
+                    # or SC.L2_pen_guestimate(np.vstack((X,X_treat))) as
+                    # appropriate
+                    L2_PEN_W = my_favorite_l2_penalty)
 
 # get the scores for each value of `LAMBDA`
 scores = SC.CV_score(
-	X = X,
-	Y = Y,
+    X = X,
+    Y = Y,
 
-	# OPTIONAL, used in the pre-only scenario
-	X_treat = X_treat,
-	Y_treat = Y_treat,
+    # OPTIONAL, used in the pre-only scenario
+    X_treat = X_treat,
+    Y_treat = Y_treat,
 
-	# if LAMBDA is a single value, we get a single score, If it's an array
-	# of values, we get an array of scores.
-	LAMBDA = grid * LAMBDA_max,
+    # if LAMBDA is a single value, we get a single score, If it's an array
+    # of values, we get an array of scores.
+    LAMBDA = grid * LAMBDA_max,
 
-	# OPTIONAL, but should be present if used in the call to get_max_lambda()
-	L2_PEN_W = my_favorite_l2_penalty)
+    # OPTIONAL, but should be present if used in the call to get_max_lambda()
+    L2_PEN_W = my_favorite_l2_penalty)
 
 # select the value of LAMBDA with the best out-of sample prediction error:
 best_LAMBDA = (grid * LAMBDA_max)[np.argmin(scores)]
@@ -179,22 +179,22 @@ best_LAMBDA = (grid * LAMBDA_max)[np.argmin(scores)]
 
 # Extract the V matrix which corresponds to the optimal value of LAMBDA
 V = SC.tensor(X = X,
-			  Y = Y,
+              Y = Y,
 
-			  # Optional
-			  X_treat = X_treat,
-			  Y_treat = Y_treat,
+              # Optional
+              X_treat = X_treat,
+              Y_treat = Y_treat,
 
-			  LAMBDA = best_LAMBDA,
+              LAMBDA = best_LAMBDA,
 
-			  # Also optional
-			  L2_PEN_W = my_favorite_l2_penalty)
+              # Also optional
+              L2_PEN_W = my_favorite_l2_penalty)
 
 # extract the matrix of weights
 weights = SC.weights(X = X_control,
-					 X_treat = X_treated, # Optional
-					 V = V_ct,
-					 L2_PEN_W = my_favorite_l2_penalty) # Also optional
+                     X_treat = X_treated, # Optional
+                     V = V_ct,
+                     L2_PEN_W = my_favorite_l2_penalty) # Also optional
 
 # create the matrix of Synthetic Controls 
 synthetic_conrols = weights.dot(Y)
