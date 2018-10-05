@@ -78,7 +78,7 @@ def ge_dgp(C,N,T0,T1,K,S,R,groups,group_scale,beta_scale,confounders_scale,model
     return X_control, X_treated, Y_pre_control, Y_pre_treated, Y_post_control, Y_post_treated
 
 
-def factor_dgp(C,N,T0,T1,K,R,F,beta_scale = 1):
+def factor_dgp(C,N,T0,T1,K,R,F):
     
     # COVARIATE EFFECTS
     X_control = np.matrix(np.random.normal(0,1,((C), K+R)))
@@ -119,16 +119,16 @@ class TestDGPs(unittest.TestCase):
         N, C = 1,100
         T0,T1 = 20, 10
         K, R, F = 5, 5, 5
-        X_control, X_treated, Y_pre_control, Y_pre_treated, Y_post_control, Y_post_treated = factor_dgp(C,N,T0,T1,K,R,F,beta_scale = 1)
+        X_control, X_treated, Y_pre_control, Y_pre_treated, Y_post_control, Y_post_treated = factor_dgp(C,N,T0,T1,K,R,F)
         
         Y_post = np.vstack( (Y_post_treated,Y_post_control, ) )
         X = np.vstack( (X_treated, X_control, ) )
         Y_pre  = np.vstack( (Y_pre_treated, Y_pre_control, ) )
         treated_units = [0]
-        X_and_Y_pre = np.hstack( ( X, Y_pre,) )
+        #X_and_Y_pre = np.hstack( ( X, Y_pre,) )
 
         est_res = SC.estimate_effects(X, Y_pre, Y_post, treated_units)
-
+        print(est_res)
 
         #self.failUnlessEqual(calc, truth)
 
