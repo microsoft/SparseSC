@@ -116,7 +116,8 @@ def factor_dgp(N0,N1,T0,T1,K,R,F):
 
 class TestDGPs(unittest.TestCase):
     def testFactorDGP(self):
-        N1, N0 = 1,100
+        N1, N0 = 2,100
+        treated_units = [0,1]
         T0,T1 = 20, 10
         K, R, F = 5, 5, 5
         X_control, X_treated, Y_pre_control, Y_pre_treated, Y_post_control, Y_post_treated = factor_dgp(N0,N1,T0,T1,K,R,F)
@@ -124,10 +125,9 @@ class TestDGPs(unittest.TestCase):
         Y_post = np.vstack( (Y_post_treated,Y_post_control, ) )
         X = np.vstack( (X_treated, X_control, ) )
         Y_pre  = np.vstack( (Y_pre_treated, Y_pre_control, ) )
-        treated_units = [0]
         #X_and_Y_pre = np.hstack( ( X, Y_pre,) )
 
-        est_res = SC.estimate_effects(X, Y_pre, Y_post, treated_units)
+        est_res = SC.estimate_effects(X, Y_pre, Y_post, treated_units, V_penalty = 0, W_penalty = 0.001)
         print(est_res)
 
         #self.failUnlessEqual(calc, truth)
