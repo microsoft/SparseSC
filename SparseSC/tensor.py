@@ -11,7 +11,7 @@ def tensor(X, Y, X_treat=None, Y_treat=None, **kwargs):
         X = asmatrix(X)
     except ValueError:  
         raise ValueError("X is not coercible to a matrix")
-    try ValueError:
+    try:
         Y = asmatrix(Y)
     except:  
         raise ValueError("X is not coercible to a matrix")
