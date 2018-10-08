@@ -1,4 +1,4 @@
-from numpy import ones, diag, matrix, zeros, absolute, mean,var, linalg, prod, sqrt
+from numpy import ones, diag, matrix, ndarray, zeros, absolute, mean,var, linalg, prod, sqrt
 import numpy as np
 import itertools
 import warnings
@@ -71,10 +71,14 @@ def loo_v_matrix(X,
     treated_units = np.array(treated_units)
 
     # parameter QC
-    if not isinstance(X, matrix):
-        raise TypeError("X is not a matrix")
-    if not isinstance(Y, matrix):
-        raise TypeError("Y is not a matrix")
+    try:
+        X = np.asmatrix(X)
+    except ValueError:
+        raise TypeError("X is not coercible to a matrix")
+    try:
+        Y = np.asmatrix(Y)
+    except ValueError:
+        raise TypeError("Y is not coercible to a matrix")
     if X.shape[1] == 0:
         raise ValueError("X.shape[1] == 0")
     if Y.shape[1] == 0:

@@ -13,10 +13,14 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
     """
 
     # PARAMETER QC
-    if not isinstance(X, np.matrix):
-        raise TypeError("X is not a matrix")
-    if not isinstance(Y, np.matrix):
-        raise TypeError("Y is not a matrix")
+    try:
+        X = np.asmatrix(X)
+    except ValueError:
+        raise ValueError("X is not coercible to a matrix")
+    try:
+        Y = np.asmatrix(Y)
+    except ValueError:
+        raise ValueError("Y is not coercible to a matrix")
     if X_treat is None != Y_treat is None:
         raise ValueError("parameters `X_treat` and `Y_treat` must both be Matrices or None")
     if X.shape[1] == 0:

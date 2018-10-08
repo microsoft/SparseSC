@@ -30,10 +30,14 @@ def score_train_test(X,
         # >> K-fold validation on the Treated units; assuming that Y and Y_treat are pre-intervention outcomes
 
         # PARAMETER QC
-        if not isinstance(X_treat, np.matrix):
-            raise TypeError("X_treat is not a matrix")
-        if not isinstance(Y_treat, np.matrix):
-            raise TypeError("Y_treat is not a matrix")
+        try:
+            X = asmatrix(X)
+        except ValueError:
+            raise ValueError("X is not coercible to a matrix")
+        try:
+            Y = asmatrix(Y)
+        except ValueError:
+            raise ValueError("Y is not coercible to a matrix")
         if X_treat.shape[1] == 0:
             raise ValueError("X_treat.shape[1] == 0")
         if Y_treat.shape[1] == 0:
@@ -173,10 +177,14 @@ def CV_score(X,Y,
     """
 
     # PARAMETER QC
-    if not isinstance(X, np.matrix):
-        raise TypeError("X is not a matrix")
-    if not isinstance(Y, np.matrix):
-        raise TypeError("Y is not a matrix")
+    try:
+        X = np.asmatrix(X)
+    except ValueError:
+        raise ValueError("X is not coercible to a matrix")
+    try:
+        Y = np.asmatrix(Y)
+    except ValueError:
+        raise ValueError("X is not coercible to a matrix")
     if X_treat is None != Y_treat is None:
         raise ValueError("parameters `X_treat` and `Y_treat` must both be Matrices or None")
     if X.shape[1] == 0:

@@ -1,4 +1,4 @@
-from numpy import ones, diag, matrix, zeros, mean,var, linalg, prod, sqrt, absolute
+from numpy import ones, diag, array, matrix, ndarray, zeros, mean,var, linalg, prod, sqrt, absolute
 import numpy as np
 import itertools
 import warnings
@@ -73,10 +73,14 @@ def fold_v_matrix(X,
     treated_units = np.array(treated_units)
 
     # parameter QC
-    if not isinstance(X, matrix):
-        raise TypeError("X is not a matrix")
-    if not isinstance(Y, matrix):
-        raise TypeError("Y is not a matrix")
+    try:
+        X = np.asmatrix(X)
+    except ValueError:
+        raise ValueError("X is not coercible to a matrix")
+    try:
+        Y = np.asmatrix(Y)
+    except ValueError:
+        raise ValueError("Y is not coercible to a matrix")
     if X.shape[1] == 0:
         raise ValueError("X.shape[1] == 0")
     if Y.shape[1] == 0:
