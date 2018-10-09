@@ -31,11 +31,11 @@ def score_train_test(X,
 
         # PARAMETER QC
         try:
-            X = asmatrix(X)
+            X = np.asmatrix(X)
         except ValueError:
             raise ValueError("X is not coercible to a matrix")
         try:
-            Y = asmatrix(Y)
+            Y = np.asmatrix(Y)
         except ValueError:
             raise ValueError("Y is not coercible to a matrix")
         if X_treat.shape[1] == 0:
