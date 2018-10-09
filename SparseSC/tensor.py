@@ -8,11 +8,11 @@ def tensor(X, Y, X_treat=None, Y_treat=None, **kwargs):
     """
     # PARAMETER QC
     try:
-        X = asmatrix(X)
+        X = np.asmatrix(X)
     except ValueError:  
         raise ValueError("X is not coercible to a matrix")
     try:
-        Y = asmatrix(Y)
+        Y = np.asmatrix(Y)
     except:  
         raise ValueError("X is not coercible to a matrix")
     if X.shape[1] == 0:
