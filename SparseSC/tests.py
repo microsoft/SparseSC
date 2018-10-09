@@ -132,6 +132,12 @@ class TestDGPs(unittest.TestCase):
 
         #self.failUnlessEqual(calc, truth)
 
+    #Simulations
+    #1) As T0 and N0 increases do 
+    ##a) SC match actuals in terms of the factor loadings
+    ##b) our estimates look consistent and have good coverage
+    ##c) Can we match a longer set of factor loadings
+
 if __name__ == '__main__':
     random.seed(12345)
     np.random.seed(10101)
