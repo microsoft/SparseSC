@@ -425,16 +425,23 @@ def _gen_placebo_stats_from_diffs(effect_vecs, pre_tr_rmspes,
     #ret_p1s=False
     keep_pl = ret_pl or ret_CI
 
-    effect_vec = np.mean(effect_vecs, axis=0)
+    #Get rest of the outcomes
+    ##Get the joint effects
     joint_effects = np.sqrt(np.mean(np.square(effect_vecs), axis=1))
     control_joint_effects = np.sqrt(np.mean(np.square(control_effect_vecs), axis=1))
-    std_effect_vecs = np.diag(1/pre_tr_rmspes).dot(effect_vecs)
+    ## Standardized effect vecs
+    std_effect_vecs = np.diagflat(1/pre_tr_rmspes).dot(effect_vecs)
+    control_std_effect_vecs = np.diagflat(1/ pre_c_rmspes).dot(control_effect_vecs)
+    ##Get the standardized joint effects
+    joint_std_effects = np.multiply((1 / pre_tr_rmspes), joint_effects)
+    control_joint_std_effects = np.multiply((1/ pre_c_rmspes), control_joint_effects) 
 
+    #Compute the outcomes for treatment
+    effect_vec = np.mean(effect_vecs, axis=0)
     std_effect_vec = np.mean(std_effect_vecs, axis=0)
     joint_effect = np.mean(joint_effects)
-    joint_std_effect = np.mean((1 / pre_tr_rmspes) * joint_effects )
-    control_std_effect_vecs = np.diag(1/ pre_c_rmspes).dot(control_effect_vecs)
-    control_joint_std_effects = (1/ pre_c_rmspes) * control_joint_effects 
+    joint_std_effect = np.mean(joint_std_effects)
+
     n_pl = _ncr(N0, N1)
     if (max_n_pl > 0 & n_pl > max_n_pl): #randomize
         comb_iter = itertools.combinations(range(N0), N1)
@@ -445,8 +452,8 @@ def _gen_placebo_stats_from_diffs(effect_vecs, pre_tr_rmspes,
     placebo_effect_vecs = None
     if keep_pl:
         placebo_effect_vecs = np.empty((comb_len,T1))
-    p2s = np.zero((1,T1))
-    p2s_std = np.zero((1,T1))
+    p2s = np.zeros((1,T1))
+    p2s_std = np.zeros((1,T1))
     #p1s = np.zero((1,T1))
     #p1s_std = np.zero((1,T1))
     #effect_vec_sgn = np.sign(effect_vec)
@@ -500,9 +507,10 @@ def _gen_placebo_stats_from_diffs(effect_vecs, pre_tr_rmspes,
     ret_struct = SparseSCEstResults(EstResultCI(effect_vec, p2s, CIs), p2s_std, joint_p, joint_std_p, comb_len, placebo_effect_vecs)
     return ret_struct
 
-def estimate_effects(X, Y_pre, Y_post, treated_units, max_n_pl = 1000000, ret_pl = False, ret_CI=False, level=0.95, **kwargs):
+def estimate_effects(X, Y_pre, Y_post, treated_units, max_n_pl = 1000000, ret_pl = False, ret_CI=False, level=0.95, 
+                     V_penalty = None, W_penalty=None, **kwargs):
     #TODO: Cleanup returning placebo distribution (incl pre?)
-    N1 = len(treated_units)
+    #N1 = len(treated_units)
     X_and_Y_pre = np.hstack( ( X, Y_pre,) )
     N = X_and_Y_pre.shape[0]
     #N0 = N - N1
@@ -513,18 +521,17 @@ def estimate_effects(X, Y_pre, Y_post, treated_units, max_n_pl = 1000000, ret_pl
     Y_post_tr = Y_post[treated_units, :]
     X_and_Y_pre_c = X_and_Y_pre[control_units, :]
     
-    best_L1_penalty,best_L2_penalty = 0,0.001
-    if False:
+    if V_penalty is None: #TODO (handle this case better)
         results = joint_penalty_optimzation(X = X_and_Y_pre_c, Y = Y_post_c, **kwargs)
-        best_L1_penalty,best_L2_penalty = results.x[0],results.x[1]
+        V_penalty,W_penalty = results.x[0],results.x[1]
 
     weights, V, ts_score, ts_loss, L2_PEN_W, opt = loo_v_matrix(X = X_and_Y_pre_c, 
                      Y = Y_post_c,
-                     LAMBDA = best_L1_penalty, L2_PEN_W = best_L2_penalty)
+                     LAMBDA = V_penalty, L2_PEN_W = W_penalty)
 
     weights = loo_weights(X = X_and_Y_pre,
                           V = V,
-                          L2_PEN_W = best_L2_penalty,
+                          L2_PEN_W = W_penalty,
                           treated_units = all_units,
                           control_units = control_units)
     Y_post_sc = weights.dot(Y_post_c)

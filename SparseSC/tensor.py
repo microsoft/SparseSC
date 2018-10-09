@@ -13,8 +13,8 @@ def tensor(X, Y, X_treat=None, Y_treat=None, **kwargs):
         raise ValueError("X is not coercible to a matrix")
     try:
         Y = np.asmatrix(Y)
-    except:  
-        raise ValueError("X is not coercible to a matrix")
+    except ValueError:  
+        raise ValueError("Y is not coercible to a matrix")
     if X.shape[1] == 0:
         raise ValueError("X.shape[1] == 0")
     if Y.shape[1] == 0:
