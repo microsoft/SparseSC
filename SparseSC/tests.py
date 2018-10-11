@@ -137,6 +137,8 @@ class TestDGPs(unittest.TestCase):
     ##a) SC match actuals in terms of the factor loadings
     ##b) our estimates look consistent and have good coverage
     ##c) Can we match a longer set of factor loadings
+    # Other Counterfactual prediction:
+    ## a) Compare to SC (big N0, small T0, then SC; or many factors; should do bad) to basic time-series model
 
 if __name__ == '__main__':
     random.seed(12345)
