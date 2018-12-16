@@ -109,10 +109,10 @@ def loo_v_matrix(X,
     # this is non-trivial when there control units are also being predicted:
     #out_treated  = [ctrl_rng[control_units == trt_unit] for trt_unit in treated_units] 
 
-    if intercept:
-        Y = Y.copy()
-        for i, trt_unit in enumerate(treated_units):
-            Y[trt_unit,:] -= Y[in_controls[i],:].mean(axis=0) 
+#--     if intercept:
+#--         Y = Y.copy()
+#--         for i, trt_unit in enumerate(treated_units):
+#--             Y[trt_unit,:] -= Y[in_controls[i],:].mean(axis=0) 
 
     # handy constants (for speed purposes):
     Y_treated = Y[treated_units,:]
@@ -141,7 +141,7 @@ def loo_v_matrix(X,
         weights, _, _ = _weights(dv)
         Ey = (Y_treated - weights.T.dot(Y_control)).getA()
         # (...).copy() assures that x.flags.writeable is True:
-        return ((Ey **2).sum() + LAMBDA * absolute(V).sum()).copy() 
+        return (np.einsum('ij,ij->',Ey,Ey) + LAMBDA * absolute(V).sum()).copy()  # (Ey **2).sum() -> einsum
 
     def _grad(V):
         """ Calculates just the diagonal of dGamma0_dV
@@ -150,13 +150,13 @@ def loo_v_matrix(X,
         """
         dv = diag(V)
         weights, A, _ = _weights(dv)
-        Ey = (Y_treated - weights.T.dot(Y_control)).getA()
+        Ey = (weights.T.dot(Y_control) - Y_treated).getA()
         dGamma0_dV_term2 = zeros(K)
-        dPI_dV = zeros((N0, N1))
+        dPI_dV = zeros((N0, N1)) # stupid notation: PI = W.T
         # if solve_method == "step-down": Ai_cache = all_subinverses(A)
         for k in range(K):
             if verbose:  # for large sample sizes, linalg.solve is a huge bottle neck,
-                print("Calculating gradient, for moment %s of %s" % (k ,K,))
+                print("Calculating gradient for moment %s of %s" % (k ,K,))
             dPI_dV.fill(0) # faster than re-allocating the memory each loop.
             for i, index in enumerate(in_controls):
                 dA = dA_dV_ki[k][i]
@@ -171,8 +171,8 @@ def loo_v_matrix(X,
                                K * len(in_controls),))
                     b = linalg.solve(A[in_controls2[i]],dB - dA.dot(b_i[i]))
                 dPI_dV[index, i] = b.flatten() # TODO: is the Transpose  an error???
-            dGamma0_dV_term2[k] = (Ey * Y_control.T.dot(dPI_dV).T.getA()).sum()
-        return LAMBDA - 2 * dGamma0_dV_term2 
+            dGamma0_dV_term2[k] = 2 * np.einsum("ij,kj,ki->",Ey, Y_control, dPI_dV) # (Ey * Y_control.T.dot(dPI_dV).T.getA()).sum()
+        return LAMBDA + dGamma0_dV_term2 
 
     def _weights(V):
         weights = zeros((N0, N1))
@@ -194,7 +194,8 @@ def loo_v_matrix(X,
             for i, trt_unit in enumerate(treated_units):
                 if verbose >= 2:  # for large sample sizes, linalg.solve is a huge bottle neck,
                     print("Calculating weights, linalg.solve() call %s of %s" % (i,len(in_controls),))
-                (b) = b_i[i] = linalg.solve(A[in_controls2[i]], B[in_controls[i], trt_unit])
+                (b) = b_i[i] = linalg.solve(A[in_controls2[i]], 
+                                            B[in_controls[i], trt_unit] + 2 * L2_PEN_W / len(in_controls[i]))
                 weights[out_controls[i], i] = b.flatten()
         else:
             raise ValueError("Unknown Solve Method: " + solve_method)
@@ -221,10 +222,10 @@ def loo_v_matrix(X,
     #if True:
     #    _do_gradient_check()
 
-    if intercept:
-        Y = Y.copy()
-        for i, trt_unit in enumerate(treated_units):
-            weights[out_controls[i], i] += 1/len(out_controls[i])
+#--     if intercept:
+#--         Y = Y.copy()
+#--         for i, trt_unit in enumerate(treated_units):
+#--             weights[out_controls[i], i] += 1/len(out_controls[i])
     return weights, v_mat, ts_score, ts_loss, L2_PEN_W, opt
 
 def loo_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, intercept = True, solve_method = "standard", verbose = False):
@@ -268,11 +269,12 @@ def loo_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, inte
         for i, trt_unit in enumerate(treated_units):
             if verbose >= 2:  # for large sample sizes, linalg.solve is a huge bottle neck,
                 print("Calculating weights, linalg.solve() call %s of %s" % (i,len(treated_units),))
-            (b) = linalg.solve(A[in_controls2[i]], B[in_controls[i], trt_unit])
+            (b) = linalg.solve(A[in_controls2[i]], 
+                               B[in_controls[i], trt_unit] + 2 * L2_PEN_W / len(in_controls[i]))
 
             weights[out_controls[i], i] = b.flatten()
-            if intercept:
-                weights[out_controls[i], i] += 1/len(out_controls[i])
+#--             if intercept:
+#--                 weights[out_controls[i], i] += 1/len(out_controls[i])
     else:
         raise ValueError("Unknown Solve Method: " + solve_method)
     return weights.T
@@ -289,7 +291,7 @@ def loo_score(Y, X, V, L2_PEN_W, LAMBDA = 0, treated_units = None, control_units
     Y_tr = Y[treated_units, :]
     Y_c = Y[control_units, :]
     Ey = (Y_tr - weights.dot(Y_c)).getA()
-    return (Ey **2).sum() + LAMBDA * V.sum()
+    return np.einsum('ij,ij->',Ey,Ey) + LAMBDA * V.sum() # (Ey **2).sum() -> einsum
 
 
 

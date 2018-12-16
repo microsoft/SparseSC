@@ -1,7 +1,7 @@
 from SparseSC.fit_fold import  fold_v_matrix, fold_score
 from SparseSC.fit_loo import  loo_v_matrix, loo_score, loo_weights
 from SparseSC.fit_ct import  ct_v_matrix, ct_score
-from SparseSC.optimizers.cd_line_search import cdl_search
+#-- from SparseSC.optimizers.cd_line_search import cdl_search
 from SparseSC.lambda_utils import get_max_lambda, L2_pen_guestimate
 import atexit
 import numpy as np
@@ -52,7 +52,7 @@ def score_train_test(X,
                     ct_v_matrix(X = np.vstack((X,X_treat[train, :])),
                                 Y = np.vstack((Y,Y_treat[train, :])),
                                 treated_units = [X.shape[0] + i for i in  range(len(train))],
-                                method = cdl_search,
+                                # method = cdl_search,
                                 **kwargs)
 
                     
@@ -72,9 +72,8 @@ def score_train_test(X,
 #--                    s,
 #--                    np.power(Y_treat[test, :] - np.mean(Y_treat[test, :]),2).sum() ))
 
-    else: 
+    else: # X_treat *is* None
         # >> K-fold validation on the only control units; assuming that Y contains post-intervention outcomes 
-
         if grad_splits is not None:
 
             try:
@@ -91,7 +90,7 @@ def score_train_test(X,
                     fold_v_matrix(X = X[train, :],
                                   Y = Y[train, :], 
                                   # treated_units = [X.shape[0] + i for i in  range(len(train))],
-                                  method = cdl_search,
+                                  # method = cdl_search,
                                   grad_splits = grad_splits_1,
                                   **kwargs)
 
@@ -111,7 +110,7 @@ def score_train_test(X,
                     loo_v_matrix(X = X[train, :],
                                  Y = Y[train, :], 
                                  # treated_units = [X.shape[0] + i for i in  range(len(train))],
-                                 method = cdl_search,
+                                 # method = cdl_search,
                                  **kwargs)
 
             # GET THE OUT-OF-SAMPLE PREDICTION ERROR
@@ -346,6 +345,7 @@ def CV_score(X,Y,
         total_score = sum(scores)
 
     return total_score
+
 
 def joint_penalty_optimzation(X, Y, L1_pen_start = None, L2_pen_start = None, bounds = ((-6,6,),)*2, X_treat = None, Y_treat = None):
     #TODO: Default bounds?

@@ -84,9 +84,9 @@ def ct_v_matrix(X,
     X_treated = X[treated_units,:]
     X_control = X[control_units,:]
 
-    if intercept: 
-        Y = Y.copy()
-        Y_treated -= Y_control.mean(axis=0) 
+#--     if intercept: 
+#--         Y = Y.copy()
+#--         Y_treated -= Y_control.mean(axis=0) 
 
     # INITIALIZE PARTIAL DERIVATIVES
     dA_dV_ki = [ X_control[:, k ].dot(X_control[:, k ].T) +  # i,j are on the diagonal (both equal to k)
@@ -99,7 +99,7 @@ def ct_v_matrix(X,
         weights, _, _ ,_ = _weights(dv)
         Ey = (Y_treated - weights.T.dot(Y_control)).getA()
         # note that (...).copy() assures that x.flags.writeable is True:
-        return ((Ey **2).sum() + LAMBDA * absolute(V).sum()).copy() 
+        return (np.einsum('ij,ij->',Ey,Ey) + LAMBDA * absolute(V).sum()).copy() # (Ey **2).sum() -> einsum
 
     def _grad(V):
         """ Calculates just the diagonal of dGamma0_dV
@@ -108,31 +108,31 @@ def ct_v_matrix(X,
         """
         dv = diag(V)
         weights, A, _, AinvB = _weights(dv)
-        Ey = (Y_treated - weights.T.dot(Y_control)).getA()
+        Ey = (weights.T.dot(Y_control) - Y_treated).getA()
         dGamma0_dV_term2 = zeros(K)
-        dPI_dV = zeros((N0, N1))
+        #dPI_dV = zeros((N0, N1)) # stupid notation: PI = W.T
         #Ai = A.I
         for k in range(K):
             if verbose:  # for large sample sizes, linalg.solve is a huge bottle neck,
                 print("Calculating gradient, linalg.solve() call %s of %s" % (k ,K,))
-            dPI_dV.fill(0) # faster than re-allocating the memory each loop.
+            #dPI_dV.fill(0) # faster than re-allocating the memory each loop.
             dA = dA_dV_ki[k]
             dB = dB_dV_ki[k]
             dPI_dV = linalg.solve(A,(dB - dA.dot(AinvB))) 
             #dPI_dV = Ai.dot(dB - dA.dot(AinvB))
-            dGamma0_dV_term2[k] = (Ey * Y_control.T.dot(dPI_dV).T.getA()).sum()
-        return LAMBDA - 2 * dGamma0_dV_term2
+            dGamma0_dV_term2[k] = np.einsum("ij,kj,ki->",Ey, Y_control, dPI_dV)  # (Ey * Y_control.T.dot(dPI_dV).T.getA()).sum()
+        return LAMBDA + 2 * dGamma0_dV_term2
 
     L2_PEN_W_mat = 2 * L2_PEN_W * diag(ones(X_control.shape[0]))
     def _weights(V):
         weights = zeros((N0, N1))
         A = X_control.dot(2*V).dot(X_control.T) + L2_PEN_W_mat # 5
-        B = X_treated.dot(2*V).dot(X_control.T).T # 6
+        B = X_treated.dot(2*V).dot(X_control.T).T + 2 * L2_PEN_W / X_control.shape[0] # 6
         b = linalg.solve(A,B)
-        if intercept:
-            weights = b + 1/N0
-        else:
-            weights = b
+#--         if intercept:
+#--             weights = b + 1/N0
+#--         else:
+#--             weights = b
         return weights, A, B,b
 
     if max_lambda:
@@ -156,9 +156,9 @@ def ct_v_matrix(X,
 
     #if True:
     #    _do_gradient_check()
-    if intercept: 
-        # not above, b/c Y_treated was already offset at the start
-        weights += 1/N0 
+#--     if intercept: 
+#--         # not above, b/c Y_treated was already offset at the start
+#--         weights += 1/N0 
     return weights, v_mat, ts_score, ts_loss, L2_PEN_W, opt
 
 def ct_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, intercept = True):
@@ -174,12 +174,12 @@ def ct_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, inter
     X_treated = X[treated_units,:]
     X_control = X[control_units,:]
 
-    A = X_control.dot(2*V).dot(X_control.T) + 2 * L2_PEN_W * diag(ones(X_control.shape[0])) # 5
-    B = X_treated.dot(2*V).dot(X_control.T).T # 6
+    A = X_control.dot(2*V).dot(X_control.T)   + 2 * L2_PEN_W * diag(ones(X_control.shape[0])) # 5
+    B = X_treated.dot(2*V).dot(X_control.T).T + 2 * L2_PEN_W / X_control.shape[0]# 6
 
     weights = linalg.solve(A,B)
-    if intercept:
-        weights += 1/N0
+#--     if intercept:
+#--         weights += 1/N0
     return weights.T
 
 def ct_score(Y, X, V, L2_PEN_W, LAMBDA = 0, treated_units = None, control_units = None,**kwargs):
@@ -199,5 +199,6 @@ def ct_score(Y, X, V, L2_PEN_W, LAMBDA = 0, treated_units = None, control_units 
     Y_tr = Y[treated_units, :]
     Y_c = Y[control_units, :]
     Ey = (Y_tr - weights.dot(Y_c)).getA()
-    np.power(Y_tr - np.mean(Y_tr),2).sum()
-    return (Ey **2).sum() + LAMBDA * V.sum()
+    #np.power(Y_tr - np.mean(Y_tr),2).sum()
+    return np.einsum('ij,ij->',Ey,Ey) + LAMBDA * V.sum() # (Ey **2).sum() -> einsum
+

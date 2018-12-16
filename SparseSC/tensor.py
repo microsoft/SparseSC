@@ -1,9 +1,9 @@
-#from SparseSC.fit_fold import fold_v_matrix
+from SparseSC.fit_fold import fold_v_matrix
 from SparseSC.fit_loo import loo_v_matrix
 from SparseSC.fit_ct import ct_v_matrix
 import numpy as np
 
-def tensor(X, Y, X_treat=None, Y_treat=None, **kwargs):
+def tensor(X, Y, X_treat=None, Y_treat=None, grad_splits=None, **kwargs):
     """ Presents a unified api for ct_v_matrix and loo_v_matrix
     """
     # PARAMETER QC
@@ -53,11 +53,22 @@ def tensor(X, Y, X_treat=None, Y_treat=None, **kwargs):
     else: 
         # Fit the control units to themselves; Y may contain post-intervention outcomes:
 
-        _, v_mat, _, _, _, _ = \
-                loo_v_matrix(X = X,
-                             Y = Y, 
-                             control_units = np.arange(X.shape[0]),
-                             treated_units = np.arange(X.shape[0]),
-                             # treated_units = [X.shape[0] + i for i in  range(len(train))],
-                             **kwargs)
+        if grad_splits is not None:
+            _, v_mat, _, _, _, _ = \
+                    fold_v_matrix(X = X,
+                                 Y = Y, 
+                                 control_units = np.arange(X.shape[0]),
+                                 treated_units = np.arange(X.shape[0]),
+                                 grad_splits = grad_splits,
+                                 # treated_units = [X.shape[0] + i for i in  range(len(train))],
+                                 **kwargs)
+
+        else:
+            _, v_mat, _, _, _, _ = \
+                    loo_v_matrix(X = X,
+                                 Y = Y, 
+                                 control_units = np.arange(X.shape[0]),
+                                 treated_units = np.arange(X.shape[0]),
+                                 # treated_units = [X.shape[0] + i for i in  range(len(train))],
+                                 **kwargs)
     return v_mat

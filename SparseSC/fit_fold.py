@@ -55,6 +55,7 @@ def fold_v_matrix(X,
     :return: something something
     :rtype: something something
     '''
+    assert intercept, "intercept free model not implemented"
     # (by default all the units are treated and all are controls)
     if treated_units is None: 
         if control_units is None: 
@@ -125,11 +126,6 @@ def fold_v_matrix(X,
     # this is non-trivial when there control units are also being predicted:
     #out_treated  = [ctrl_rng[               np.isin(control_units, treated_units[test]) ] for train,test in splits]
 
-    if intercept:
-        Y = Y.copy()
-        for in_ctrl, (_, test) in zip(in_controls,splits):
-            Y[treated_units[test],:] -= Y[in_ctrl,:].mean(axis=0) 
-
     # handy constants (for speed purposes):
     Y_treated = Y[treated_units,:]
     Y_control = Y[control_units,:]
@@ -153,7 +149,7 @@ def fold_v_matrix(X,
         weights, _, _ = _weights(dv)
         Ey = (Y_treated - weights.T.dot(Y_control)).getA()
         # (...).copy() assures that x.flags.writeable is True
-        return ((Ey **2).sum() + LAMBDA * absolute(V).sum()).copy() 
+        return (np.einsum('ij,ij->',Ey,Ey) + LAMBDA * absolute(V).sum()).copy()  # (Ey **2).sum() -> einsum
 
     def _grad(V):
         """ Calculates just the diagonal of dGamma0_dV
@@ -162,9 +158,9 @@ def fold_v_matrix(X,
         """
         dv = diag(V)
         weights, A, _ = _weights(dv)
-        Ey = (Y_treated - weights.T.dot(Y_control)).getA()
+        #Ey = (weights.T.dot(Y_control) - Y_treated).getA()
         dGamma0_dV_term2 = zeros(K)
-        dPI_dV = zeros((N0, N1))
+        dPI_dV = zeros((N0, N1)) # stupid notation: PI = W.T
         for k in range(K):
             if verbose:  # for large sample sizes, linalg.solve is a huge bottle neck,
                 print("Calculating gradient, for moment %s of %s" % (k ,K,))
@@ -176,17 +172,18 @@ def fold_v_matrix(X,
                 dB = dB_dV_ki[k][i]
                 b = linalg.solve(A[in_controls2[i]],dB - dA.dot(b_i[i]))
                 dPI_dV[np.ix_(in_controls[i], treated_units[test])] = b
-            dGamma0_dV_term2[k] = (Ey * Y_control.T.dot(dPI_dV).T.getA()).sum()
-        return LAMBDA - 2 * dGamma0_dV_term2 
+            dGamma0_dV_term2[k] = 2 * np.einsum("ij,kj,ki->",(weights.T.dot(Y_control) - Y_treated), Y_control, dPI_dV) # (Ey * Y_control.T.dot(dPI_dV).T.getA()).sum()
+        return LAMBDA + dGamma0_dV_term2 
 
     def _weights(V):
         weights = zeros((N0, N1))
         A = X.dot(V + V.T).dot(X.T) + 2 * L2_PEN_W * diag(ones(X.shape[0])) # 5
         B = X.dot(V + V.T).dot(X.T).T # 6
-        for i, (_,test) in enumerate(splits):
+        for i, (control,test) in enumerate(splits):
             if verbose >=2:  # for large sample sizes, linalg.solve is a huge bottle neck,
                 print("Calculating weights, linalg.solve() call %s of %s" % (i,len(splits),))
-            (b) = b_i[i] = linalg.solve(A[in_controls2[i]], B[np.ix_(in_controls[i], treated_units[test])])
+            b = b_i[i] = linalg.solve(A[in_controls2[i]], 
+                                        B[np.ix_(in_controls[i], treated_units[test])] + 2 * L2_PEN_W / len(in_controls[i]) )
             weights[np.ix_(out_controls[i], test)] = b
         return weights, A, B
 
@@ -208,23 +205,21 @@ def fold_v_matrix(X,
     ts_loss = opt.fun
     ts_score = linalg.norm(errors) / sqrt(prod(errors.shape))
 
-    if intercept:
-        for i in range(len(splits)):
-            weights[out_controls[i], i] += 1/len(out_controls[i])
-
     return weights, v_mat, ts_score, ts_loss, L2_PEN_W, opt
 
 
 
 def fold_weights(X,
                  V,
-                 L2_PEN_W,
+                 L2_PEN_W = None,
                  treated_units = None,
                  control_units = None,
                  intercept = True,
                  grad_splits = 5,
                  random_state = 10101,
                  verbose=False):
+    if L2_PEN_W is None:
+        L2_PEN_W = mean(var(X, axis = 0))
     if treated_units is None: 
         if control_units is None: 
             # both not provided, include all samples as both treat and control unit.
@@ -270,11 +265,10 @@ def fold_weights(X,
     for i, (_,test) in enumerate(splits):
         if verbose >=2:  # for large sample sizes, linalg.solve is a huge bottle neck,
             print("Calculating weights, linalg.solve() call %s of %s" % (i,len(splits),))
-        (b) = linalg.solve(A[in_controls2[i]], B[np.ix_(in_controls[i], treated_units[test])])
+        b = linalg.solve(A[in_controls2[i]], 
+                         B[np.ix_(in_controls[i], treated_units[test])] + 2 * L2_PEN_W / len(in_controls[i]))
         indx2 = np.ix_(out_controls[i], test)
         weights[indx2] = b
-        if intercept:
-            weights[indx2] += 1/len(out_controls[i])
     return weights.T
 
 
@@ -301,4 +295,4 @@ def fold_score(Y, X, V, L2_PEN_W, LAMBDA = 0, treated_units = None, control_unit
     Y_tr = Y[treated_units, :]
     Y_c = Y[control_units, :]
     Ey = (Y_tr - weights.dot(Y_c)).getA()
-    return (Ey **2).sum() + LAMBDA * V.sum()
+    return np.einsum('ij,ij->',Ey,Ey) + LAMBDA * V.sum() # (Ey **2).sum() -> einsum

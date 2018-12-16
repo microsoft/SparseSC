@@ -144,6 +144,7 @@ import numpy as np
 # Obtain LAMBDA_max and a grid over which to search
 fmin = 1e-5
 fmax = 1e-2
+n_points = 20
 grid = np.exp(np.linspace(np.log(fmin),np.log(fmax),n_points))
 
 LAMBDA_max = SC.get_max_lambda(
