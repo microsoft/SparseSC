@@ -42,6 +42,7 @@ def ct_v_matrix(X,
     :return: something something
     :rtype: something something
     '''
+    assert intercept, "intercept free model not implemented"
     # DEFAULTS
     if treated_units is None: 
         if control_units is None: 
@@ -72,6 +73,8 @@ def ct_v_matrix(X,
         raise TypeError( "LAMBDA is not a number")
     if L2_PEN_W is None:
         L2_PEN_W = mean(var(X, axis = 0))
+    else: 
+        L2_PEN_W = float(L2_PEN_W)
     if not isinstance(L2_PEN_W, (float, int)):
         raise TypeError( "L2_PEN_W is not a number")
 
@@ -84,15 +87,9 @@ def ct_v_matrix(X,
     X_treated = X[treated_units,:]
     X_control = X[control_units,:]
 
-#--     if intercept: 
-#--         Y = Y.copy()
-#--         Y_treated -= Y_control.mean(axis=0) 
-
     # INITIALIZE PARTIAL DERIVATIVES
-    dA_dV_ki = [ X_control[:, k ].dot(X_control[:, k ].T) +  # i,j are on the diagonal (both equal to k)
-                 X_control[:, k ].dot(X_control[:, k ].T) for k in range(K)] # 8
-    dB_dV_ki = [ X_control[:, k ].dot(X_treated[:, k ].T) +  # i,j are on the diagonal (both equal to k)
-                 X_control[:, k ].dot(X_treated[:, k ].T) for k in range(K)] # 9
+    dA_dV_ki = [ 2 * X_control[:, k ].dot(X_control[:, k ].T) for k in range(K)] # 8
+    dB_dV_ki = [ 2 * X_control[:, k ].dot(X_treated[:, k ].T) for k in range(K)] # 9
 
     def _score(V):
         dv = diag(V)
@@ -129,10 +126,6 @@ def ct_v_matrix(X,
         A = X_control.dot(2*V).dot(X_control.T) + L2_PEN_W_mat # 5
         B = X_treated.dot(2*V).dot(X_control.T).T + 2 * L2_PEN_W / X_control.shape[0] # 6
         b = linalg.solve(A,B)
-#--         if intercept:
-#--             weights = b + 1/N0
-#--         else:
-#--             weights = b
         return weights, A, B,b
 
     if max_lambda:
@@ -154,11 +147,6 @@ def ct_v_matrix(X,
     ts_loss = opt.fun
     ts_score = linalg.norm(errors) / sqrt(prod(errors.shape))
 
-    #if True:
-    #    _do_gradient_check()
-#--     if intercept: 
-#--         # not above, b/c Y_treated was already offset at the start
-#--         weights += 1/N0 
     return weights, v_mat, ts_score, ts_loss, L2_PEN_W, opt
 
 def ct_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, intercept = True):
@@ -178,8 +166,6 @@ def ct_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, inter
     B = X_treated.dot(2*V).dot(X_control.T).T + 2 * L2_PEN_W / X_control.shape[0]# 6
 
     weights = linalg.solve(A,B)
-#--     if intercept:
-#--         weights += 1/N0
     return weights.T
 
 def ct_score(Y, X, V, L2_PEN_W, LAMBDA = 0, treated_units = None, control_units = None,**kwargs):
@@ -199,6 +185,5 @@ def ct_score(Y, X, V, L2_PEN_W, LAMBDA = 0, treated_units = None, control_units 
     Y_tr = Y[treated_units, :]
     Y_c = Y[control_units, :]
     Ey = (Y_tr - weights.dot(Y_c)).getA()
-    #np.power(Y_tr - np.mean(Y_tr),2).sum()
     return np.einsum('ij,ij->',Ey,Ey) + LAMBDA * V.sum() # (Ey **2).sum() -> einsum
 

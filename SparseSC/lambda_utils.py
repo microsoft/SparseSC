@@ -43,8 +43,8 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
             raise ValueError("X_treat.shape[1] == 0")
         if Y_treat.shape[1] == 0:
             raise ValueError("Y_treat.shape[1] == 0")
-        if X_treat.shape[0] != Y_treat.shape[0]: 
-            raise ValueError("X_treat and Y_treat have different number of rows (%s and %s)" % 
+        if X_treat.shape[0] != Y_treat.shape[0]:
+            raise ValueError("X_treat and Y_treat have different number of rows (%s and %s)" %
                              (X.shape[0], Y.shape[0],))
 
         control_units = np.arange(X.shape[0])
@@ -53,7 +53,7 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
         try:
             _LAMBDA = iter(L2_PEN_W)
         except TypeError:
-            # L2_PEN_W is a single value 
+            # L2_PEN_W is a single value
             return ct_v_matrix(X = np.vstack((X,X_treat)),
                                Y = np.vstack((Y,Y_treat)),
                                L2_PEN_W = L2_PEN_W,
@@ -71,26 +71,29 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
                                  max_lambda = True,  # this is terrible at least without documentation...
                                  L2_PEN_W = l2_pen,
                                  **kwargs)
-                     for l2_pen in L2_PEN_W ] 
+                     for l2_pen in L2_PEN_W ]
 
-    else: 
+    else:
 
         try:
             _LAMBDA = iter(L2_PEN_W)
         except TypeError:
             if "grad_splits" in kwargs:
-                # L2_PEN_W is a single value 
+                # L2_PEN_W is a single value
                 return fold_v_matrix(X = X,
                                      Y = Y,
                                      L2_PEN_W = L2_PEN_W,
                                      max_lambda = True,  # this is terrible at least without documentation...
                                      **kwargs)
-            # L2_PEN_W is a single value 
-            return loo_v_matrix(X = X,
-                                Y = Y,
-                                L2_PEN_W = L2_PEN_W,
-                                max_lambda = True,  # this is terrible at least without documentation...
-                                **kwargs)
+            # L2_PEN_W is a single value
+            try:
+                return loo_v_matrix(X = X,
+                                    Y = Y,
+                                    L2_PEN_W = L2_PEN_W,
+                                    max_lambda = True,  # this is terrible at least without documentation...
+                                    **kwargs)
+            except MemoryError as err:
+                raise RuntimeError("MemoryError encountered.  Try setting `grad_splits` parameter to reduce memory requirements.")
         else:
             if "grad_splits" in kwargs:
 
@@ -100,12 +103,15 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
                                        L2_PEN_W = l2_pen,
                                        max_lambda = True,  # this is terrible at least without documentation...
                                        **kwargs)
-                         for l2_pen in L2_PEN_W ] 
+                         for l2_pen in L2_PEN_W ]
 
             # L2_PEN_W is an iterable of values
-            return [ loo_v_matrix(X = X,
-                                  Y = Y,
-                                  L2_PEN_W = l2_pen,
-                                  max_lambda = True,  # this is terrible at least without documentation...
-                                  **kwargs)
-                     for l2_pen in L2_PEN_W ] 
+            try:
+                return [ loo_v_matrix(X = X,
+                                      Y = Y,
+                                      L2_PEN_W = l2_pen,
+                                      max_lambda = True,  # this is terrible at least without documentation...
+                                      **kwargs)
+                         for l2_pen in L2_PEN_W ]
+            except MemoryError as err:
+                raise RuntimeError("MemoryError encountered.  Try setting `grad_splits` parameter to reduce memory requirements.")

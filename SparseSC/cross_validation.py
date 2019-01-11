@@ -54,7 +54,6 @@ def score_train_test(X,
                                 treated_units = [X.shape[0] + i for i in  range(len(train))],
                                 # method = cdl_search,
                                 **kwargs)
-
                     
         # GET THE OUT-OF-SAMPLE PREDICTION ERROR
         s = ct_score(X = np.vstack((X,X_treat[test, :])),
@@ -63,26 +62,13 @@ def score_train_test(X,
                      V = v_mat,
                      L2_PEN_W = l2_pen_w)
 
-        
-#--         if False:
-#--             print("LAMBDA: %0.1f, zeros %s (of %s), Score: %0.1f / %0.1f " % 
-#--                   (kwargs["LAMBDA"],
-#--                    sum(np.diag(v_mat == 0)),
-#--                    v_mat.shape[0],
-#--                    s,
-#--                    np.power(Y_treat[test, :] - np.mean(Y_treat[test, :]),2).sum() ))
-
     else: # X_treat *is* None
         # >> K-fold validation on the only control units; assuming that Y contains post-intervention outcomes 
         if grad_splits is not None:
 
-            try:
-                iter(grad_splits)
-                # grad_splits may be a generator...
-                grad_splits_1, grad_splits_2  = itertools.tee(grad_splits)
-            except TypeError:
-                # grad_splits is an integer (most common)
-                grad_splits_1, grad_splits_2  = (grad_splits,grad_splits)
+            # TRIM THE GRAD SPLITS NEED TO THE TRAINING SET
+            match = lambda a, b: np.concatenate([np.where(a == x)[0] for x in b])# inspired by R's match() function
+            grad_splits_trimmed = [ (match(train,_X),match(train,_Y) ) for _X,_Y in grad_splits]
 
             # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
             # note that the weights, score, and loss function value returned here are for the in-sample predictions
@@ -91,30 +77,31 @@ def score_train_test(X,
                                   Y = Y[train, :], 
                                   # treated_units = [X.shape[0] + i for i in  range(len(train))],
                                   # method = cdl_search,
-                                  grad_splits = grad_splits_1,
+                                  grad_splits = grad_splits_trimmed,
                                   **kwargs)
 
             # GET THE OUT-OF-SAMPLE PREDICTION ERROR (could also use loo_score, actually...)
-            s = fold_score(X = X, Y = Y, 
+            s = ct_score(X = X, Y = Y,  # formerly: fold_score
                            treated_units = test,
                            V = v_mat,
-                           grad_splits = grad_splits_2,
                            L2_PEN_W = l2_pen_w)
-            
 
         else:
 
             # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
             # note that the weights, score, and loss function value returned here are for the in-sample predictions
-            _, v_mat, _, _, l2_pen_w, _ = \
-                    loo_v_matrix(X = X[train, :],
-                                 Y = Y[train, :], 
-                                 # treated_units = [X.shape[0] + i for i in  range(len(train))],
-                                 # method = cdl_search,
-                                 **kwargs)
+            try:
+                _, v_mat, _, _, l2_pen_w, _ = \
+                        loo_v_matrix(X = X[train, :],
+                                     Y = Y[train, :], 
+                                     # treated_units = [X.shape[0] + i for i in  range(len(train))],
+                                     # method = cdl_search,
+                                     **kwargs)
+            except MemoryError as err:
+                raise RuntimeError("MemoryError encountered.  Try setting `grad_splits` parameter to reduce memory requirements.")
 
             # GET THE OUT-OF-SAMPLE PREDICTION ERROR
-            s = loo_score(X = X, Y = Y, 
+            s = ct_score(X = X, Y = Y, 
                           treated_units = test,
                           V = v_mat,
                           L2_PEN_W = l2_pen_w)
@@ -223,7 +210,7 @@ def CV_score(X,Y,
             iter(splits)
         except TypeError: 
             from sklearn.model_selection import KFold
-            splits = KFold(splits).split(np.arange(X_treat.shape[0]))
+            splits = KFold(splits,True).split(np.arange(X_treat.shape[0]))
         train_test_splits = list(splits)
         n_splits = len(train_test_splits)
 

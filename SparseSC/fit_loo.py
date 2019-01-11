@@ -89,6 +89,8 @@ def loo_v_matrix(X,
         raise TypeError( "LAMBDA is not a number")
     if L2_PEN_W is None:
         L2_PEN_W = mean(var(X, axis = 0))
+    else: 
+        L2_PEN_W = float(L2_PEN_W)
     if not isinstance(L2_PEN_W, (float, int)):
         raise TypeError( "L2_PEN_W is not a number")
     assert not non_neg_weights, "Bounds not implemented"
@@ -121,14 +123,15 @@ def loo_v_matrix(X,
     # only used by step-down method: X_control = X[control_units,:]
 
     # INITIALIZE PARTIAL DERIVATIVES
+    # note that this section can be quite memory intensive with lots of controls: (1000 controls -> 8 MB per entry)
     dA_dV_ki = [ [None,] *N1 for i in range(K)]
     dB_dV_ki = [ [None,] *N1 for i in range(K)]
     b_i = [None,] *N1 
     for i, k in  itertools.product(range(N1), range(K)): # TREATED unit i, moment k
         Xc = X[in_controls[i], : ]
         Xt = X[treated_units[i], : ]
-        dA_dV_ki [k][i] = Xc[:, k ].dot(Xc[:, k ].T) + Xc[:, k ].dot(Xc[:, k ].T) # 8
-        dB_dV_ki [k][i] = Xc[:, k ].dot(Xt[:, k ].T) + Xc[:, k ].dot(Xt[:, k ].T) # 9
+        dA_dV_ki [k][i] = 2 * Xc[:, k ].dot(Xc[:, k ].T) # Xc[:, k ].dot(Xc[:, k ].T) + Xc[:, k ].dot(Xc[:, k ].T) # 8
+        dB_dV_ki [k][i] = 2 * Xc[:, k ].dot(Xt[:, k ].T) # Xc[:, k ].dot(Xt[:, k ].T) + Xt[:, k ].dot(Xc[:, k ].T) # 9
 
     k=0 # for linting...
     del Xc, Xt, i, k

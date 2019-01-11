@@ -92,6 +92,8 @@ def fold_v_matrix(X,
         raise TypeError( "LAMBDA is not a number")
     if L2_PEN_W is None:
         L2_PEN_W = mean(var(X, axis = 0))
+    else: 
+        L2_PEN_W = float(L2_PEN_W)
     if not isinstance(L2_PEN_W, (float, int)):
         raise TypeError( "L2_PEN_W is not a number")
     assert not non_neg_weights, "Bounds not implemented"
@@ -138,8 +140,8 @@ def fold_v_matrix(X,
         _, test = splits[i]
         Xc = X[in_controls[i], : ]
         Xt = X[treated_units[test], : ]
-        dA_dV_ki [k][i] = Xc[:, k ].dot(Xc[:, k ].T) + Xc[:, k ].dot(Xc[:, k ].T) # 8
-        dB_dV_ki [k][i] = Xc[:, k ].dot(Xt[:, k ].T) + Xc[:, k ].dot(Xt[:, k ].T) # 9
+        dA_dV_ki [k][i] = 2 * Xc[:, k ].dot(Xc[:, k ].T) # Xc[:, k ].dot(Xc[:, k ].T) + Xc[:, k ].dot(Xc[:, k ].T) # 8
+        dB_dV_ki [k][i] = 2 * Xc[:, k ].dot(Xt[:, k ].T) # Xc[:, k ].dot(Xt[:, k ].T) + Xt[:, k ].dot(Xc[:, k ].T) # 9
 
     k=0 # for linting...
     del Xc, Xt, i, k

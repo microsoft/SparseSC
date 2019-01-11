@@ -34,7 +34,6 @@ def cdl_step(score,
     if (grad >= 0).all():
         # this happens when we're stuck at the origin and the gradient is
         # pointing in the all-negative direction
-        import pdb; pdb.set_trace() 
         raise runtime("Failed to take a step")
         # obviously I'm conflicted about what to do here...
         return guess,val
@@ -50,7 +49,6 @@ def cdl_step(score,
             return direction, new_val
         direction *= decrement
         if sum(direction) < zero_eps:  
-            import pdb; pdb.set_trace() 
             raise runtime("Failed to take a step")
 
 def cdl_search(score,
@@ -199,7 +197,7 @@ def cdl_search(score,
         # NOT SURE IF THIS IS NECESSARY NOW THAT THE GRAD IS WRAPPED IN ZED_WRAPPER
 
         if print_path: 
-            print("[Path] i: %s, R-Squared: %0.6f, incremental R-Squared: %0.6f, learning rate: %0.5f,  alpha: %0.5f, zeros: %s (constrained)"  % 
+            print("[Path] i: %s, In Sample R^2: %0.6f, incremental R^2:: %0.6f, learning rate: %0.5f,  alpha: %0.5f, zeros: %s"  % 
                     (_i,  1- val / val0, (val_diff/ val0), aggressiveness * (alpha_mult ** alpha_t), alpha, sum( x_curr == 0)))
             if print_path_verbose:
                 print("old_grad: %s,x_curr %s"  % (old_grad, x_curr, ))

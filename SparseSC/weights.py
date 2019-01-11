@@ -20,8 +20,10 @@ def weights(X, X_treat=None, grad_splits = None, **kwargs):
             raise ValueError("X_treat.shape[1] == 0")
 
         # PARAMETER QC
-        if not isinstance(X_treat, np.matrix):
-            raise TypeError("X_treat is not a matrix")
+        try:
+            X_treat = np.asmatrix(X_treat)
+        except ValueError:
+            raise ValueError("X_treat is not coercible to a matrix")
         if X_treat.shape[1] == 0:
             raise ValueError("X_treat.shape[1] == 0")
 
