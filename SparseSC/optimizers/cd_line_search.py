@@ -4,6 +4,11 @@ from scipy.optimize import line_search
 import locale 
 locale.setlocale(locale.LC_ALL, '')
 
+try:
+    runtime
+except NameError:
+    runtime = RuntimeError
+
 class cd_res(object):
     def __init__(self, x, fun):
         self.x = x
