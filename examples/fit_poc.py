@@ -40,12 +40,12 @@ from sklearn.model_selection import KFold
 def fit_poc(X,Y,
             Lambda_min = 1e-6,
             Lambda_max = 1,
-            grid_points = 20L,
+            grid_points = 20,
             grid = None,
             # fold tuning parameters: either a integer or list of test/train subsets such as the result of calling Kfold().split()
-            outer_folds = 10L,
-            cv_folds = 10L,
-            gradient_folds = 10L,
+            outer_folds = 10,
+            cv_folds = 10,
+            gradient_folds = 10,
             random_state = 10101,
             ):
 
@@ -137,5 +137,3 @@ def fit_poc(X,Y,
         print("#--------------------------------------------------")
 
     return out_weights, out_predictions
-
-
