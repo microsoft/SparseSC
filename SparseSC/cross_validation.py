@@ -54,7 +54,7 @@ def score_train_test(X,
                                 treated_units = [X.shape[0] + i for i in  range(len(train))],
                                 # method = cdl_search,
                                 **kwargs)
-                    
+
         # GET THE OUT-OF-SAMPLE PREDICTION ERROR
         s = ct_score(X = np.vstack((X,X_treat[test, :])),
                      Y = np.vstack((Y,Y_treat[test, :])), 
@@ -66,9 +66,16 @@ def score_train_test(X,
         # >> K-fold validation on the only control units; assuming that Y contains post-intervention outcomes 
         if grad_splits is not None:
 
-            # TRIM THE GRAD SPLITS NEED TO THE TRAINING SET
-            match = lambda a, b: np.concatenate([np.where(a == x)[0] for x in b])# inspired by R's match() function
-            grad_splits_trimmed = [ (match(train,_X),match(train,_Y) ) for _X,_Y in grad_splits]
+
+            try:
+                iter(grad_splits)
+            except TypeError:
+                # not iterable
+                pass
+            else:
+                # TRIM THE GRAD SPLITS NEED TO THE TRAINING SET
+                match = lambda a, b: np.concatenate([np.where(a == x)[0] for x in b])# inspired by R's match() function
+                grad_splits = [ (match(train,_X),match(train,_Y) ) for _X,_Y in grad_splits]
 
             # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
             # note that the weights, score, and loss function value returned here are for the in-sample predictions
@@ -77,7 +84,7 @@ def score_train_test(X,
                                   Y = Y[train, :], 
                                   # treated_units = [X.shape[0] + i for i in  range(len(train))],
                                   # method = cdl_search,
-                                  grad_splits = grad_splits_trimmed,
+                                  grad_splits = grad_splits,
                                   **kwargs)
 
             # GET THE OUT-OF-SAMPLE PREDICTION ERROR (could also use loo_score, actually...)
@@ -135,13 +142,13 @@ def score_train_test_sorted_lambdas(LAMBDA,
         if progress > 0 and (i % progress) == 0:
             t1 = time.time() 
             if FoldNumber is None:
-                print("iteration %s of %s time: %0.4f ,lambda: %0.4f" % 
-                      (i+1, len(LAMBDA), t1 - t0, Lam,))
+                print("lambda: %0.4f, value %s of %s, time elapsed: %0.4f sec." % 
+                      (Lam, i+1, len(LAMBDA), t1 - t0, ))
                 #print("iteration %s of %s time: %0.4f ,lambda: %0.4f, diags: %s" % 
                 #      (i+1, len(LAMBDA), t1 - t0, Lam, np.diag(v_mat),))
             else:
-                print("Fold %s, iteration %s of %s, time: %0.4f ,lambda: %0.4f" % 
-                      (FoldNumber, i+1, len(LAMBDA), t1 - t0, Lam, ))
+                print("Fold %s,lambda: %0.4f, value %s of %s, time elapsed: %0.4f sec." % 
+                      (FoldNumber, Lam, i+1, len(LAMBDA), t1 - t0, ))
                 #print("Fold %s, iteration %s of %s, time: %0.4f ,lambda: %0.4f, diags: %s" % 
                 #      (FoldNumber, i+1, len(LAMBDA), t1 - t0, Lam, np.diag(v_mat),))
             t0 = time.time() 
