@@ -85,7 +85,7 @@ def factor_dgp(N0,N1,T0,T1,K,R,F):
     X_treated = np.matrix(np.random.normal(0,1,((N1), K+R)))
  
     b_cause = np.random.exponential(1,K)
-    b_cause *= b_cause.max()
+    b_cause *= 1 / b_cause.max()
 
     beta = np.matrix(np.concatenate( ( b_cause , np.zeros(R)) ) ).T
 
