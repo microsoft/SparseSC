@@ -79,6 +79,21 @@ def ge_dgp(N0,N1,T0,T1,K,S,R,groups,group_scale,beta_scale,confounders_scale,mod
 
 
 def factor_dgp(N0,N1,T0,T1,K,R,F):
+    '''
+    Factor DGP. 
+    Covariates: Values are drawn from N(0,1) and coefficients are drawn from an exponential(1) and then scaled by the max.
+    Factors and Loadings are from N(0,1)
+    Errors are from N(0,1)
+
+    :param N0:
+    :param N1:
+    :param T0:
+    :param T1:
+    :param K: Number of covariates that affect outcome
+    :param R: Number of (noise) covariates to do not affect outcome
+    :param F: Number of factors
+    :returns: (X_control, X_treated, Y_pre_control, Y_pre_treated, Y_post_control, Y_post_treated)
+    '''
     
     # COVARIATE EFFECTS
     X_control = np.matrix(np.random.normal(0,1,((N0), K+R)))
@@ -99,10 +114,10 @@ def factor_dgp(N0,N1,T0,T1,K,R,F):
     
     
     # RANDOM ERRORS
-    Y_pre_err_control = np.matrix(np.random.random( ( N0, T0, ) )) 
-    Y_pre_err_treated = np.matrix(np.random.random( ( N1, T0, ) )) 
-    Y_post_err_control = np.matrix(np.random.random( ( N0, T1, ) )) 
-    Y_post_err_treated = np.matrix(np.random.random( ( N1, T1, ) )) 
+    Y_pre_err_control = np.matrix(np.random.normal(0, 1, ( N0, T0, ) )) 
+    Y_pre_err_treated = np.matrix(np.random.normal(0, 1, ( N1, T0, ) )) 
+    Y_post_err_control = np.matrix(np.random.normal(0, 1, ( N0, T1, ) )) 
+    Y_post_err_treated = np.matrix(np.random.normal(0, 1, ( N1, T1, ) )) 
 
     # OUTCOMES
     Y_pre_control = X_control.dot(beta) + Loadings_control.dot(Factors_pre) + Y_pre_err_control

@@ -30,6 +30,12 @@
     <Compile Include="optimizers\cd_line_search.py" />
     <Compile Include="optimizers\__init__.py" />
     <Compile Include="tensor.py" />
+    <Compile Include="utils\metrics_utils.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="utils\ols_model.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="utils\sub_matrix_inverse.py" />
     <Compile Include="utils\__init__.py" />
     <Compile Include="weights.py" />
