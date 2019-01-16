@@ -426,7 +426,7 @@ def _gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs,
     ##Get the avg joint effects
     avg_joint_effects = np.mean(effect_vecs, axis=1)
     control_avg_joint_effects = np.mean(control_effect_vecs, axis=1)
-    if pre_tr_rmspes not is None and pre_c_rmspes not is None:
+    if pre_tr_rmspes is not None and pre_c_rmspes is not None:
         ## Standardized effect vecs
         std_effect_vecs = np.diagflat(1/pre_tr_rmspes).dot(effect_vecs)
         control_std_effect_vecs = np.diagflat(1/ pre_c_rmspes).dot(control_effect_vecs)
@@ -441,7 +441,7 @@ def _gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs,
     effect_vec = np.mean(effect_vecs, axis=0)
     rms_joint_effect = np.mean(rms_joint_effects)
     avg_joint_effect = np.mean(avg_joint_effects)
-    if pre_tr_rmspes not is None and pre_c_rmspes not is None:
+    if pre_tr_rmspes is not None and pre_c_rmspes is not None:
         std_effect_vec = np.mean(std_effect_vecs, axis=0)
         rms_joint_std_effect = np.mean(rms_joint_std_effects)
         avg_joint_std_effect = np.mean(avg_joint_std_effects)
@@ -463,7 +463,7 @@ def _gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs,
     p2s = np.zeros((1,T1))
     rms_joint_p = 0
     avg_joint_p = 0
-    if pre_tr_rmspes not is None and pre_c_rmspes not is None:
+    if pre_tr_rmspes is not None and pre_c_rmspes is not None:
         p2s_std = np.zeros((1,T1))
         rms_joint_std_p = 0
         avg_joint_std_p = 0
@@ -472,7 +472,7 @@ def _gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs,
         placebo_effect_vec = np.mean(control_effect_vecs[comb,:], 0)
         placebo_rms_joint_effect = np.mean(control_rms_joint_effects[comb,:])
         placebo_avg_joint_effect = np.mean(control_avg_joint_effects[comb,:])
-        if pre_tr_rmspes not is None and pre_c_rmspes not is None:
+        if pre_tr_rmspes is not None and pre_c_rmspes is not None:
             placebo_std_effect_vec = np.mean(control_std_effect_vecs[comb,:], 0)
             placebo_rms_joint_std_effect = np.mean(control_rms_joint_std_effects[comb,:])
             placebo_avg_joint_std_effect = np.mean(control_avg_joint_std_effects[comb,:])
@@ -482,7 +482,7 @@ def _gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs,
         p2s += (abs(placebo_effect_vec) >= abs(effect_vec))
         rms_joint_p += (placebo_rms_joint_effect >= rms_joint_effect)
         avg_joint_p += (abs(placebo_avg_joint_effect) >= abs(avg_joint_effect))
-        if pre_tr_rmspes not is None and pre_c_rmspes not is None:
+        if pre_tr_rmspes is not None and pre_c_rmspes is not None:
             p2s_std += (abs(placebo_std_effect_vec) >= abs(std_effect_vec))
             rms_joint_std_p += (placebo_rms_joint_std_effect >= rms_joint_std_effect)
             avg_joint_std_p += (abs(placebo_avg_joint_std_effect) >= abs(avg_joint_std_effect))
@@ -495,7 +495,7 @@ def _gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs,
     p2s = p2s/comb_len
     rms_joint_p = rms_joint_p/comb_len
     avg_joint_p = avg_joint_p/comb_len
-    if pre_tr_rmspes not is None and pre_c_rmspes not is None:
+    if pre_tr_rmspes is not None and pre_c_rmspes is not None:
         p2s_std = p2s_std/comb_len
         rms_joint_std_p = rms_joint_std_p/comb_len
         avg_joint_std_p = avg_joint_std_p/comb_len
@@ -532,7 +532,7 @@ def _gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs,
 
     EstResultCI = namedtuple('EstResults', 'effect p ci')
     
-    if pre_tr_rmspes not is None and pre_c_rmspes not is None:
+    if pre_tr_rmspes is not None and pre_c_rmspes is not None:
         SparseSCEstResults = namedtuple('SparseSCEstResults', 'effect_vec_res effect_avg_res std_p rms_joint_p rms_joint_std_p N_placebo placebo_effect_vecs placebo_avg_joint_effects')
         ret_struct = SparseSCEstResults(EstResultCI(effect_vec, p2s, CI_vec), EstResultCI(avg_joint_effect, avg_joint_p, CI_avg), p2s_std, rms_joint_p, rms_joint_std_p, comb_len, placebo_effect_vecs, placebo_avg_joint_effects)
     else:
