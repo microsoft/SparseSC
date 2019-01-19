@@ -186,8 +186,7 @@ def fit(X,Y,
                             alpha_mult = learning_rate_adjustment)  # todo: this needs to be harmonized and passed in via *args or **kwargs
 
             # GET THE BEST SET OF WEIGHTS
-            full_weights = weights(Xtrain,
-                                   Xtest,
+            full_weights = weights(X,
                                    V = best_V,
                                    L2_PEN_W = weight_penalty)
             SC_weights = full_weights[treated_units,control_units]
@@ -288,8 +287,7 @@ def fit(X,Y,
                         alpha_mult = learning_rate_adjustment)  # todo: this needs to be harmonized and passed in via *args or **kwargs
 
         # GET THE BEST SET OF WEIGHTS
-        SC_weights = weights(Xtrain,
-                             Xtest,
+        SC_weights = weights(X,
                              V = best_V,
                              L2_PEN_W = weight_penalty)
 
