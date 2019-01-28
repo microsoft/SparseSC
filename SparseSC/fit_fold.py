@@ -2,7 +2,7 @@ from numpy import ones, diag, array, matrix, ndarray, zeros, mean,var, linalg, p
 import numpy as np
 import itertools
 import warnings
-#from SparseSC.utils.sub_matrix_inverse import subinv_k, all_subinverses
+from .utils.print_progress import print_progress
 from SparseSC.optimizers.cd_line_search import cdl_search
 warnings.filterwarnings('ignore')
 
@@ -21,6 +21,7 @@ def fold_v_matrix(X,
                   grad_splits = 5,
                   random_state = 10101,
                   verbose = False,
+                  gradient_message = "Calculating gradient",
                   **kwargs):
     '''
     Computes and sets the optimal v_matrix for the given moments and 
@@ -46,6 +47,7 @@ def fold_v_matrix(X,
                         and test units in each fold of the gradient descent.
     :param random_state: Integer, used for setting the random state for consistency of fold splits across calls
     :param verbose: If true, print progress to the console (default: false)
+    :param gradient_message: Messaged prefixed to the progress bar when verbose = 1
     :param kwargs: additional arguments passed to the optimizer
     :param non_neg_weights: not implemented
 
@@ -165,7 +167,7 @@ def fold_v_matrix(X,
         dPI_dV = zeros((N0, N1)) # stupid notation: PI = W.T
         for k in range(K):
             if verbose:  # for large sample sizes, linalg.solve is a huge bottle neck,
-                print("Calculating gradient, for moment %s of %s" % (k ,K,))
+                print_progress(k+1,K, prefix=gradient_message, decimals=1, bar_length=min(K,50))
             dPI_dV.fill(0) # faster than re-allocating the memory each loop.
             for i, (_, (_, test)) in enumerate(zip(in_controls,splits)):
                 if verbose >=2:  # for large sample sizes, linalg.solve is a huge bottle neck,

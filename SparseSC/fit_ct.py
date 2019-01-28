@@ -1,6 +1,7 @@
 from numpy import ones, diag, matrix, ndarray, zeros, absolute, mean,var, linalg, prod, sqrt
 import numpy as np
 import warnings
+from .utils.print_progress import print_progress
 from SparseSC.optimizers.cd_line_search import cdl_search
 warnings.filterwarnings('ignore')
 
@@ -15,6 +16,7 @@ def ct_v_matrix(X,
                 intercept = True,
                 max_lambda = False,  # this is terrible at least without documentation...
                 verbose = False,
+                gradient_message = "Calculating gradient",
                 **kwargs):
     '''
     Computes and sets the optimal v_matrix for the given moments and 
@@ -34,6 +36,7 @@ def ct_v_matrix(X,
     :param max_lambda: if True, the return value is the maximum L1 penalty for
         which at least one element of the tensor matrix is non-zero
     :param verbose: If true, print progress to the console (default: false)
+    :param gradient_message: Messaged prefixed to the progress bar when verbose = 1
     :param kwargs: additional arguments passed to the optimizer
 
     :raises ValueError: raised when parameter values are invalid
@@ -111,7 +114,7 @@ def ct_v_matrix(X,
         #Ai = A.I
         for k in range(K):
             if verbose:  # for large sample sizes, linalg.solve is a huge bottle neck,
-                print("Calculating gradient, linalg.solve() call %s of %s" % (k ,K,))
+                print_progress(k+1,K, prefix=gradient_message, decimals=1, bar_length=min(K,50))
             #dPI_dV.fill(0) # faster than re-allocating the memory each loop.
             dA = dA_dV_ki[k]
             dB = dB_dV_ki[k]

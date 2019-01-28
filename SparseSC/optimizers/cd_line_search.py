@@ -15,12 +15,43 @@ def cdl_step(score,
                guess,
                jac,
                val = None,
-               aggressiveness = 0.1,
+               aggressiveness = 0.2,
                zero_eps = 1e2 * np.finfo(float).eps,
                print_path = True,
-               decrement = 1e-1):
+               decrement = 0.9):
                
-    print("[FORCING FIRST STEP]")
+    """
+    A wrapper of :func:`scipy.optimize.line_search` which restricts the
+    gradient descent to the positive orthant and implements a dynamic step size
+
+    Parameters
+        score: The objective function
+
+        guess: Initial parameter for the objective function
+
+        jac: Gradient function for the objective function 
+
+        val: Initial value for the objective function. Optional; defalts to ``score(guess)``
+
+        aggressiveness (float, Default = 0.2): The initial learning rate
+            (alpha) which determines the initial step size, which is set to
+            learning_rate * null_model_error / gradient. Must be between 0 and
+            1.
+
+        zero_eps (Optional, float):  Epsilon for determining if the gradient is
+            effectively zero. Defaults to 100 * machine epsilon.
+
+        print_path (boolean).  Optional Controls level of verbosity, Default = True.
+
+        decrement (float, Default = 0.9): (learning_rate_adjustment ) Adjustment factor
+            applied to the learning rate applied between iterations when the
+            optimal step size returned by :func:`scipy.optimize.line_search` is
+            greater less than 1, else the step size is adjusted by
+            ``1/learning_rate_adjustment``. Must be between 0 and 1,
+    """
+
+    if print_path:
+        print("[FORCING FIRST STEP]")
     assert 0 < aggressiveness < 1
     assert 0 < decrement < 1
 
@@ -69,11 +100,14 @@ def cdl_search(score,
     conditions. Note, this tends to give nearly identical results as L-BFGS-B,
     and is *much* slower than that the super-fast 40 year old Fortran code
     wrapped by SciPy.
+
+    score function 
     '''
     assert 0 < aggressiveness < 1
     assert 0 < alpha_mult < 1
     assert (guess >=0).all(), "Initial guess (`guess`) should be in the closed positive orthant"
 
+    print_stop_iteration = print_path
     val_old = None
     grad = None
     x_curr = guess

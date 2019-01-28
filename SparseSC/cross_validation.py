@@ -23,7 +23,7 @@ def score_train_test(X,
         and returns the v_mat, l2_pen_w (possibly calculated, possibly a parameter), and the score 
     """
     # to use `pdb.set_trace()` here, set `parallel = False` above
-    if X_treat is None != Y_treat is None:
+    if (X_treat is None) != (Y_treat is None):
         raise ValueError("parameters `X_treat` and `Y_treat` must both be Matrices or None")
 
     if X_treat is not None:
@@ -178,7 +178,7 @@ def CV_score(X,Y,
         Y = np.asmatrix(Y)
     except ValueError:
         raise ValueError("X is not coercible to a matrix")
-    if X_treat is None != Y_treat is None:
+    if (X_treat is None) != (Y_treat is None):
         raise ValueError("parameters `X_treat` and `Y_treat` must both be Matrices or None")
     if X.shape[1] == 0:
         raise ValueError("X.shape[1] == 0")
@@ -201,17 +201,21 @@ def CV_score(X,Y,
     if X_treat is not None:
 
         # PARAMETER QC
-        if not isinstance(X_treat, np.matrix):
-            raise TypeError("X_treat is not a matrix")
-        if not isinstance(Y_treat, np.matrix):
-            raise TypeError("Y_treat is not a matrix")
+        try:
+            X_treat = np.asmatrix(X_treat)
+        except ValueError:
+            raise ValueError("X_treat is not coercible to a matrix")
+        try:
+            Y_treat = np.asmatrix(Y_treat)
+        except ValueError:
+            raise ValueError("Y_treat is not coercible to a matrix")
         if X_treat.shape[1] == 0:
             raise ValueError("X_treat.shape[1] == 0")
         if Y_treat.shape[1] == 0:
             raise ValueError("Y_treat.shape[1] == 0")
         if X_treat.shape[0] != Y_treat.shape[0]: 
             raise ValueError("X_treat and Y_treat have different number of rows (%s and %s)" % 
-                             (X.shape[0], Y.shape[0],))
+                             (X_treat.shape[0], Y_treat.shape[0],))
 
         try:
             iter(splits)

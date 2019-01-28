@@ -4,6 +4,7 @@ import itertools
 import warnings
 # only used by the step-down method (currently not implemented):
 # from SparseSC.utils.sub_matrix_inverse import subinv_k, all_subinverses
+from .utils.print_progress import print_progress
 from SparseSC.optimizers.cd_line_search import cdl_search
 warnings.filterwarnings('ignore')
 
@@ -35,6 +36,7 @@ def loo_v_matrix(X,
                  max_lambda = False,  # this is terrible at least without documentation...
                  solve_method = "standard",
                  verbose = False,
+                 gradient_message = "Calculating gradient",
                  **kwargs):
     '''
     Computes and sets the optimal v_matrix for the given moments and 
@@ -57,6 +59,7 @@ def loo_v_matrix(X,
     :param solve_method: Method for solving A.I.dot(B). Either "standard" or
         "step-down". https://math.stackexchange.com/a/208021/252693
     :param verbose: If true, print progress to the console (default: false)
+    :param gradient_message: Messaged prefixed to the progress bar when verbose = 1
     :param kwargs: additional arguments passed to the optimizer
     :param non_neg_weights: not implemented
 
@@ -159,7 +162,7 @@ def loo_v_matrix(X,
         # if solve_method == "step-down": Ai_cache = all_subinverses(A)
         for k in range(K):
             if verbose:  # for large sample sizes, linalg.solve is a huge bottle neck,
-                print("Calculating gradient for moment %s of %s" % (k ,K,))
+                print_progress(k+1,K, prefix=gradient_message, decimals=1, bar_length=min(K,50))
             dPI_dV.fill(0) # faster than re-allocating the memory each loop.
             for i, index in enumerate(in_controls):
                 dA = dA_dV_ki[k][i]

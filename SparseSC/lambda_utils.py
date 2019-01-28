@@ -5,6 +5,8 @@ from SparseSC.fit_fold import fold_v_matrix
 # from SparseSC.optimizers.cd_line_search import cdl_search
 import numpy as np
 
+_GRADIENT_MESSAGE = "Calculating maximum covariate penalty (i.e. the gradient at zero)"
+
 def L2_pen_guestimate(X):
     return np.mean(np.var(X, axis = 0))
 
@@ -21,7 +23,7 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
         Y = np.asmatrix(Y)
     except ValueError:
         raise ValueError("Y is not coercible to a matrix")
-    if X_treat is None != Y_treat is None:
+    if (X_treat is None) != (Y_treat is None):
         raise ValueError("parameters `X_treat` and `Y_treat` must both be Matrices or None")
     if X.shape[1] == 0:
         raise ValueError("X.shape[1] == 0")
@@ -60,6 +62,7 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
                                control_units = control_units,
                                treated_units = treated_units,
                                max_lambda = True,  # this is terrible at least without documentation...
+                               gradient_message = _GRADIENT_MESSAGE,
                                **kwargs)
 
         else:
@@ -69,6 +72,7 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
                                  control_units = control_units,
                                  treated_units = treated_units,
                                  max_lambda = True,  # this is terrible at least without documentation...
+                                 gradient_message = _GRADIENT_MESSAGE,
                                  L2_PEN_W = l2_pen,
                                  **kwargs)
                      for l2_pen in L2_PEN_W ]
@@ -84,6 +88,7 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
                                      Y = Y,
                                      L2_PEN_W = L2_PEN_W,
                                      max_lambda = True,  # this is terrible at least without documentation...
+                                     gradient_message = _GRADIENT_MESSAGE,
                                      **kwargs)
             # L2_PEN_W is a single value
             try:
@@ -91,6 +96,7 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
                                     Y = Y,
                                     L2_PEN_W = L2_PEN_W,
                                     max_lambda = True,  # this is terrible at least without documentation...
+                                    gradient_message = _GRADIENT_MESSAGE,
                                     **kwargs)
             except MemoryError as err:
                 raise RuntimeError("MemoryError encountered.  Try setting `grad_splits` parameter to reduce memory requirements.")
@@ -102,6 +108,7 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
                                        Y = Y,
                                        L2_PEN_W = l2_pen,
                                        max_lambda = True,  # this is terrible at least without documentation...
+                                       gradient_message = _GRADIENT_MESSAGE,
                                        **kwargs)
                          for l2_pen in L2_PEN_W ]
 
@@ -111,6 +118,7 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
                                       Y = Y,
                                       L2_PEN_W = l2_pen,
                                       max_lambda = True,  # this is terrible at least without documentation...
+                                      gradient_message = _GRADIENT_MESSAGE,
                                       **kwargs)
                          for l2_pen in L2_PEN_W ]
             except MemoryError as err:
