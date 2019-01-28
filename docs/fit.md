@@ -15,7 +15,7 @@ synthetic unit in the absence of an intervention.  This methodology can be
 combined with cross-fold validation a variety of ways 
 separate use cases.
 
-#### Retrospective Treatment Effects:  ( *model_type = "prospective"*)
+### Retrospective Treatment Effects:  ( *model_type = "retrospective"*)
 
 In a retrospective analysis, a subset of units have received a treatment
 which possibly correlates with features of the units and values for the
@@ -46,7 +46,7 @@ which is a weighted average of the control units.
 This model yields a synthetic unit for each treated unit composed of
 control units. 
 
-#### Prospective Treatment Effects ( *model_type = "prospective"*)
+### Prospective Treatment Effects ( *model_type = "prospective"*)
 
 In a prospective analysis, a subset of units have been designated to
 receive a treatment but the treatment has not yet occurred and the
@@ -84,7 +84,7 @@ each full unit which is a weighted average of the control units.
 This model yields a synthetic unit for each treated unit composed of
 control units. 
 
-#### Prospective Treatment Effects training (*model_type = "prospective-restricted"*)
+### Prospective Treatment Effects training (*model_type = "prospective-restricted"*)
 
 This is motivated by the same example as the previous sample.  It requires
 a larger set of treated units for similar levels of precision, with the
@@ -112,7 +112,9 @@ each full unit which is a weighted average of the control units.
 This model yields a synthetic unit for each treated unit composed of
 control units. 
 
-#### Prospective Failure Detection ( *model_type = "full"*)
+Not that this model will tend to have wider confidence intervals and small estimated treatments given the sample it is fit on.
+
+### Prospective Failure Detection ( *model_type = "full"*)
 
 In this scenario the goal is to identify irregular values in an outcome
 variable prospectively in a homogeneous population (i.e. when no
@@ -135,6 +137,18 @@ This model yields a synthetic unit for every unit in the dataset, and
 synthetic units are composted of the remaining units not included in the
 same gradient fold. 
 
+### Summary
 
+Here is a summary of the main differences between the model types.
 
+| Type | Fit sample | Donor pool |
+|---|---|---|
+|retrospective|Controls|Controls|
+|prospective|All|Controls|
+|prospective-restricted|Treated|Controls|
+|prospective-full|All|All|
 
+A tree view of differences:
+* Treatment date: The *prospective* studies differ from the *retrospective* study in that they can use all units for fitting.
+* (Prospective studies) Treated units: The intended-to-treat (*ITT*) studies differ from the *full* in that the "treated" units can't be used for donors.
+* (Prospective-ITT studies): The *restrictive* model differs in that it tries to maximize predictive power for just the treated units.
