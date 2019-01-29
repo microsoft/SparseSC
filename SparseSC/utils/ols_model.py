@@ -2,7 +2,7 @@ import numpy as np
 import statsmodels.api as sm
 
 import SparseSC as SC
-import SC.utils.metrics_utils
+import SparseSC.utils.metrics_utils
 
 #All data in the long format (rows mark id-time)
 def OLS_avg_AA_simple(N=100, T=10, K=0, treat_ratio=.1, T0=None):

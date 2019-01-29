@@ -44,82 +44,94 @@ def fit(X,Y,
         learning_rate_adjustment = 0.9, # TODO: this should be harmnonized with parameter names in cd_line_search and passed in via *args / **kwargs
         #*args,
         **kwargs):
-    """
+    r"""
 
-        Parameters
-            X (matrix of floats): Matrix of features
-            Y (matrix of floats): Matrix of targets
+        :param X: Matrix of features
+        :type X: matrix of floats
 
-            model_type (Default = ``"retrospective"``): Type of model being
+        :param Y:: Matrix of targets
+        :type Y: matrix of floats
+
+        :param model_type: (Default = ``"retrospective"``) Type of model being
                 fit. One of ``"retrospective"``, ``"prospective"``,
                 ``"prospective-restricted"`` or ``"full"``
 
-            treated_units (int[], Optional):  An iterable indicating the rows
+        :param treated_units:  An iterable indicating the rows
                 of `X` and `Y` which contain data from treated units.  
+        :type treated_units: int[], Optional
 
-            weight_penalty (float, Optional): Penalty applied to the difference
+        :param weight_penalty: Penalty applied to the difference
                 between the current weights and the null weights (1/n). Default
                 provided by :func:``L2_pen_guestimate``.
-            covariate_penalties (float | float[], optional): penalty
+        :type weight_penalty: float, Optional
+
+        :param covariate_penalties: penalty
                 (penalties) applied to the magnitude of the covariate weights.
                 Defaults to ``[ Lambda_c_max * g for g in grid]``, where
                 `Lambda_c_max` is determined via :func:`get_max_lambda` .
+        :type covariate_penalties: float | float[], optional
 
-            grid (float | float[], optional): only used when
+        :param grid: only used when
                 `covariate_penalties` is not provided
-            Lambda_min (float, Default = 1e-6): only used when
+        :type grid: float | float[], optional
+        :param Lambda_min: (float, Default = 1e-6): only used when
                 `covariate_penalties` and `grid` are not provided
-            Lambda_max (float, Default = 1): only used when
+        :param Lambda_max: (float, Default = 1): only used when
                 `covariate_penalties` and `grid` are not provided
-            grid_points (int, Default = 20): only used when
+        :param grid_points: (int, Default = 20): only used when
                 `covariate_penalties` and `grid` are not provided
 
-            choice ("min" or function): Method for choosing from among the
+        :param choice: ("min" or function) Method for choosing from among the
                 covariate_penalties.  Only used when covariate_penalties is an
                 iterable.  Defaults to ``"min"`` which selects the lambda parameter
                 associated with the lowest cross validation error.
 
-            cv_folds (int or (int[],int[])[]; Default = 10): An integer number
+        :param cv_folds: (Default = 10) An integer number
                 of Cross Validation folds passed to
                 :func:`sklearn.model_selection.KFold`, or an explicit list of train
                 validation folds. TODO: These folds are calculated with
                 ``KFold(...,shuffle=False)``, but instead, it should be assigned a
                 random state.
+        :type cv_folds: int or (int[],int[])[] 
 
-            gradient_folds (int or (int[],int[])[]; Default = 10): An integer
+        :param gradient_folds: (Default = 10) An integer
                 number of Gradient folds passed to
                 :func:`sklearn.model_selection.KFold`, or an explicit list of train
                 validation folds, to be used `model_type` is one either ``"foo"``
                 ``"bar"``.
+        :type gradient_folds: int or (int[],int[])[]
 
-            gradient_seed (int, default = 10101): passed to :func:`sklearn.model_selection.KFold`
+        :param gradient_seed: (default = 10101) passed to :func:`sklearn.model_selection.KFold`
                 to allow for consistent gradient folds across calls when
                 `model_type` is one either ``"foo"`` ``"bar"`` with and
                 `gradient_folds` is an integer.
+        :param gradient_seed: int
 
-            progress (Default = `True`): Controls the level of verbosity.  If
+        :param progress: (Default = `True`)Controls the level of verbosity.  If
                 `True`, the messages indication the progress are printed to the
                 console (stdout).
 
-        Keyword Args
+        :param \**kwargs: See below
+
+        :Keyword Args:
 
             Arguments passed on to :func:`cdl_search` which implements the
                 gradient descent with adaptive step sizes
 
-            learning_rate (float, Default = 0.2): The initial learning rate
+            * *learning_rate* (float, Default = 0.2)  -- The initial learning rate
                 (alpha) which determines the initial step size, which is set to
                 learning_rate * null_model_error / gradient. Must be between 0 and
                 1.
 
-            learning_rate_adjustment (float, Default = 0.9): Adjustment factor
+            * *learning_rate_adjustment (float, Default = 0.9)* -- Adjustment factor
                 applied to the learning rate applied between iterations when the
                 optimal step size returned by :func:`scipy.optimize.line_search` is
                 greater less than 1, else the step size is adjusted by
                 ``1/learning_rate_adjustment``. Must be between 0 and 1,
 
-            tol (float, Default = 1e-4): Tolerance used for the stopping rule
-            # TODO: theses should be harmnonized with parameter names in cd_line_search and actually passed in via *args / **kwargs
+            * *tol (float, Default = 1e-4)* -- Tolerance used for the stopping rule
     """
+            # TODO: theses should be harmnonized with parameter names in cd_line_search and actually passed in via *args / **kwargs
 
 
 

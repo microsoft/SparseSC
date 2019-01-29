@@ -20,6 +20,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="cross_validation.py" />
+    <Compile Include="fit-test.py" />
     <Compile Include="fit.py" />
     <Compile Include="fit_ct.py" />
     <Compile Include="fit_fold.py" />
@@ -37,6 +38,7 @@
     <Compile Include="utils\ols_model.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="utils\print_progress.py" />
     <Compile Include="utils\sub_matrix_inverse.py" />
     <Compile Include="utils\__init__.py" />
     <Compile Include="weights.py" />
