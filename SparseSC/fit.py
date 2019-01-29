@@ -35,7 +35,7 @@ def fit(X,Y,
         # fold tuning parameters: either a integer or list of test/train subsets such as the result of calling Kfold().split()
         cv_folds = 10,
         gradient_folds = 10,
-        random_state = 10101, # random state when fit_fold is invoked with an integer value for grad_splits -- this should be harmnonized with parameter names in cd_line_search and passed in via *args / **kwargs
+        gradient_seed = 10101, # random state when fit_fold is invoked with an integer value for grad_splits -- this should be harmnonized with parameter names in cd_line_search and passed in via *args / **kwargs
         model_type = "retrospective",
         # VERBOSITY
         progress = True,
@@ -92,7 +92,7 @@ def fit(X,Y,
                 validation folds, to be used `model_type` is one either ``"foo"``
                 ``"bar"``.
 
-            random_state 10101: passed to :func:`sklearn.model_selection.KFold`
+            gradient_seed (int, default = 10101): passed to :func:`sklearn.model_selection.KFold`
                 to allow for consistent gradient folds across calls when
                 `model_type` is one either ``"foo"`` ``"bar"`` with and
                 `gradient_folds` is an integer.
@@ -184,9 +184,10 @@ def fit(X,Y,
                                progress = progress,
                                L2_PEN_W = weight_penalty,
                                grad_splits = gradient_folds,
-                               random_state = random_state, # TODO: this is only used when grad splits is not None... need to better control this...
+                               random_state = gradient_seed, # TODO: this is only used when grad splits is not None... need to better control this...
                                aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
                                alpha_mult = learning_rate_adjustment,  # todo: this needs to be harmonized and passed in via *args or **kwargs
+                               quiet = not progress, 
                                **kwargs)
 
             # GET THE INDEX OF THE BEST SCORE
@@ -201,7 +202,7 @@ def fit(X,Y,
                             # *args, **kwargs
                             LAMBDA = best_lambda,
                             grad_splits = gradient_folds,
-                            random_state = random_state, # TODO:  this is only used when grad splits is not None... need to better control this...
+                            random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
                             aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
                             alpha_mult = learning_rate_adjustment,
                             **kwargs)  # todo: this needs to be harmonized and passed in via *args or **kwargs
@@ -219,21 +220,24 @@ def fit(X,Y,
             # we're doing in-sample "predictions" -- i.e. we're directly optimizing the
             # observed || Y_ctrl - W Y_ctrl ||
 
-            raise NotImplementedError("still need to generate cleaver gradient folds")
 
             try:
                 iter(gradient_folds)
             except:
                 from sklearn.model_selection import KFold
-                np.arange(len(treated_units))
-                control_units
-                gradient_folds = list(KFold(splits, shuffle=True, random_state = random_state).split(control_units))
-            else:
-                # user supplied gradient folds
-                warn("User supplied gradient_folds are being re-formed for compatibility with model_type 'prospective'")
+                gradient_folds = KFold(gradient_folds, shuffle=True, random_state = gradient_seed).split(np.arange(X.shape[0]))
                 gradient_folds = [  [list(set(train).union(treated_units)), list(set(test).difference(treated_units))] for train, test in gradient_folds]
                 gradient_folds = [ [train,test]  for train,test in gradient_folds if len(train) != 0 and len(test) != 0]
-            gradient_folds.append([control_units, treated_units])
+                gradient_folds.append([control_units, treated_units])
+            else:
+                # user supplied gradient folds
+                gradient_folds = list(gradient_folds)
+                treated_units_set = set(treated_units)
+                if not any(treated_units_set == set(gf[1]) for gf in gradient_folds): # TODO: this condition logic is untested
+                    warn("User supplied gradient_folds will be re-formed for compatibility with model_type 'prospective'")
+                    gradient_folds = [  [list(set(train).union(treated_units)), list(set(test).difference(treated_units))] for train, test in gradient_folds]
+                    gradient_folds = [ [train,test]  for train,test in gradient_folds if len(train) != 0 and len(test) != 0]
+                    gradient_folds.append([control_units, treated_units])
 
             # --------------------------------------------------
             # Phase 1: extract cross fold residual errors for each lambda
@@ -248,9 +252,10 @@ def fit(X,Y,
                                progress = progress,
                                L2_PEN_W = weight_penalty,
                                grad_splits = gradient_folds,
-                               random_state = random_state, # TODO:  this is only used when grad splits is not None... need to better control this...
+                               random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
                                aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
                                alpha_mult = learning_rate_adjustment,  # todo: this needs to be harmonized and passed in via *args or **kwargs
+                               quiet = not progress, 
                                **kwargs)
 
             # GET THE INDEX OF THE BEST SCORE
@@ -265,7 +270,7 @@ def fit(X,Y,
                             # *args, **kwargs
                             LAMBDA = best_lambda,
                             grad_splits = gradient_folds,
-                            random_state = random_state, # TODO:  this is only used when grad splits is not None... need to better control this...
+                            random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
                             aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
                             alpha_mult = learning_rate_adjustment,
                             **kwargs)  # todo: this needs to be harmonized and passed in via *args or **kwargs
@@ -274,7 +279,7 @@ def fit(X,Y,
             full_weights = weights(X,
                                    V = best_V,
                                    L2_PEN_W = weight_penalty)
-            sc_weights = full_weights[treated_units,control_units]
+            sc_weights = full_weights[np.ix_(treated_units,control_units)]
             synthetic_units = sc_weights.dot(Ytrain)
 
         elif model_type == "prospective-restricted":
@@ -298,10 +303,48 @@ def fit(X,Y,
                                progress = progress,
                                L2_PEN_W = weight_penalty,
 #--                                grad_splits = gradient_folds,
-#--                                 random_state = random_state, # TODO:  this is only used when grad splits is not None... need to better control this...
+#--                                 random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
                                aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
                                alpha_mult = learning_rate_adjustment,  # todo: this needs to be harmonized and passed in via *args or **kwargs
+                               quiet = not progress, 
                                **kwargs)
+
+            # GET THE INDEX OF THE BEST SCORE
+            best_lambda = __choose(scores, covariate_penalties, choice)
+
+            # --------------------------------------------------
+            # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
+            # --------------------------------------------------
+
+            best_V = tensor(X = X, 
+                            Y = Y,
+                            # *args, **kwargs
+                            LAMBDA = best_lambda,
+                            grad_splits = gradient_folds,
+                            random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
+                            aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
+                            alpha_mult = learning_rate_adjustment,
+                            **kwargs)  # todo: this needs to be harmonized and passed in via *args or **kwargs
+
+            # GET THE BEST SET OF WEIGHTS
+            full_weights = weights(X,
+                                   V = best_V,
+                                   L2_PEN_W = weight_penalty)
+            sc_weights = full_weights[np.ix_(treated_units,control_units)]
+            synthetic_units = sc_weights.dot(Ytrain)
+
+        elif model_type == "prospective-restricted":
+            # we're doing in-sample -- i.e. we're optimizing hold-out error in
+            # the controls ( || Y_ctrl - W Y_ctrl || ) in the hopes that the
+            # chosen penalty parameters and V matrix also optimizes the
+            # unobserved ( || Y_treat - W Y_ctrl || ) in counter factual 
+
+            # --------------------------------------------------
+            # Phase 1: extract cross fold residual errors for each lambda
+            # --------------------------------------------------
+
+            # SCORES FOR EACH VALUE OF THE GRID: very slow ( minutes to hours )
+            scores = )
 
             # GET THE INDEX OF THE BEST SCORE
             best_lambda = __choose(scores, covariate_penalties, choice)
@@ -317,7 +360,7 @@ def fit(X,Y,
                             # *args, **kwargs
                             LAMBDA = best_lambda,
 #--                             grad_splits = gradient_folds,
-#--                                 random_state = random_state, # TODO:  this is only used when grad splits is not None... need to better control this...
+#--                                 random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
                             aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
                             alpha_mult = learning_rate_adjustment,
                             **kwargs)  # todo: this needs to be harmonized and passed in via *args or **kwargs
@@ -375,9 +418,10 @@ def fit(X,Y,
                            progress = progress,
                            L2_PEN_W = weight_penalty,
                            grad_splits = gradient_folds,
-                                random_state = random_state, # TODO:  this is only used when grad splits is not None... need to better control this...
+                                random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
                            aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
                            alpha_mult = learning_rate_adjustment,  # todo: this needs to be harmonized and passed in via *args or **kwargs
+                           quiet = not progress, 
                            **kwargs)
 
         # GET THE INDEX OF THE BEST SCORE
@@ -391,7 +435,7 @@ def fit(X,Y,
                         Y = Y,
                         LAMBDA = best_lambda,
                         grad_splits = gradient_folds,
-                        random_state = random_state, # TODO:  this is only used when grad splits is not None... need to better control this...
+                        random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
                         aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
                         alpha_mult = learning_rate_adjustment,
                         **kwargs)  # todo: this needs to be harmonized and passed in via *args or **kwargs

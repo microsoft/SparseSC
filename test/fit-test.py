@@ -9,9 +9,9 @@
 # 
 #     \SpasrseSC > python test/fit-test.py
 # 
-# Test a specific model type (e.g. prospective): 
+# Test a specific model type (e.g. "prospective-restricted"): 
 # 
-#     \SpasrseSC > python test/fit-test.py prospective
+#     \SpasrseSC > python test/fit-test.py prospective-restricted
 # 
 # --------------------------------------------------------------------------------
 
@@ -25,7 +25,7 @@ sys.path.insert(0,os.path.abspath('.'))
 if len(sys.argv) > 1:
     _MODEL_TYPES = sys.argv[1:]
 else: 
-    _MODEL_TYPES = (  "prospective-restricted", "full" ) # "prospective","retrospective", 
+    _MODEL_TYPES = (  "prospective-restricted", "full", "prospective","retrospective", ) 
 
 
 print("Importing fit module...",end="")
@@ -50,7 +50,7 @@ _TREATED_UNITS = np.arange(treated_units)
 
 
 
-for _MODEL_TYPE  in _MODEL_TYPES:
+for _MODEL_TYPE in _MODEL_TYPES:
     print("Calling fit with `model_type  = '%s'`..." % (_MODEL_TYPE, ),end="")
     sys.stdout.flush()
 #--     try: 
