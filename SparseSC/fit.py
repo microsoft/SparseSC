@@ -316,43 +316,6 @@ def fit(X,Y,
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
             # --------------------------------------------------
 
-            best_V = tensor(X = X, 
-                            Y = Y,
-                            # *args, **kwargs
-                            LAMBDA = best_lambda,
-                            grad_splits = gradient_folds,
-                            random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
-                            aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
-                            alpha_mult = learning_rate_adjustment,
-                            **kwargs)  # todo: this needs to be harmonized and passed in via *args or **kwargs
-
-            # GET THE BEST SET OF WEIGHTS
-            full_weights = weights(X,
-                                   V = best_V,
-                                   L2_PEN_W = weight_penalty)
-            sc_weights = full_weights[np.ix_(treated_units,control_units)]
-            synthetic_units = sc_weights.dot(Ytrain)
-
-        elif model_type == "prospective-restricted":
-            # we're doing in-sample -- i.e. we're optimizing hold-out error in
-            # the controls ( || Y_ctrl - W Y_ctrl || ) in the hopes that the
-            # chosen penalty parameters and V matrix also optimizes the
-            # unobserved ( || Y_treat - W Y_ctrl || ) in counter factual 
-
-            # --------------------------------------------------
-            # Phase 1: extract cross fold residual errors for each lambda
-            # --------------------------------------------------
-
-            # SCORES FOR EACH VALUE OF THE GRID: very slow ( minutes to hours )
-            scores = )
-
-            # GET THE INDEX OF THE BEST SCORE
-            best_lambda = __choose(scores, covariate_penalties, choice)
-
-            # --------------------------------------------------
-            # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
-            # --------------------------------------------------
-
             best_V = tensor(X = Xtrain, 
                             Y = Ytrain,
                             X_treat = Xtest,

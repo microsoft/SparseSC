@@ -146,7 +146,7 @@ Here is a summary of the main differences between the model types.
 |retrospective|Controls|Controls|
 |prospective|All|Controls|
 |prospective-restricted|Treated|Controls|
-|prospective-full|All|All|
+|(prospective) full|All|All|
 
 A tree view of differences:
 * Treatment date: The *prospective* studies differ from the *retrospective* study in that they can use all units for fitting.

@@ -8,6 +8,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Misc", "Misc", "{AA17F266-A75A-4FDE-A774-168EADE9A32E}"
 	ProjectSection(SolutionItems) = preProject
 		example-code.py = example-code.py
+		docs\fit.md = docs\fit.md
 		examples\fit_poc.py = examples\fit_poc.py
 	EndProjectSection
 EndProject

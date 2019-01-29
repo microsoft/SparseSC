@@ -3,7 +3,7 @@
 #  Incl in path or use the "Developer Command Prompt for VS...."
 
 help:
-	@echo "Use one of the common targets: pylint, package, docs"
+	@echo "Use one of the common targets: pylint, package, readmedocs, htmldocs"
 
 #Allow for slightly different commands for nmake and make
 #NB: Don't always need the different DIR_SEP
