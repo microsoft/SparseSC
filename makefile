@@ -49,3 +49,6 @@ htmldocs:
 	$(SPHINXAPIDOC) -f -o $(BUILDAPIDOCDIR)/SparseSC SparseSC
 	$(RM_CMD) $(BUILDAPIDOCDIR)$(DIR_SEP)SparseSC$(DIR_SEP)modules.rst
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+
+tests:
+	python -m unittest test/test_fit.py

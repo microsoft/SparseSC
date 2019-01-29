@@ -136,6 +136,10 @@ def fit(X,Y,
 
 
     assert X.shape[0] == Y.shape[0]
+    if "verbose" in kwargs:
+        verbose = kwargs["verbose"]
+    else:
+        verbose = 1
 
     if treated_units is not None:
 
@@ -176,7 +180,7 @@ def fit(X,Y,
                         grad_splits = gradient_folds,
                         aggressiveness = learning_rate, # initial learning rate # todo: this needs to be harmonized and passed in via *args or **kwargs
                         alpha_mult = learning_rate_adjustment, # todo: this needs to be harmonized and passed in via *args or **kwargs
-                        verbose=1)
+                        verbose=verbose)
             covariate_penalties = grid * LAMBDA_max
 
 
@@ -373,7 +377,7 @@ def fit(X,Y,
                         grad_splits = gradient_folds,
                         aggressiveness = learning_rate, # initial learning rate # todo: this needs to be harmonized and passed in via *args or **kwargs
                         alpha_mult = learning_rate_adjustment, # todo: this needs to be harmonized and passed in via *args or **kwargs
-                        verbose=1)
+                        verbose=verbose)
             covariate_penalties = grid * LAMBDA_max
 
         # Get the L2 penalty guestimate:  very quick ( milliseconds )

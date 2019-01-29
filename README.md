@@ -1,15 +1,17 @@
 # Sparse Synthetic Controls
 
-### Setup
+## Requirements
+### Usage
 
 This package requires [numpy](http://www.numpy.org/), 
 [scipy](https://www.scipy.org/), and [scikit-learn](http://scikit-learn.org/) and has been tested with ( Python 2.7.14,
 Numpy 1.14.1, and Scipy 1.0.0 )  and ( Python 3.5.5, Numpy 1.13.1, and
 Scipy 1.0.1 )
 
-To build the documentation you will need Sphinx and recommonmark (to incorporate .md files)
+### Development
+To build the documentation you will need `sphinx`, `recommonmark`, and `sphinx-markdown-tables` (to incorporate .md files)
 
-# Overview 
+## Overview 
 
 When estimating synthetic controls, units of observation are divided into
 control and treated units.   Data collected on these units may include
@@ -255,7 +257,10 @@ folds.
 The file `./example-code.py` in this package examples and a simple data
 generating process for use in understanding how to use this package.
 
-# Contributing
+### Documentation
+The documentation can be built using the `(n)make` target `htmldocs` and is generated in `docs/build/html/index.html`. (To do: post these)
+
+## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions
 require you to agree to a Contributor License Agreement (CLA) declaring

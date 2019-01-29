@@ -5,7 +5,8 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{3fdc664a-c1c8-47f0-8d77-8e0679e53c82}</ProjectGuid>
     <ProjectHome />
-    <StartupFile>tests.py</StartupFile>
+    <StartupFile>
+    </StartupFile>
     <SearchPath>..\</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -20,15 +21,11 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="cross_validation.py" />
-    <Compile Include="fit-test.py" />
     <Compile Include="fit.py" />
     <Compile Include="fit_ct.py" />
     <Compile Include="fit_fold.py" />
     <Compile Include="fit_loo.py" />
     <Compile Include="lambda_utils.py" />
-    <Compile Include="tests.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="optimizers\cd_line_search.py" />
     <Compile Include="optimizers\__init__.py" />
     <Compile Include="tensor.py" />
