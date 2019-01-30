@@ -140,7 +140,7 @@ def fit(X,Y,
         verbose = kwargs["verbose"]
     else:
         verbose = 1
-
+    
     if treated_units is not None:
 
         # --------------------------------------------------
@@ -207,7 +207,7 @@ def fit(X,Y,
                                **kwargs)
 
             # GET THE INDEX OF THE BEST SCORE
-            best_lambda = __choose(scores, covariate_penalties, choice)
+            best_V_lambda = __choose(scores, covariate_penalties, choice)
 
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -216,21 +216,12 @@ def fit(X,Y,
             best_V = tensor(X = Xtrain, 
                             Y = Ytrain,
                             # *args, **kwargs
-                            LAMBDA = best_lambda,
+                            LAMBDA = best_V_lambda,
                             grad_splits = gradient_folds,
                             random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
                             aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
                             alpha_mult = learning_rate_adjustment,
                             **kwargs)  # todo: this needs to be harmonized and passed in via *args or **kwargs
-
-            # GET THE BEST SET OF WEIGHTS
-            # these are out-of-sample weights...
-            sc_weights = weights(Xtrain,
-                                 Xtest,
-                                 V = best_V,
-                                 L2_PEN_W = weight_penalty)
-
-            synthetic_units = sc_weights.dot(Ytrain)
 
         elif model_type == "prospective":
             # we're doing in-sample "predictions" -- i.e. we're directly optimizing the
@@ -275,7 +266,7 @@ def fit(X,Y,
                                **kwargs)
 
             # GET THE INDEX OF THE BEST SCORE
-            best_lambda = __choose(scores, covariate_penalties, choice)
+            best_V_lambda = __choose(scores, covariate_penalties, choice)
 
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -284,19 +275,12 @@ def fit(X,Y,
             best_V = tensor(X = X, 
                             Y = Y,
                             # *args, **kwargs
-                            LAMBDA = best_lambda,
+                            LAMBDA = best_V_lambda,
                             grad_splits = gradient_folds,
                             random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
                             aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
                             alpha_mult = learning_rate_adjustment,
                             **kwargs)  # todo: this needs to be harmonized and passed in via *args or **kwargs
-
-            # GET THE BEST SET OF WEIGHTS
-            sc_weights = weights(Xtrain,
-                                 Xtest,
-                                 V = best_V,
-                                 L2_PEN_W = weight_penalty)
-            synthetic_units = sc_weights.dot(Ytrain)
 
         elif model_type == "prospective-restricted":
             # we're doing in-sample -- i.e. we're optimizing hold-out error in
@@ -326,7 +310,7 @@ def fit(X,Y,
                                **kwargs)
 
             # GET THE INDEX OF THE BEST SCORE
-            best_lambda = __choose(scores, covariate_penalties, choice)
+            best_V_lambda = __choose(scores, covariate_penalties, choice)
 
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -337,25 +321,26 @@ def fit(X,Y,
                             X_treat = Xtest,
                             Y_treat = Ytest,
                             # *args, **kwargs
-                            LAMBDA = best_lambda,
+                            LAMBDA = best_V_lambda,
 #--                             grad_splits = gradient_folds,
 #--                                 random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
                             aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
                             alpha_mult = learning_rate_adjustment,
                             **kwargs)  # todo: this needs to be harmonized and passed in via *args or **kwargs
 
-            # GET THE BEST SET OF WEIGHTS
-            # these are effectively in-sample weights
-            sc_weights = weights(Xtrain,
-                                            Xtest,
-                                            V = best_V,
-                                            L2_PEN_W = weight_penalty)
-
-            synthetic_units = sc_weights.dot(Ytrain)
 
         else:
             raise ValueError("unexpected model_type '%s' or treated_units = None" % model_type)
-
+        
+        # GET THE BEST SET OF WEIGHTS
+        sc_weights = np.empty((X.shape[0],Ytrain.shape[0]))
+        sc_weights[treated_units,:] = weights(Xtrain,
+                                                Xtest,
+                                                V = best_V,
+                                                L2_PEN_W = weight_penalty)
+        sc_weights[control_units,:] = weights(Xtrain,
+                                                V = best_V,
+                                                L2_PEN_W = weight_penalty)
     else:
 
         if model_type != "full":
@@ -404,7 +389,7 @@ def fit(X,Y,
                            **kwargs)
 
         # GET THE INDEX OF THE BEST SCORE
-        best_lambda = __choose(scores, covariate_penalties, choice)
+        best_V_lambda = __choose(scores, covariate_penalties, choice)
 
         # --------------------------------------------------
         # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -412,7 +397,7 @@ def fit(X,Y,
 
         best_V = tensor(X = X, 
                         Y = Y,
-                        LAMBDA = best_lambda,
+                        LAMBDA = best_V_lambda,
                         grad_splits = gradient_folds,
                         random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
                         aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
@@ -423,7 +408,6 @@ def fit(X,Y,
         sc_weights = weights(X,
                              V = best_V,
                              L2_PEN_W = weight_penalty)
-        synthetic_units = sc_weights.dot(Y)
 
     return SparseSCFit( 
             # Data
@@ -433,11 +417,11 @@ def fit(X,Y,
             treated_units,
             model_type,
             # fitting parameters
+            best_V_lambda,
             weight_penalty,
             covariate_penalties,
             # Fitted Synthetic Controls
-            sc_weights,
-            synthetic_units)
+            sc_weights)
 
 def __choose(scores, covariate_penalties, choice):
     """ helper function which implements the choice of covariate weights penalty parameter
@@ -471,11 +455,11 @@ class SparseSCFit(object):
             treated_units,
             model_type,
             # fitting parameters
+            V_penalty,
             weight_penalty,
             covariate_penalties,
             # Fitted Synthetic Controls
             sc_weights,
-            synthetic_units,
             ):
 
         # DATA
@@ -486,12 +470,20 @@ class SparseSCFit(object):
         self.model_type = model_type
 
         # FITTING PARAMETERS
+        self.V_penalty = V_penalty
         self.weight_penalty = weight_penalty
         self.covariate_penalties = covariate_penalties
 
         # FITTED SYNTHETIC CONTROLS
         self.sc_weights = sc_weights
-        self.synthetic_units = synthetic_units
+
+    def predict(self, Ydonor = None):
+        if Ydonor is None:
+            if model_type != "full":
+                Ydonor = self.Y[self.control_units,:]
+            else:
+                Ydonor = self.Y
+        return self.sc_weights.dot(Ytrain)
 
     def __str__(self):
         """ print details of the fit to the console
@@ -499,15 +491,15 @@ class SparseSCFit(object):
         raise NotImplementedError()
 
         # CALCULATE ERRORS AND R-SQUARED'S
-        ct_prediction_error = Y_SC_test - Ytest
-        null_model_error = Ytest - np.mean(Xtest)
-        betternull_model_error = (Ytest.T - np.mean(Xtest,1)).T
-        print("#--------------------------------------------------")
-        print("OUTER FOLD %s OF %s: Group Mean R-squared: %0.3f%%; Individual Mean R-squared: %0.3f%%" % (
-                i + 1,
-                100*(1 - np.power(ct_prediction_error,2).sum()  / np.power(null_model_error,2).sum()) ,
-                100*(1 - np.power(ct_prediction_error,2).sum()  /np.power(betternull_model_error,2).sum() )))
-        print("#--------------------------------------------------")
+        #ct_prediction_error = Y_SC_test - Ytest
+        #null_model_error = Ytest - np.mean(Xtest)
+        #betternull_model_error = (Ytest.T - np.mean(Xtest,1)).T
+        #print("#--------------------------------------------------")
+        #print("OUTER FOLD %s OF %s: Group Mean R-squared: %0.3f%%; Individual Mean R-squared: %0.3f%%" % (
+        #        i + 1,
+        #        100*(1 - np.power(ct_prediction_error,2).sum()  / np.power(null_model_error,2).sum()) ,
+        #        100*(1 - np.power(ct_prediction_error,2).sum()  /np.power(betternull_model_error,2).sum() )))
+        #print("#--------------------------------------------------")
 
     def show(self):
         """ display goodness of figures illustrating goodness of fit
