@@ -141,7 +141,7 @@ same gradient fold.
 
 Here is a summary of the main differences between the model types.
 
-| Type | Fit sample | Donor pool |
+| Type | Sample fitting V (+penalties) | Donor pool for W |
 |---|---|---|
 |retrospective|Controls|Controls|
 |prospective|All|Controls|

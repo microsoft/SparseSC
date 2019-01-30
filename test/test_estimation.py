@@ -2,6 +2,8 @@ import unittest
 import numpy as np
 import random
 import SparseSC as SC
+from SparseSC.fit import fit
+from SparseSC.weights import weights
 
 def ge_dgp(N0,N1,T0,T1,K,S,R,groups,group_scale,beta_scale,confounders_scale,model= "full"):
     """
@@ -135,15 +137,20 @@ class TestDGPs(unittest.TestCase):
         treated_units = [0,1]
         T0,T1 = 20, 10
         K, R, F = 5, 5, 5
-        X_control, X_treated, Y_pre_control, Y_pre_treated, Y_post_control, Y_post_treated = factor_dgp(N0,N1,T0,T1,K,R,F)
+        Cov_control, Cov_treated, Out_pre_control, Out_pre_treated, Out_post_control, Out_post_treated = factor_dgp(N0,N1,T0,T1,K,R,F)
         
-        Y_post = np.vstack( (Y_post_treated,Y_post_control, ) )
-        X = np.vstack( (X_treated, X_control, ) )
-        Y_pre  = np.vstack( (Y_pre_treated, Y_pre_control, ) )
-        #X_and_Y_pre = np.hstack( ( X, Y_pre,) )
+        Out_post = np.vstack( (Out_post_treated,Out_post_control, ) )
+        Cov = np.vstack( (Cov_treated, Cov_control, ) )
+        Out_pre  = np.vstack( (Out_pre_treated, Out_pre_control, ) )
+        features = np.hstack( ( Cov, Out_pre,) )
 
-        est_res = SC.estimate_effects(X, Y_pre, Y_post, treated_units, V_penalty = 0, W_penalty = 0.001)
-        print(est_res)
+        fit_res = fit(X = features, Y = Out_post, model_type = "retrospective",
+                      treated_units = treated_units,
+                      print_path = False, progress = False, verbose=0,
+                      min_iter = -1, tol = 1)
+        print(fit_res)
+        #est_res = SC.estimate_effects(Cov, Out_pre, Out_post, treated_units, V_penalty = 0, W_penalty = 0.001)
+        #print(est_res)
 
         #self.failUnlessEqual(calc, truth)
 
