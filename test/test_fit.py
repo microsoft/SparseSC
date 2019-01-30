@@ -21,13 +21,10 @@ import unittest
 
 # Bootstrapping the system path
 sys.path.insert(0,os.path.abspath('.'))
-
-sys.stdout.flush()
 try: 
     from SparseSC.fit import fit
 except Exception as exc: 
-    print("Importing fit module...",end="")
-    print("Failed with %s: %s" % (exc.__class__.__name__,exc.message,) )
+    print("Importing fit module failed with %s: %s" % (exc.__class__.__name__,exc.message,) )
     exit()
 
 class TestFit(unittest.TestCase):

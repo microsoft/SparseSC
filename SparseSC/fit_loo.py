@@ -137,7 +137,7 @@ def loo_v_matrix(X,
         dB_dV_ki [k][i] = 2 * Xc[:, k ].dot(Xt[:, k ].T) # Xc[:, k ].dot(Xt[:, k ].T) + Xt[:, k ].dot(Xc[:, k ].T) # 9
 
     k=0 # for linting...
-    del Xc, Xt, i, k
+    del Xc, Xt
 
         #assert (dA_dV_ki [k][i] == X[index, k ].dot(X[index, k ].T) + X[index, k ].dot(X[index, k ].T)).all()
         # https://math.stackexchange.com/a/1471836/252693

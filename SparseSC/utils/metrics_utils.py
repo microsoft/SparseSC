@@ -1,3 +1,4 @@
+import numpy as np
 def simulation_eval(effects, CI_lowers, CI_uppers, true_effect=0):
     te_mse = np.mean(np.square((effects-true_effect)))
     cov = np.mean(np.logical_and(effects>=CI_lowers, effects <=CI_uppers).astype(int))

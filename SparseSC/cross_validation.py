@@ -89,9 +89,9 @@ def score_train_test(X,
 
             # GET THE OUT-OF-SAMPLE PREDICTION ERROR (could also use loo_score, actually...)
             s = ct_score(X = X, Y = Y,  # formerly: fold_score
-                           treated_units = test,
-                           V = v_mat,
-                           L2_PEN_W = l2_pen_w)
+                         treated_units = test,
+                         V = v_mat,
+                         L2_PEN_W = l2_pen_w)
 
         else:
 
@@ -105,7 +105,8 @@ def score_train_test(X,
                                      # method = cdl_search,
                                      **kwargs)
             except MemoryError as err:
-                raise RuntimeError("MemoryError encountered.  Try setting `grad_splits` parameter to reduce memory requirements.")
+                raise RuntimeError("MemoryError encountered.  Try setting `grad_splits` " + \
+                    "parameter to reduce memory requirements.")
 
             # GET THE OUT-OF-SAMPLE PREDICTION ERROR
             s = ct_score(X = X, Y = Y, 
