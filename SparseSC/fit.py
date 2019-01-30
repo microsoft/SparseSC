@@ -292,10 +292,10 @@ def fit(X,Y,
                             **kwargs)  # todo: this needs to be harmonized and passed in via *args or **kwargs
 
             # GET THE BEST SET OF WEIGHTS
-            full_weights = weights(X,
-                                   V = best_V,
-                                   L2_PEN_W = weight_penalty)
-            sc_weights = full_weights[np.ix_(treated_units,control_units)]
+            sc_weights = weights(Xtrain,
+                                 Xtest,
+                                 V = best_V,
+                                 L2_PEN_W = weight_penalty)
             synthetic_units = sc_weights.dot(Ytrain)
 
         elif model_type == "prospective-restricted":
