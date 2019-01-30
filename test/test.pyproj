@@ -10,6 +10,7 @@
     <OutputPath>.</OutputPath>
     <Name>test</Name>
     <RootNamespace>test</RootNamespace>
+    <InterpreterId>CondaEnv|CondaEnv|SparseSC_35</InterpreterId>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -23,6 +24,10 @@
     <Compile Include="test_estimation.py" />
     <Compile Include="test_fit.py" />
     <Compile Include="__init__.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <InterpreterReference Include="CondaEnv|CondaEnv|SparseSC_27" />
+    <InterpreterReference Include="CondaEnv|CondaEnv|SparseSC_35" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
