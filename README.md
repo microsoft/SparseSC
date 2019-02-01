@@ -258,7 +258,7 @@ The file `./example-code.py` in this package examples and a simple data
 generating process for use in understanding how to use this package.
 
 ### Documentation
-The documentation can be built using the `(n)make` target `htmldocs` and is generated in `docs/build/html/index.html`. (To do: post these)
+The documentation can be built locally using the `(n)make` target `htmldocs` and is generated in `docs/build/html/index.html`. You can read these online at [Read the Docs](https://sparsesc.readthedocs.io/en/latest/)
 
 ## Contributing
 
