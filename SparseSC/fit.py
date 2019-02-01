@@ -9,6 +9,7 @@ from warnings import warn
 
 import pandas as pd
 import numpy as np
+from sklearn.model_selection import KFold
 # import SparseSC as SC
 
 
@@ -17,9 +18,7 @@ from SparseSC.lambda_utils import get_max_lambda, L2_pen_guestimate
 from SparseSC.cross_validation import CV_score
 from SparseSC.tensor import tensor
 from SparseSC.weights import weights
-
-# Public API
-from sklearn.model_selection import KFold
+from SparseSC.utils.metrics_utils import gen_placebo_stats_from_diffs
 
 
 def fit(X,Y,
@@ -506,3 +505,39 @@ class SparseSCFit(object):
         """
         raise NotImplementedError()
 
+
+
+def estimate_effects(X, Y_pre, Y_post, treated_units, max_n_pl = 1000000, ret_pl = False, ret_CI=False, level=0.95, 
+                     weight_penalty = None, covariate_penalties=None, **kwargs):
+    #TODO: Cleanup returning placebo distribution (incl pre?)
+    #N1 = len(treated_units)
+    N = Y_pre.shape[0]
+    #N0 = N - N1
+    #T1 = Y_post.shape[1]
+    control_units = list(set(range(N)) - set(treated_units)) 
+    all_units = list(range(N))
+    
+    fit_res = fit(X = np.hstack( ( X, Y_pre,) ), Y = Y_post, model_type = "retrospective",
+                    treated_units = treated_units,
+                    print_path = False, progress = False, verbose=0,
+                    min_iter = -1, tol = 1)
+    Y_pre_sc = fit_res.predict(Out_pre_control)
+    Y_post_sc = fit_res.predict(Out_post_control)
+    
+    diff_pre = Y_pre - Y_pre_sc
+    diff_post = Y_post - Y_post_sc
+    # Get post effects
+    effect_vecs = diff_post[treated_units, :]
+    control_effect_vecs = diff_post[control_units, :]
+    
+    # Get pre match MSE (match quality)
+    pre_tr_pes = diff_pre[treated_units, :]
+    pre_c_pes = diff_post[control_units, :]
+    pre_tr_rmspes = np.sqrt(np.mean(np.square(pre_tr_pes), axis=1))
+    pre_c_rmspes = np.sqrt(np.mean(np.square(pre_c_pes), axis=1))
+
+    pl_res = gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs, 
+                                 pre_tr_rmspes, pre_c_rmspes,
+                                 max_n_pl, ret_pl, ret_CI, level)
+    pl_res.fit_res = fit_res
+    return fit_res

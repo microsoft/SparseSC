@@ -139,15 +139,11 @@ class TestDGPs(unittest.TestCase):
         K, R, F = 5, 5, 5
         Cov_control, Cov_treated, Out_pre_control, Out_pre_treated, Out_post_control, Out_post_treated = factor_dgp(N0,N1,T0,T1,K,R,F)
         
-        Out_post = np.vstack( (Out_post_treated,Out_post_control, ) )
         Cov = np.vstack( (Cov_treated, Cov_control, ) )
         Out_pre  = np.vstack( (Out_pre_treated, Out_pre_control, ) )
-        features = np.hstack( ( Cov, Out_pre,) )
-
-        fit_res = fit(X = features, Y = Out_post, model_type = "retrospective",
-                      treated_units = treated_units,
-                      print_path = False, progress = False, verbose=0,
-                      min_iter = -1, tol = 1)
+        Out_post = np.vstack( (Out_post_treated,Out_post_control, ) )
+        
+        SC.estimate_effects(Cov, Out_pre, Out_post, treated_units=treated_units)
         print(fit_res)
         #est_res = SC.estimate_effects(Cov, Out_pre, Out_post, treated_units, V_penalty = 0, W_penalty = 0.001)
         #print(est_res)

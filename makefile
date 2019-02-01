@@ -52,6 +52,10 @@ htmldocs:
 	$(RM_CMD) $(BUILDAPIDOCDIR)$(DIR_SEP)SparseSC$(DIR_SEP)modules.rst
 	@python -msphinx -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
+examples:
+	python example-code.py
+	python examples/fit_poc.py
+
 #Python 2.7 can do 'test.test_fit' but not 'test/test_fit.py'
 tests:
 	python -m unittest test.test_fit
@@ -60,4 +64,4 @@ tests_both:
 	activate SparseSC_27 && python -m unittest test.test_fit
 	activate SparseSC_35 && python -m unittest test.test_fit
 
-check: pylint package_bdist_wheel tests_both
+check: pylint package_bdist_wheel tests_both examples
