@@ -24,7 +24,7 @@ import sys
 import recommonmark
 from recommonmark.transform import AutoStructify
 
-sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 
 # -- General configuration ------------------------------------------------
@@ -85,7 +85,17 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
 
+#Run apidoc from here rather than separate process (so that we can do Read the Docs easily)
+#https://github.com/rtfd/readthedocs.org/issues/1139
+def run_apidoc(_):
+    from sphinx.apidoc import main
+    cur_dir = os.path.abspath(os.path.dirname(__file__))
+    buildapidocdir = os.path.join(cur_dir, "build", "apidoc","SparseSC")
+    module = os.path.join(cur_dir,"..","SparseSC")
+    main([None, '-f', '-o', buildapidocdir, module])
+
 def setup(app):
+    app.connect('builder-inited', run_apidoc)
     #Allow MarkDown
     app.add_config_value('recommonmark_config', {
             'url_resolver': lambda url: "build/apidoc/" + url,

@@ -39,7 +39,6 @@ pylint:
 	-mkdir build
 	-pylint SparseSC > build$(DIR_SEP)pylint_msgs.txt
 
-SPHINXOPTS    =
 SOURCEDIR     = docs/
 BUILDDIR      = docs/build
 BUILDDIRHTML  = docs$(DIR_SEP)build$(DIR_SEP)html
@@ -48,9 +47,9 @@ BUILDAPIDOCDIR= docs$(DIR_SEP)build$(DIR_SEP)apidoc
 htmldocs:
 	-$(RMDIR_CMD) $(BUILDDIRHTML)
 	-$(RMDIR_CMD) $(BUILDAPIDOCDIR)
-	sphinx-apidoc -f -o $(BUILDAPIDOCDIR)/SparseSC SparseSC
-	$(RM_CMD) $(BUILDAPIDOCDIR)$(DIR_SEP)SparseSC$(DIR_SEP)modules.rst
-	@python -msphinx -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+#	sphinx-apidoc -f -o $(BUILDAPIDOCDIR)/SparseSC SparseSC
+#	$(RM_CMD) $(BUILDAPIDOCDIR)$(DIR_SEP)SparseSC$(DIR_SEP)modules.rst
+	@python -msphinx -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(O)
 
 examples:
 	python example-code.py
