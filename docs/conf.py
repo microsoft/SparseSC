@@ -85,6 +85,25 @@ pygments_style = 'sphinx'
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
 
+#Allow capturing output
+#Modified (to not capture stderr too) from https://stackoverflow.com/questions/5136611/
+import contextlib
+@contextlib.contextmanager
+def capture():
+    import sys
+    oldout = sys.stdout
+    try:
+        if sys.version_info[0] < 3:
+            from cStringIO import StringIO
+        else:
+            from io import StringIO
+        out=StringIO()
+        sys.stdout = out
+        yield out
+    finally:
+        sys.stdout = oldout
+        out = out.getvalue()
+
 #Run apidoc from here rather than separate process (so that we can do Read the Docs easily)
 #https://github.com/rtfd/readthedocs.org/issues/1139
 def run_apidoc(_):
@@ -92,7 +111,8 @@ def run_apidoc(_):
     cur_dir = os.path.abspath(os.path.dirname(__file__))
     buildapidocdir = os.path.join(cur_dir, "build", "apidoc","SparseSC")
     module = os.path.join(cur_dir,"..","SparseSC")
-    main([None, '-f', '-o', buildapidocdir, module])
+    with capture() as out: #doesn't have quiet option
+        main([None, '-f', '-o', buildapidocdir, module])
 
 def setup(app):
     app.connect('builder-inited', run_apidoc)

@@ -19,6 +19,7 @@ MarkupSafe==1.0
 mccabe==0.6.1
 numpy==1.13.1
 pandas==0.20.3
+patsy==0.5.0
 pycparser==2.19
 Pygments==2.2.0
 pylint==1.9.2
@@ -35,6 +36,7 @@ snowballstemmer==1.2.1
 Sphinx==1.6.3
 sphinx-markdown-tables==0.0.9
 sphinxcontrib-websupport==1.1.0
+statsmodels==0.8.0
 typing==3.6.6
 urllib3==1.23
 win-inet-pton==1.0.1
