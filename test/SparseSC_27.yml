@@ -33,6 +33,7 @@ dependencies:
   - numpy=1.14.1=py27hda5cba4_2
   - openssl=1.1.1a=h0c8e037_0
   - pandas=0.20.3=py27he04484b_2
+  - patsy=0.5.1=py27_0
   - pip=18.1=py27_0
   - pycparser=2.19=py27_0
   - pygments=2.3.1=py27_0
@@ -53,6 +54,7 @@ dependencies:
   - sphinxcontrib=1.0=py27_1
   - sphinxcontrib-websupport=1.1.0=py27_1
   - sqlite=3.26.0=h0c8e037_0
+  - statsmodels=0.8.0=py27hc77c1fc_0
   - typing=3.6.6=py27_0
   - urllib3=1.24.1=py27_0
   - vc=9=h7299396_1
