@@ -1,4 +1,4 @@
-from numpy import ones, diag, matrix, ndarray, zeros, absolute, mean,var, linalg, prod, sqrt
+from numpy import ones, diag, zeros, absolute, mean,var, linalg, prod, sqrt
 import numpy as np
 import warnings
 from .utils.print_progress import print_progress
