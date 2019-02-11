@@ -2,7 +2,6 @@ import numpy as np
 import statsmodels.api as sm
 
 import SparseSC as SC
-import SparseSC.utils.metrics_utils
 
 #All data in the long format (rows mark id-time)
 def OLS_avg_AA_simple(N=100, T=10, K=0, treat_ratio=.1, T0=None):
@@ -38,7 +37,7 @@ def OLS_avg_AA(Y, id, time, post_start, N, T, treat_ratio, num_sim=1000, X=None,
         tes[s] = results.params[3]
         [ci_ls[s], ci_us[s]] = results.conf_int(alpha, cols=[3])[0]
 
-    stats = SC.utils.ols_model.simulation_eval(tes, ci_ls, ci_us, true_effect=0)
+    stats = SC.utils.metrics_utils.simulation_eval(tes, ci_ls, ci_us, true_effect=0)
     print(stats)
 
 

@@ -134,12 +134,12 @@ disable=print-statement,
         deprecated-sys-function,
         exception-escape,
         comprehension-escape,
-		trailing-whitespace, trailing-newlines,
-		wrong-import-order, unused-import,
-		bad-whitespace,
-		invalid-name,
-		too-many-arguments,
-		too-many-locals, too-many-arguments, too-many-branches
+        trailing-whitespace, trailing-newlines,
+        wrong-import-order,
+        bad-whitespace,
+        invalid-name, len-as-condition,
+        too-many-arguments, too-many-instance-attributes,
+        too-many-locals, too-many-arguments, too-many-branches, multiple-statements, too-many-statements
 #Description of last 4 lines as categories:
 #What we want to disable
 #Minor niceties that are easy to fix so eventually do

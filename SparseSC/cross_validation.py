@@ -1,13 +1,10 @@
-from SparseSC.fit_fold import  fold_v_matrix, fold_score
-from SparseSC.fit_loo import  loo_v_matrix, loo_score, loo_weights
+from SparseSC.fit_fold import  fold_v_matrix
+from SparseSC.fit_loo import  loo_v_matrix
 from SparseSC.fit_ct import  ct_v_matrix, ct_score
-from SparseSC.lambda_utils import get_max_lambda, L2_pen_guestimate
 import atexit
 import numpy as np
-import itertools
 from concurrent import futures
-import warnings
-from collections import namedtuple
+#from collections import namedtuple
 
 def score_train_test(X, 
                      Y,
