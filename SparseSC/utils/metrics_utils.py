@@ -1,4 +1,7 @@
 import numpy as np
+import itertools
+import warnings
+from collections import namedtuple
 
 def simulation_eval(effects, CI_lowers, CI_uppers, true_effect=0):
     te_mse = np.mean(np.square((effects-true_effect)))

@@ -16,7 +16,8 @@ def score_train_test(X,
                      test,
                      X_treat=None,
                      Y_treat=None,
-                     FoldNumber=None, # For consistency with score_train_test_sorted_lambdas()
+                     # For consistency of API with score_train_test_sorted_lambdas():
+                     FoldNumber=None, # pylint: disable=unused-argument
                      grad_splits=None, #  If present, use  k fold gradient descent. See fold_v_matrix for details
                      **kwargs):
     """ presents a unified api for ct_v_matrix and loo_v_matrix
@@ -104,7 +105,7 @@ def score_train_test(X,
                                      # treated_units = [X.shape[0] + i for i in  range(len(train))],
                                      # method = cdl_search,
                                      **kwargs)
-            except MemoryError as err:
+            except MemoryError:
                 raise RuntimeError("MemoryError encountered.  Try setting `grad_splits` " + \
                     "parameter to reduce memory requirements.")
 
@@ -162,7 +163,7 @@ def CV_score(X,Y,
              X_treat=None,
              Y_treat=None,
              splits=5,
-             sub_splits=None, # ignore pylint -- this is here for consistency...
+             # sub_splits=None, # ignore pylint -- this is here for consistency...
              quiet=False,
              parallel=False,
              max_workers=None,
@@ -354,7 +355,7 @@ def CV_score(X,Y,
 _worker_pool = None
 
 def _initialize_Global_worker_pool(n_workers):
-    global _worker_pool
+    global _worker_pool # pylint: disable=global-statement
 
     if _worker_pool is not None:
         return # keep it itempotent, please
@@ -362,8 +363,7 @@ def _initialize_Global_worker_pool(n_workers):
     _worker_pool = futures.ProcessPoolExecutor(max_workers=n_workers)
 
 def _clean_up_worker_pool():
-    global _worker_pool
-
+    global _worker_pool # pylint: disable=global-statement
     if _worker_pool is not None:
         _worker_pool.shutdown()
         _worker_pool = None

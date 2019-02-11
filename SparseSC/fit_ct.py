@@ -13,7 +13,6 @@ def ct_v_matrix(X,
                 start = None,
                 L2_PEN_W = None,
                 method = cdl_search, 
-                intercept = True,
                 max_lambda = False,  # this is terrible at least without documentation...
                 verbose = False,
                 gradient_message = "Calculating gradient",
@@ -31,8 +30,6 @@ def ct_v_matrix(X,
     :param L2_PEN_W: L2 penalty on the magnitude of the deviance of the weight vector from null. Optional.
     :param method: The name of a method to be used by scipy.optimize.minimize, 
         or a callable with the same API as scipy.optimize.minimize
-    :param intercept: If True, weights are penalized toward the 1 / the number 
-        of controls, else weights are penalized toward zero
     :param max_lambda: if True, the return value is the maximum L1 penalty for
         which at least one element of the tensor matrix is non-zero
     :param verbose: If true, print progress to the console (default: false)
@@ -45,7 +42,6 @@ def ct_v_matrix(X,
     :return: something something
     :rtype: something something
     '''
-    assert intercept, "intercept free model not implemented"
     # DEFAULTS
     if treated_units is None: 
         if control_units is None: 
@@ -152,7 +148,7 @@ def ct_v_matrix(X,
 
     return weights, v_mat, ts_score, ts_loss, L2_PEN_W, opt
 
-def ct_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, intercept = True):
+def ct_weights(X, V, L2_PEN_W, treated_units = None, control_units = None):
     if treated_units is None: 
         if control_units is None: 
             raise ValueError("At least on of treated_units or control_units is required")
@@ -161,7 +157,6 @@ def ct_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, inter
     if control_units is None: 
         control_units = list(set(range(X.shape[0])) - set(treated_units)) 
 
-    N0 = len(control_units)
     X_treated = X[treated_units,:]
     X_control = X[control_units,:]
 

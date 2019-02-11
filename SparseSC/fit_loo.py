@@ -32,7 +32,6 @@ def loo_v_matrix(X,
                  start = None,
                  L2_PEN_W = None,
                  method = cdl_search, 
-                 intercept = True,
                  max_lambda = False,  # this is terrible at least without documentation...
                  solve_method = "standard",
                  verbose = False,
@@ -52,8 +51,6 @@ def loo_v_matrix(X,
         vector from null. Optional.
     :param method: The name of a method to be used by scipy.optimize.minimize,
         or a callable with the same API as scipy.optimize.minimize
-    :param intercept: If True, weights are penalized toward the 1 / the number
-        of controls, else weights are penalized toward zero
     :param max_lambda: if True, the return value is the maximum L1 penalty for
         which at least one element of the tensor matrix is non-zero
     :param solve_method: Method for solving A.I.dot(B). Either "standard" or
@@ -225,16 +222,9 @@ def loo_v_matrix(X,
     ts_loss = opt.fun
     ts_score = linalg.norm(errors) / sqrt(prod(errors.shape))
 
-    #if True:
-    #    _do_gradient_check()
-
-#--     if intercept:
-#--         Y = Y.copy()
-#--         for i, trt_unit in enumerate(treated_units):
-#--             weights[out_controls[i], i] += 1/len(out_controls[i])
     return weights, v_mat, ts_score, ts_loss, L2_PEN_W, opt
 
-def loo_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, intercept = True, solve_method = "standard", verbose = False):
+def loo_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, solve_method = "standard", verbose = False): 
     treated_units, control_units = complete_treated_control_list(X.shape[0], treated_units, control_units)
     control_units = np.array(control_units)
     treated_units = np.array(treated_units)
@@ -267,8 +257,6 @@ def loo_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, inte
         #     else:
         #         (b) = Ai.dot(B[:, i])
         #     weights[out_controls[i], i] = b.flatten()
-        #     if intercept:
-        #         weights[out_controls[i], i] += 1/len(out_controls[i])
     elif solve_method == "standard":
         A = X.dot(V + V.T).dot(X.T) + 2 * L2_PEN_W * diag(ones(X.shape[0])) # 5
         B = X.dot(V + V.T).dot(X.T).T # 6
@@ -279,8 +267,6 @@ def loo_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, inte
                                B[in_controls[i], trt_unit] + 2 * L2_PEN_W / len(in_controls[i]))
 
             weights[out_controls[i], i] = b.flatten()
-#--             if intercept:
-#--                 weights[out_controls[i], i] += 1/len(out_controls[i])
     else:
         raise ValueError("Unknown Solve Method: " + solve_method)
     return weights.T

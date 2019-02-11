@@ -16,7 +16,6 @@ def fold_v_matrix(X,
                   start = None,
                   L2_PEN_W = None,
                   method = cdl_search, 
-                  intercept = True,
                   max_lambda = False,  # this is terrible at least without documentation...
                   grad_splits = 5,
                   random_state = 10101,
@@ -37,8 +36,6 @@ def fold_v_matrix(X,
                      vector from null. Optional.
     :param method: The name of a method to be used by scipy.optimize.minimize,
                    or a callable with the same API as scipy.optimize.minimize
-    :param intercept: If True, weights are penalized toward the 1 / the number
-                    of controls, else weights are penalized toward zero
     :param max_lambda: if True, the return value is the maximum L1 penalty for
                        which at least one element of the tensor matrix is
                        non-zero
@@ -57,7 +54,6 @@ def fold_v_matrix(X,
     :return: something something
     :rtype: something something
     '''
-    assert intercept, "intercept free model not implemented"
     # (by default all the units are treated and all are controls)
     if treated_units is None: 
         if control_units is None: 
@@ -183,7 +179,7 @@ def fold_v_matrix(X,
         weights = zeros((N0, N1))
         A = X.dot(V + V.T).dot(X.T) + 2 * L2_PEN_W * diag(ones(X.shape[0])) # 5
         B = X.dot(V + V.T).dot(X.T).T # 6
-        for i, (control,test) in enumerate(splits):
+        for i, (_,test) in enumerate(splits):
             if verbose >=2:  # for large sample sizes, linalg.solve is a huge bottle neck,
                 print("Calculating weights, linalg.solve() call %s of %s" % (i,len(splits),))
             b = b_i[i] = linalg.solve(A[in_controls2[i]], 
@@ -218,7 +214,6 @@ def fold_weights(X,
                  L2_PEN_W = None,
                  treated_units = None,
                  control_units = None,
-                 intercept = True,
                  grad_splits = 5,
                  random_state = 10101,
                  verbose=False):

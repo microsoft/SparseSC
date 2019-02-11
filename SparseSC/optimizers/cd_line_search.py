@@ -5,21 +5,21 @@ import locale
 locale.setlocale(locale.LC_ALL, '')
 
 class cd_res(object):
+    """ A toy class with the minimal shape to mimic the return value of scipy.optimize.line_search
+    """
     def __init__(self, x, fun):
         self.x = x
         self.fun = fun
 
-print_stop_iteration = 1
 
 def cdl_step(score,
-               guess,
-               jac,
-               val = None,
-               aggressiveness = 0.2,
-               zero_eps = 1e2 * np.finfo(float).eps,
-               print_path = True,
-               decrement = 0.9):
-               
+             guess,
+             jac,
+             val = None,
+             aggressiveness = 0.2,
+             zero_eps = 1e2 * np.finfo(float).eps,
+             print_path = True,
+             decrement = 0.9):
     """
     A wrapper of :func:`scipy.optimize.line_search` which restricts the
     gradient descent to the positive orthant and implements a dynamic step size
@@ -58,16 +58,15 @@ def cdl_step(score,
     if val is None: 
         val = score(guess)
     grad = jac(guess)
-    grad_copy = grad.copy()
     # constrain to the positive orthant
     grad[grad > 0] = 0
 
     if (grad >= 0).all():
         # this happens when we're stuck at the origin and the gradient is
         # pointing in the all-negative direction
-        raise runtime("Failed to take a step")
-        # obviously I'm conflicted about what to do here...
-        return guess,val
+        raise RuntimeError("Failed to take a step")
+        # I'm conflicted about what to do here. Another option is to:
+        # return guess,val
 
     direction = - (aggressiveness * val * grad) / grad.dot(grad.T)
     # THE ABOVE IS EQUIVALENT TO : 
@@ -80,7 +79,7 @@ def cdl_step(score,
             return direction, new_val
         direction *= decrement
         if sum(direction) < zero_eps:  
-            raise runtime("Failed to take a step")
+            raise RuntimeError("Failed to take a step")
 
 def cdl_search(score,
                guess,
@@ -107,7 +106,7 @@ def cdl_search(score,
     assert 0 < alpha_mult < 1
     assert (guess >=0).all(), "Initial guess (`guess`) should be in the closed positive orthant"
 
-    print_stop_iteration = print_path
+    print_stop_iteration = print_path # change to `1` for development purposes
     val_old = None
     grad = None
     x_curr = guess

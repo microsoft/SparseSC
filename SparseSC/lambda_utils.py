@@ -98,7 +98,7 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
                                     max_lambda = True,  # this is terrible at least without documentation...
                                     gradient_message = _GRADIENT_MESSAGE,
                                     **kwargs)
-            except MemoryError as err:
+            except MemoryError:
                 raise RuntimeError("MemoryError encountered.  Try setting `grad_splits` parameter to reduce memory requirements.")
         else:
             if "grad_splits" in kwargs:
@@ -121,5 +121,5 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
                                       gradient_message = _GRADIENT_MESSAGE,
                                       **kwargs)
                          for l2_pen in L2_PEN_W ]
-            except MemoryError as err:
+            except MemoryError:
                 raise RuntimeError("MemoryError encountered.  Try setting `grad_splits` parameter to reduce memory requirements.")

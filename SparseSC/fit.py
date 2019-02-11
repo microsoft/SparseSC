@@ -148,7 +148,7 @@ def fit(X,Y,
 
         try:
             iter(treated_units)
-        except:
+        except TypeError:
             raise ValueError('treated_units must be an iterable' )
 
         assert len(set(treated_units)) == len(treated_units) , "duplicated values in treated_units are not allowed"
@@ -229,8 +229,7 @@ def fit(X,Y,
 
             try:
                 iter(gradient_folds)
-            except:
-                from sklearn.model_selection import KFold
+            except TypeError:
                 gradient_folds = KFold(gradient_folds, shuffle=True, random_state = gradient_seed).split(np.arange(X.shape[0]))
                 gradient_folds = [  [list(set(train).union(treated_units)), list(set(test).difference(treated_units))] for train, test in gradient_folds]
                 gradient_folds = [ [train,test]  for train,test in gradient_folds if len(train) != 0 and len(test) != 0]
@@ -428,7 +427,7 @@ def __choose(scores, covariate_penalties, choice):
     # GET THE INDEX OF THE BEST SCORE
     try: 
         iter(covariate_penalties)
-    except:
+    except TypeError:
         best_lambda = scores
     else:
         if choice == "min":
@@ -478,11 +477,11 @@ class SparseSCFit(object):
 
     def predict(self, Ydonor = None):
         if Ydonor is None:
-            if model_type != "full":
+            if self.model_type != "full":
                 Ydonor = self.Y[self.control_units,:]
             else:
                 Ydonor = self.Y
-        return self.sc_weights.dot(Ytrain)
+        return self.sc_weights.dot(self.Y[self.control_units,:])
 
     def __str__(self):
         """ print details of the fit to the console

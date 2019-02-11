@@ -14,7 +14,7 @@
 """
 import numpy as np
 
-def all_subinverses(x,eps=None):
+def subinv(x,eps=None):
     """ Given an matrix (x), calculate all the inverses of leave-one-out sub-matrices.
     
     :param x: a square matrix for which to find the inverses of all it's leave one out sub-matrices.
@@ -35,7 +35,7 @@ def all_subinverses(x,eps=None):
         if eps is not None:
             if not (abs(out[k] - x[np.ix_(k_rng,k_rng)].I) < eps).all():
                 raise RuntimeError("Fast and brute force methods were not within epsilon (%s) for sub-matrix k = %s; max difference = %s" % 
-                                   (eps, k,  abs(xi_k - x[k_rng2].I).max(), ) )
+                                   (eps, k,  abs(out[k] - x[np.ix_(k_rng,k_rng)].I).max(), ) )
     return out
 
 def subinv_k(xi,k,eps=None):
@@ -56,7 +56,7 @@ def subinv_k(xi,k,eps=None):
     out = xi[np.ix_(k_rng,k_rng)] - xi[k_rng,k].dot(xi[k,k_rng])/xi[k,k]
     if eps is not None:
         if not (abs(out[k] - x[np.ix_(k_rng,k_rng)].I) < eps).all():
-            raise RuntimeError("Fast and brute force methods were not within epsilon (%s) for sub-matrix k = %s; max difference = %s" % (eps, k,  abs(xi_k - x[k_rng2].I).max(), ) )
+            raise RuntimeError("Fast and brute force methods were not within epsilon (%s) for sub-matrix k = %s; max difference = %s" % (eps, k,  abs(out[k] - x[np.ix_(k_rng,k_rng)].I).max(), ) )
     return out
 
 
