@@ -38,9 +38,9 @@ def fit(X,Y,
         model_type = "retrospective",
         # VERBOSITY
         progress = True,
-        # LINE SEARCH PARAMETERS
-        learning_rate = 0.2, # TODO: this should be harmnonized with parameter names in cd_line_search and passed in via *args / **kwargs
-        learning_rate_adjustment = 0.9, # TODO: this should be harmnonized with parameter names in cd_line_search and passed in via *args / **kwargs
+#--         # LINE SEARCH PARAMETERS
+#--         learning_rate = 0.2, # TODO: this should be harmnonized with parameter names in cd_line_search and passed in via *args / **kwargs
+#--         learning_rate_adjustment = 0.9, # TODO: this should be harmnonized with parameter names in cd_line_search and passed in via *args / **kwargs
         #*args,
         **kwargs):
     r"""
@@ -51,16 +51,17 @@ def fit(X,Y,
         :param Y:: Matrix of targets
         :type Y: matrix of floats
 
-        :param model_type: (Default = ``"retrospective"``) Type of model being
+        :param model_type:  Type of model being
                 fit. One of ``"retrospective"``, ``"prospective"``,
                 ``"prospective-restricted"`` or ``"full"``
+        :type model_type: str, default = ``"retrospective"``
 
         :param treated_units:  An iterable indicating the rows
                 of `X` and `Y` which contain data from treated units.  
         :type treated_units: int[], Optional
 
         :param weight_penalty: Penalty applied to the difference
-                between the current weights and the null weights (1/n). Default
+                between the current weights and the null weights (1/n). default
                 provided by :func:``L2_pen_guestimate``.
         :type weight_penalty: float, Optional
 
@@ -70,65 +71,73 @@ def fit(X,Y,
                 `Lambda_c_max` is determined via :func:`get_max_lambda` .
         :type covariate_penalties: float | float[], optional
 
-        :param grid: only used when
-                `covariate_penalties` is not provided
+        :param grid: only used when `covariate_penalties` is not provided.  Defaults to ``np.exp(np.linspace(np.log(Lambda_min),np.log(Lambda_max),grid_points))``
         :type grid: float | float[], optional
-        :param Lambda_min: (float, Default = 1e-6): only used when
-                `covariate_penalties` and `grid` are not provided
-        :param Lambda_max: (float, Default = 1): only used when
-                `covariate_penalties` and `grid` are not provided
-        :param grid_points: (int, Default = 20): only used when
-                `covariate_penalties` and `grid` are not provided
 
-        :param choice: ("min" or function) Method for choosing from among the
+        :param Lambda_min: Lower bound for ``grid`` when ``covariate_penalties`` and ``grid`` are not provided.  Must be in the range ``(0,1)``
+        :type Lambda_min: float, default = 1e-6
+
+        :param Lambda_max: Upper bound for ``grid`` when ``covariate_penalties`` and ``grid`` are not provided.  Must be in the range ``(0,1]``
+        :type Lambda_max: float, default = 1
+
+        :param grid_points: number of points in the ``grid`` parameter when ``covariate_penalties`` and ``grid`` are not provided
+        :type grid_points: int, default = 20
+
+        :param choice: Method for choosing from among the
                 covariate_penalties.  Only used when covariate_penalties is an
                 iterable.  Defaults to ``"min"`` which selects the lambda parameter
                 associated with the lowest cross validation error.
+        :type choice: str or function. default = ``"min"``
 
-        :param cv_folds: (Default = 10) An integer number
-                of Cross Validation folds passed to
+        :param cv_folds: An integer number of Cross Validation folds passed to
                 :func:`sklearn.model_selection.KFold`, or an explicit list of train
                 validation folds. TODO: These folds are calculated with
                 ``KFold(...,shuffle=False)``, but instead, it should be assigned a
                 random state.
-        :type cv_folds: int or (int[],int[])[] 
+        :type cv_folds: int or (int[],int[])[], default = 10
 
-        :param gradient_folds: (Default = 10) An integer
+        :param gradient_folds: (default = 10) An integer
                 number of Gradient folds passed to
                 :func:`sklearn.model_selection.KFold`, or an explicit list of train
                 validation folds, to be used `model_type` is one either ``"foo"``
                 ``"bar"``.
         :type gradient_folds: int or (int[],int[])[]
 
-        :param gradient_seed: (default = 10101) passed to :func:`sklearn.model_selection.KFold`
+        :param gradient_seed:  passed to :func:`sklearn.model_selection.KFold`
                 to allow for consistent gradient folds across calls when
                 `model_type` is one either ``"foo"`` ``"bar"`` with and
                 `gradient_folds` is an integer.
-        :param gradient_seed: int
+        :type gradient_seed: int, default = 10101
 
-        :param progress: (Default = `True`)Controls the level of verbosity.  If
-                `True`, the messages indication the progress are printed to the
-                console (stdout).
+        :param progress: Controls the level of verbosity.  If `True`, the
+                messages indication the progress are printed to the console (stdout).
+        :type progress: boolean, default = ``True``
 
-        :param \**kwargs: See below
+        :param kwargs: Additional arguments passed to the optimizer
+            responsible for performing gradient descent in the covariate weights
+            space. See below
 
         :Keyword Args:
-
-            Arguments passed on to :func:`cdl_search` which implements the
-                gradient descent with adaptive step sizes
-
+            * *method* The function responsible for performing gradient descent 
+                in the covariate weights space.  Defaults to :func:`SparseSC.optimizers.cd_line_search.cdl_search`
             * *learning_rate* (float, Default = 0.2)  -- The initial learning rate
-                (alpha) which determines the initial step size, which is set to
-                learning_rate * null_model_error / gradient. Must be between 0 and
+                which determines the initial step size, which is set to
+                ``learning_rate * null_model_error / gradient``. Must be between 0 and
                 1.
-
             * *learning_rate_adjustment (float, Default = 0.9)* -- Adjustment factor
                 applied to the learning rate applied between iterations when the
                 optimal step size returned by :func:`scipy.optimize.line_search` is
                 greater less than 1, else the step size is adjusted by
                 ``1/learning_rate_adjustment``. Must be between 0 and 1,
+            * *tol (float, Default = 1e-4)* -- Tolerance used for the stopping
+                rule based on the proportion of the in-sample residual error
+                reduced in the last step of the gradient descent.
 
-            * *tol (float, Default = 1e-4)* -- Tolerance used for the stopping rule
+        :returns: A :class:`SparseSCFit` object.
+        :rtype: :class:`SparseSCFit`
+
+        :raises ValueError: when ``treated_units`` is not None and not an
+                ``iterable``, or when model_type is not one of the allowed values
     """
             # TODO: theses should be harmnonized with parameter names in cd_line_search and actually passed in via *args / **kwargs
 
@@ -177,8 +186,6 @@ def fit(X,Y,
                         Ytrain,
                         L2_PEN_W = weight_penalty,
                         grad_splits = gradient_folds,
-                        aggressiveness = learning_rate, # initial learning rate # todo: this needs to be harmonized and passed in via *args or **kwargs
-                        alpha_mult = learning_rate_adjustment, # todo: this needs to be harmonized and passed in via *args or **kwargs
                         verbose=verbose)
             covariate_penalties = grid * LAMBDA_max
 
@@ -200,8 +207,6 @@ def fit(X,Y,
                                L2_PEN_W = weight_penalty,
                                grad_splits = gradient_folds,
                                random_state = gradient_seed, # TODO: this is only used when grad splits is not None... need to better control this...
-                               aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
-                               alpha_mult = learning_rate_adjustment,  # todo: this needs to be harmonized and passed in via *args or **kwargs
                                quiet = not progress, 
                                **kwargs)
 
@@ -218,8 +223,6 @@ def fit(X,Y,
                             LAMBDA = best_V_lambda,
                             grad_splits = gradient_folds,
                             random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
-                            aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
-                            alpha_mult = learning_rate_adjustment,
                             **kwargs)  # todo: this needs to be harmonized and passed in via *args or **kwargs
 
         elif model_type == "prospective":
@@ -258,8 +261,6 @@ def fit(X,Y,
                                L2_PEN_W = weight_penalty,
                                grad_splits = gradient_folds,
                                random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
-                               aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
-                               alpha_mult = learning_rate_adjustment,  # todo: this needs to be harmonized and passed in via *args or **kwargs
                                quiet = not progress, 
                                **kwargs)
 
@@ -276,8 +277,6 @@ def fit(X,Y,
                             LAMBDA = best_V_lambda,
                             grad_splits = gradient_folds,
                             random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
-                            aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
-                            alpha_mult = learning_rate_adjustment,
                             **kwargs)  # todo: this needs to be harmonized and passed in via *args or **kwargs
 
         elif model_type == "prospective-restricted":
@@ -302,8 +301,6 @@ def fit(X,Y,
                                L2_PEN_W = weight_penalty,
 #--                                grad_splits = gradient_folds,
 #--                                 random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
-                               aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
-                               alpha_mult = learning_rate_adjustment,  # todo: this needs to be harmonized and passed in via *args or **kwargs
                                quiet = not progress, 
                                **kwargs)
 
@@ -322,8 +319,6 @@ def fit(X,Y,
                             LAMBDA = best_V_lambda,
 #--                             grad_splits = gradient_folds,
 #--                                 random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
-                            aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
-                            alpha_mult = learning_rate_adjustment,
                             **kwargs)  # todo: this needs to be harmonized and passed in via *args or **kwargs
 
 
@@ -358,8 +353,6 @@ def fit(X,Y,
                         Y,
                         L2_PEN_W = weight_penalty,
                         grad_splits = gradient_folds,
-                        aggressiveness = learning_rate, # initial learning rate # todo: this needs to be harmonized and passed in via *args or **kwargs
-                        alpha_mult = learning_rate_adjustment, # todo: this needs to be harmonized and passed in via *args or **kwargs
                         verbose=verbose)
             covariate_penalties = grid * LAMBDA_max
 
@@ -381,8 +374,6 @@ def fit(X,Y,
                            L2_PEN_W = weight_penalty,
                            grad_splits = gradient_folds,
                                 random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
-                           aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
-                           alpha_mult = learning_rate_adjustment,  # todo: this needs to be harmonized and passed in via *args or **kwargs
                            quiet = not progress, 
                            **kwargs)
 
@@ -398,8 +389,6 @@ def fit(X,Y,
                         LAMBDA = best_V_lambda,
                         grad_splits = gradient_folds,
                         random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
-                        aggressiveness = learning_rate, # todo: this needs to be harmonized and passed in via *args or **kwargs
-                        alpha_mult = learning_rate_adjustment,
                         **kwargs)  # todo: this needs to be harmonized and passed in via *args or **kwargs
 
         # GET THE BEST SET OF WEIGHTS

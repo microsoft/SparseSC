@@ -27,7 +27,7 @@ dependencies:
   - numpy=1.13.1=py35h9801081_2
   - openssl=1.0.2p=hfa6e2cd_0
   - pandas=0.20.3=py35he2ce742_2
-  - patsy=0.5.0-py35_0
+  - patsy=0.5.0=py35_0
   - pip=10.0.1=py35_0
   - pycparser=2.19=py35_0
   - pygments=2.2.0=py35h24c0941_0

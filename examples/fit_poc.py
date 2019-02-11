@@ -82,7 +82,7 @@ def fit_poc(X,Y,
                     Ytrain,
                     L2_PEN_W = L2_PEN_W,
                     grad_splits=gradient_folds,
-                    aggressiveness = 0.2, # initial learning rate
+                    learning_rate = 0.2, # initial learning rate
                     verbose=1)
 
         # --------------------------------------------------
@@ -110,7 +110,7 @@ def fit_poc(X,Y,
                            Y = Ytrain,
                            LAMBDA = best_lambda,
                            grad_splits = gradient_folds,
-                           aggressiveness = 0.2) 
+                           learning_rate = 0.2) 
 
         # GET THE BEST SET OF WEIGHTS
         out_of_sample_weights = SC.weights(Xtrain,

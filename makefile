@@ -18,7 +18,7 @@ DIR_SEP = \ # \
 # make specific code here
 RMDIR_CMD = rm -rf
 RM_CMD = rm
-DIR_SEP = / # \
+DIR_SEP = /# \
 # \
 !endif
 

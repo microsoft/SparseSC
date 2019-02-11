@@ -12,6 +12,7 @@
     TODO: this could be made a bit faster by passing in the indexes (k_rng,
           k_rng2) instead of re-building them
 """
+# pylint: skip-file
 import numpy as np
 
 def subinv(x,eps=None):

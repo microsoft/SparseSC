@@ -16,7 +16,7 @@ def cdl_step(score,
              guess,
              jac,
              val = None,
-             aggressiveness = 0.2,
+             learning_rate = 0.2,
              zero_eps = 1e2 * np.finfo(float).eps,
              print_path = True,
              decrement = 0.9):
@@ -33,7 +33,7 @@ def cdl_step(score,
 
         val: Initial value for the objective function. Optional; defalts to ``score(guess)``
 
-        aggressiveness (float, Default = 0.2): The initial learning rate
+        learning_rate (float, Default = 0.2): The initial learning rate
             (alpha) which determines the initial step size, which is set to
             learning_rate * null_model_error / gradient. Must be between 0 and
             1.
@@ -52,7 +52,7 @@ def cdl_step(score,
 
     if print_path:
         print("[FORCING FIRST STEP]")
-    assert 0 < aggressiveness < 1
+    assert 0 < learning_rate < 1
     assert 0 < decrement < 1
 
     if val is None: 
@@ -68,9 +68,9 @@ def cdl_step(score,
         # I'm conflicted about what to do here. Another option is to:
         # return guess,val
 
-    direction = - (aggressiveness * val * grad) / grad.dot(grad.T)
+    direction = - (learning_rate * val * grad) / grad.dot(grad.T)
     # THE ABOVE IS EQUIVALENT TO : 
-    # step_magnitude = aggressiveness*val/np.linalg.norm(grad)
+    # step_magnitude = learning_rate*val/np.linalg.norm(grad)
     # direction = -step_magnitude * (grad / np.linalg.norm(grad))
 
     while True: 
@@ -85,8 +85,8 @@ def cdl_search(score,
                guess,
                jac,
                tol = 1e-4,
-               aggressiveness = 0.1,# aggressiveness
-               alpha_mult = .9,
+               learning_rate = 0.2,
+               learning_rate_adjustment = .9,
                max_iter = 3000,
                min_iter = 3,
                # TODO: this is a stupid default (I'm using it out of laziness)
@@ -102,8 +102,8 @@ def cdl_search(score,
 
     score function 
     '''
-    assert 0 < aggressiveness < 1
-    assert 0 < alpha_mult < 1
+    assert 0 < learning_rate < 1
+    assert 0 < learning_rate_adjustment < 1
     assert (guess >=0).all(), "Initial guess (`guess`) should be in the closed positive orthant"
 
     print_stop_iteration = print_path # change to `1` for development purposes
@@ -125,7 +125,7 @@ def cdl_search(score,
 #--         # result the strong wolf conditions will have a strong tendency to
 #--         # fail. However, the origin is rarely optimal so forcing a step away
 #--         # form the origin will be necessary in most cases.
-#--         x_curr, val = cdl_step (score, guess, jac, val, aggressiveness, zero_eps, print_path)
+#--         x_curr, val = cdl_step (score, guess, jac, val, learning_rate, zero_eps, print_path)
 
     for _i in range(max_iter):
 
@@ -147,13 +147,13 @@ def cdl_search(score,
         # constrain to the positive orthant
         grad[invalid_directions] = 0
 
-        direction = - (aggressiveness * val * grad) / grad.dot(grad.T)
+        direction = - (learning_rate * val * grad) / grad.dot(grad.T)
         # THE ABOVE IS EQUIVALENT TO : 
-        # step_magnitude = aggressiveness*val/np.linalg.norm(grad)
+        # step_magnitude = learning_rate*val/np.linalg.norm(grad)
         # direction = -step_magnitude * (grad / np.linalg.norm(grad))
 
         # adaptively adjust the step size: 
-        direction *= (alpha_mult ** alpha_t)
+        direction *= (learning_rate_adjustment ** alpha_t)
 
         # constrain the gradient to being non-negative on axis where the
         # current guess is already zero
@@ -231,7 +231,7 @@ def cdl_search(score,
 
         if print_path: 
             print("[Path] i: %s, In Sample R^2: %0.6f, incremental R^2:: %0.6f, learning rate: %0.5f,  alpha: %0.5f, zeros: %s"  % 
-                    (_i,  1- val / val0, (val_diff/ val0), aggressiveness * (alpha_mult ** alpha_t), alpha, sum( x_curr == 0)))
+                    (_i,  1- val / val0, (val_diff/ val0), learning_rate * (learning_rate_adjustment ** alpha_t), alpha, sum( x_curr == 0)))
             if print_path_verbose:
                 print("old_grad: %s,x_curr %s"  % (old_grad, x_curr, ))
 
@@ -240,7 +240,7 @@ def cdl_search(score,
             # this happens when we were at the origin and the gradient didn't
             # take us out of the range of zero_eps
             if _i == 0: 
-                x_curr, val = cdl_step (score, guess, jac, val, aggressiveness, zero_eps, print_path)
+                x_curr, val = cdl_step (score, guess, jac, val, learning_rate, zero_eps, print_path)
                 if (x_curr == 0).all():
                     if print_stop_iteration: 
                         print("[STOP ITERATION: Stuck at the origin] iteration: %s"% (_i,))
@@ -255,7 +255,7 @@ def cdl_search(score,
 
         if val_diff/val < tol:
             # this a heuristic rule, to be sure, but seems to be useful. 
-            # TODO: this is kinda stupid without a minimum on the learning rate (i.e. `aggressiveness`).
+            # TODO: this is kinda stupid without a minimum on the learning rate (i.e. `learning_rate`).
             if _i > min_iter:
                 if print_stop_iteration:
                     # this is kida stupid

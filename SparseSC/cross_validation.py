@@ -1,7 +1,6 @@
 from SparseSC.fit_fold import  fold_v_matrix, fold_score
 from SparseSC.fit_loo import  loo_v_matrix, loo_score, loo_weights
 from SparseSC.fit_ct import  ct_v_matrix, ct_score
-#-- from SparseSC.optimizers.cd_line_search import cdl_search
 from SparseSC.lambda_utils import get_max_lambda, L2_pen_guestimate
 import atexit
 import numpy as np
@@ -53,7 +52,6 @@ def score_train_test(X,
                     ct_v_matrix(X = np.vstack((X,X_treat[train, :])),
                                 Y = np.vstack((Y,Y_treat[train, :])),
                                 treated_units = [X.shape[0] + i for i in  range(len(train))],
-                                # method = cdl_search,
                                 **kwargs)
 
         # GET THE OUT-OF-SAMPLE PREDICTION ERROR
@@ -84,7 +82,6 @@ def score_train_test(X,
                     fold_v_matrix(X = X[train, :],
                                   Y = Y[train, :], 
                                   # treated_units = [X.shape[0] + i for i in  range(len(train))],
-                                  # method = cdl_search,
                                   grad_splits = grad_splits,
                                   **kwargs)
 
@@ -103,7 +100,6 @@ def score_train_test(X,
                         loo_v_matrix(X = X[train, :],
                                      Y = Y[train, :], 
                                      # treated_units = [X.shape[0] + i for i in  range(len(train))],
-                                     # method = cdl_search,
                                      **kwargs)
             except MemoryError:
                 raise RuntimeError("MemoryError encountered.  Try setting `grad_splits` " + \
