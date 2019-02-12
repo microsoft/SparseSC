@@ -27,26 +27,55 @@ def fold_v_matrix(X,
         penalty parameter.
 
     :param X: Matrix of Covariates
+    :type X: coercible to :class:`numpy.matrix`
+
     :param Y: Matrix of Outcomes
+    :type Y: coercible to :class:`numpy.matrix`
+
     :param LAMBDA: penalty parameter used to shrink L1 norm of v/v.max() toward zero
+    :type LAMBDA: float
+
     :param treated_units: a list containing the position (rows) of the treated units within X and Y
+    :type treated_units: int[] or numpy.ndarray
+
     :param control_units: a list containing the position (rows) of the control units within X and Y
+    :type control_units: numpy.ndarray
+
     :param start: initial values for the diagonals of the tensor matrix
+    :type start: float[] or numpy.ndarray
+
     :param L2_PEN_W: L2 penalty on the magnitude of the deviance of the weight
                      vector from null. Optional.
+    :type L2_PEN_W: float
+
     :param method: The name of a method to be used by scipy.optimize.minimize,
                    or a callable with the same API as scipy.optimize.minimize
-    :param max_lambda: if True, the return value is the maximum L1 penalty for
+    :type method: str or callable
+
+    :param max_lambda: (Internal API) If ``True``, the return value is the maximum L1 penalty for
                        which at least one element of the tensor matrix is
-                       non-zero
+                       non-zero.
+    :type max_lambda: boolean
+
     :param grad_splits: Splits for Fitted v.s. Control units in each gradient
                         descent step. An integer, or a list/generator of train
                         and test units in each fold of the gradient descent.
+    :type grad_splits: int or int[][]
+
     :param random_state: Integer, used for setting the random state for consistency of fold splits across calls
+    :type random_state: 
+
     :param verbose: If true, print progress to the console (default: false)
+    :type verbose: boolean
+
     :param gradient_message: Messaged prefixed to the progress bar when verbose = 1
+    :type gradient_message: str
+
     :param kwargs: additional arguments passed to the optimizer
+    :type kwargs: 
+
     :param non_neg_weights: not implemented
+    :type non_neg_weights: 
 
     :raises ValueError: raised when parameter values are invalid
     :raises TypeError: raised when parameters are of the wrong type
@@ -183,7 +212,8 @@ def fold_v_matrix(X,
             if verbose >=2:  # for large sample sizes, linalg.solve is a huge bottle neck,
                 print("Calculating weights, linalg.solve() call %s of %s" % (i,len(splits),))
             b = b_i[i] = linalg.solve(A[in_controls2[i]], 
-                                        B[np.ix_(in_controls[i], treated_units[test])] + 2 * L2_PEN_W / len(in_controls[i]) )
+                                      B[np.ix_(in_controls[i], treated_units[test])] 
+                                      + 2 * L2_PEN_W / len(in_controls[i]) )
             weights[np.ix_(out_controls[i], test)] = b
         return weights, A, B
 
@@ -217,6 +247,8 @@ def fold_weights(X,
                  grad_splits = 5,
                  random_state = 10101,
                  verbose=False):
+    """ fit the weights using the k-fold gradient approach
+    """
     if L2_PEN_W is None:
         L2_PEN_W = mean(var(X, axis = 0))
     if treated_units is None: 
@@ -240,24 +272,20 @@ def fold_weights(X,
         iter(splits)
     except TypeError: 
         from sklearn.model_selection import KFold
-        splits = KFold(splits, shuffle=True, random_state = random_state).split(np.arange(len(treated_units)))
+        splits = KFold(splits,
+                       shuffle=True,
+                       random_state = random_state).split(np.arange(len(treated_units)))
     splits = list(splits)
 
     # index with positions of the controls relative to the incoming data
     in_controls = [list(set(control_units) - set(treated_units[test])) for _,test in splits]
-    in_controls2 = [np.ix_(i,i) for i in in_controls] # this is a much faster alternative to A[:,index][index,:]
+    in_controls2 = [np.ix_(i,i) for i in in_controls] 
 
     # index of the controls relative to the rows of the outgoing N0 x N1 matrix of weights
     ctrl_rng = np.arange(len(control_units))
     out_controls = [ctrl_rng[np.logical_not(np.isin(control_units, treated_units[test]))] for _,test in splits] 
-    # this is non-trivial when there control units are also being predicted:
-    #out_treated  = [ctrl_rng[               np.isin(control_units, treated_units[test]) ] for train,test in splits] 
 
-    # constants for indexing
-    # X_control = X[control_units,:]
-    # X_treat = X[treated_units,:]
     weights = zeros((N0, N1))
-
     A = X.dot(V + V.T).dot(X.T) + 2 * L2_PEN_W * diag(ones(X.shape[0])) # 5
     B = X.dot(V + V.T).dot(X.T).T # 6
 
@@ -271,8 +299,16 @@ def fold_weights(X,
     return weights.T
 
 
-
-def fold_score(Y, X, V, L2_PEN_W, LAMBDA = 0, treated_units = None, control_units = None,**kwargs):
+def fold_score(Y,
+               X,
+               V,
+               L2_PEN_W,
+               LAMBDA = 0,
+               treated_units = None,
+               control_units = None,
+               **kwargs):
+    """ in-sample residual error using the k=fold gradient approach
+    """
     if treated_units is None: 
         if control_units is None: 
             # both not provided, include all samples as both treat and control unit.

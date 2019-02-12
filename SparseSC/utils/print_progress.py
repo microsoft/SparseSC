@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+""" A utility for displaying a progress bar
+"""
 # https://gist.github.com/aubricus/f91fb55dc6ba5557fbab06119420dd6a 
 import sys
 def print_progress(iteration, total, prefix='', suffix='', decimals=1, bar_length=100):
@@ -15,9 +17,10 @@ def print_progress(iteration, total, prefix='', suffix='', decimals=1, bar_lengt
     str_format = "{0:." + str(decimals) + "f}"
     percents = str_format.format(100 * (iteration / float(total)))
     filled_length = int(round(bar_length * iteration / float(total)))
-    bar = '>' * filled_length + '-' * (bar_length - filled_length) # █ is not compatible with every platform...
+    # Note that the "█" character is not compatible with every platform...
+    progress_bar = '>' * filled_length + '-' * (bar_length - filled_length) 
 
-    sys.stdout.write('\r%s |%s| %s%s %s' % (prefix, bar, percents, '%', suffix))
+    sys.stdout.write('\r%s |%s| %s%s %s' % (prefix, progress_bar, percents, '%', suffix))
 
     if iteration == total:
         sys.stdout.write('\n')

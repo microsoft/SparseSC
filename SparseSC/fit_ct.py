@@ -22,18 +22,42 @@ def ct_v_matrix(X,
         penalty parameter.
 
     :param X: Matrix of Covariates
+    :type X: coercible to :class:`numpy.matrix`
+
     :param Y: Matrix of Outcomes
+    :type Y: coercible to :class:`numpy.matrix`
+
     :param LAMBDA: penalty parameter used to shrink L1 norm of v/v.max() toward zero
+    :type LAMBDA: float
+
     :param treated_units: a list containing the position (rows) of the treated units within X and Y
+    :type treated_units: int[] or numpy.ndarray
+
     :param control_units: a list containing the position (rows) of the control units within X and Y
+    :type control_units: numpy.ndarray
+
     :param start: initial values for the diagonals of the tensor matrix
-    :param L2_PEN_W: L2 penalty on the magnitude of the deviance of the weight vector from null. Optional.
-    :param method: The name of a method to be used by scipy.optimize.minimize, 
-        or a callable with the same API as scipy.optimize.minimize
-    :param max_lambda: if True, the return value is the maximum L1 penalty for
-        which at least one element of the tensor matrix is non-zero
+    :type start: float[] or numpy.ndarray
+
+    :param L2_PEN_W: L2 penalty on the magnitude of the deviance of the weight
+                     vector from null. Optional.
+    :type L2_PEN_W: float
+
+    :param method: The name of a method to be used by scipy.optimize.minimize,
+                   or a callable with the same API as scipy.optimize.minimize
+    :type method: str or callable
+
+    :param max_lambda: (Internal API) If ``True``, the return value is the maximum L1 penalty for
+                       which at least one element of the tensor matrix is
+                       non-zero.
+    :type max_lambda: boolean
+
     :param verbose: If true, print progress to the console (default: false)
+    :type verbose: boolean
+
     :param gradient_message: Messaged prefixed to the progress bar when verbose = 1
+    :type gradient_message: str
+
     :param kwargs: additional arguments passed to the optimizer
 
     :raises ValueError: raised when parameter values are invalid
@@ -116,7 +140,8 @@ def ct_v_matrix(X,
             dB = dB_dV_ki[k]
             dPI_dV = linalg.solve(A,(dB - dA.dot(AinvB))) 
             #dPI_dV = Ai.dot(dB - dA.dot(AinvB))
-            dGamma0_dV_term2[k] = np.einsum("ij,kj,ki->",Ey, Y_control, dPI_dV)  # (Ey * Y_control.T.dot(dPI_dV).T.getA()).sum()
+            # faster than the equivalent (Ey * Y_control.T.dot(dPI_dV).T.getA()).sum()
+            dGamma0_dV_term2[k] = np.einsum("ij,kj,ki->",Ey, Y_control, dPI_dV) 
         return LAMBDA + 2 * dGamma0_dV_term2
 
     L2_PEN_W_mat = 2 * L2_PEN_W * diag(ones(X_control.shape[0]))
@@ -166,7 +191,16 @@ def ct_weights(X, V, L2_PEN_W, treated_units = None, control_units = None):
     weights = linalg.solve(A,B)
     return weights.T
 
-def ct_score(Y, X, V, L2_PEN_W, LAMBDA = 0, treated_units = None, control_units = None,**kwargs):
+def ct_score(Y,
+             X,
+             V,
+             L2_PEN_W,
+             LAMBDA = 0,
+             treated_units = None,
+             control_units = None,
+             **kwargs):
+    """ in-sample residual error using the cross-train approach
+    """
     if treated_units is None: 
         if control_units is None: 
             raise ValueError("At least on of treated_units or control_units is required")

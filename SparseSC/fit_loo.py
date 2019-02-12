@@ -42,23 +42,52 @@ def loo_v_matrix(X,
         penalty parameter.
 
     :param X: Matrix of Covariates
+    :type X: coercible to :class:`numpy.matrix`
+
     :param Y: Matrix of Outcomes
+    :type Y: coercible to :class:`numpy.matrix`
+
     :param LAMBDA: penalty parameter used to shrink L1 norm of v/v.max() toward zero
+    :type LAMBDA: float
+
     :param treated_units: a list containing the position (rows) of the treated units within X and Y
+    :type treated_units: int[] or numpy.ndarray
+
     :param control_units: a list containing the position (rows) of the control units within X and Y
+    :type control_units: numpy.ndarray
+
     :param start: initial values for the diagonals of the tensor matrix
+    :type start: float[] or numpy.ndarray
+
     :param L2_PEN_W: L2 penalty on the magnitude of the deviance of the weight
-        vector from null. Optional.
+                     vector from null. Optional.
+    :type L2_PEN_W: float
+
     :param method: The name of a method to be used by scipy.optimize.minimize,
-        or a callable with the same API as scipy.optimize.minimize
-    :param max_lambda: if True, the return value is the maximum L1 penalty for
-        which at least one element of the tensor matrix is non-zero
+                   or a callable with the same API as scipy.optimize.minimize
+    :type method: str or callable
+
+    :param max_lambda: (Internal API) If ``True``, the return value is the maximum L1 penalty for
+                       which at least one element of the tensor matrix is
+                       non-zero.
+    :type max_lambda: boolean
+
     :param solve_method: Method for solving A.I.dot(B). Either "standard" or
         "step-down". https://math.stackexchange.com/a/208021/252693
+    :type solve_method: str
+
     :param verbose: If true, print progress to the console (default: false)
+    :type verbose: boolean
+
     :param gradient_message: Messaged prefixed to the progress bar when verbose = 1
+    :type gradient_message: str
+
     :param kwargs: additional arguments passed to the optimizer
+    :type kwargs: 
+
     :param non_neg_weights: not implemented
+    :type non_neg_weights: 
+
 
     :raises ValueError: raised when parameter values are invalid
     :raises TypeError: raised when parameters are of the wrong type
@@ -66,7 +95,9 @@ def loo_v_matrix(X,
     :return: something something
     :rtype: something something
     '''
-    treated_units, control_units = complete_treated_control_list(X.shape[0], treated_units, control_units)
+    treated_units, control_units = complete_treated_control_list(X.shape[0],
+                                                                 treated_units,
+                                                                 control_units)
     control_units = np.array(control_units)
     treated_units = np.array(treated_units)
 
@@ -84,7 +115,8 @@ def loo_v_matrix(X,
     if Y.shape[1] == 0:
         raise ValueError("Y.shape[1] == 0")
     if X.shape[0] != Y.shape[0]:
-        raise ValueError("X and Y have different number of rows (%s and %s)" % (X.shape[0], Y.shape[0],))
+        raise ValueError("X and Y have different number of rows (%s and %s)" % 
+                         (X.shape[0], Y.shape[0],))
     if not isinstance(LAMBDA, (float, int)):
         raise TypeError( "LAMBDA is not a number")
     if L2_PEN_W is None:
@@ -105,7 +137,7 @@ def loo_v_matrix(X,
 
     # CREATE THE INDEX THAT INDICATES THE ELIGIBLE CONTROLS FOR EACH TREATED UNIT
     in_controls = [list(set(control_units) - set([trt_unit])) for trt_unit in treated_units]
-    in_controls2 = [np.ix_(i,i) for i in in_controls] # this is a much faster alternative to A[:,index][index,:]
+    in_controls2 = [np.ix_(i,i) for i in in_controls] 
     ctrl_rng = np.arange(len(control_units))
     out_controls = [ctrl_rng[control_units != trt_unit] for trt_unit in treated_units] 
     # this is non-trivial when there control units are also being predicted:
@@ -123,28 +155,31 @@ def loo_v_matrix(X,
     # only used by step-down method: X_control = X[control_units,:]
 
     # INITIALIZE PARTIAL DERIVATIVES
-    # note that this section can be quite memory intensive with lots of controls: (1000 controls -> 8 MB per entry)
+    # note that this section can be quite memory intensive with lots of
+    # controls: (1000 controls -> 8 MB per entry)
     dA_dV_ki = [ [None,] *N1 for i in range(K)]
     dB_dV_ki = [ [None,] *N1 for i in range(K)]
     b_i = [None,] *N1 
     for i, k in  itertools.product(range(N1), range(K)): # TREATED unit i, moment k
         Xc = X[in_controls[i], : ]
         Xt = X[treated_units[i], : ]
-        dA_dV_ki [k][i] = 2 * Xc[:, k ].dot(Xc[:, k ].T) # Xc[:, k ].dot(Xc[:, k ].T) + Xc[:, k ].dot(Xc[:, k ].T) # 8
-        dB_dV_ki [k][i] = 2 * Xc[:, k ].dot(Xt[:, k ].T) # Xc[:, k ].dot(Xt[:, k ].T) + Xt[:, k ].dot(Xc[:, k ].T) # 9
+        dA_dV_ki [k][i] = 2 * Xc[:, k ].dot(Xc[:, k ].T) # 8
+        dB_dV_ki [k][i] = 2 * Xc[:, k ].dot(Xt[:, k ].T) # 9
 
     k=0 # for linting...
     del Xc, Xt
 
-        #assert (dA_dV_ki [k][i] == X[index, k ].dot(X[index, k ].T) + X[index, k ].dot(X[index, k ].T)).all()
-        # https://math.stackexchange.com/a/1471836/252693
+    #assert (dA_dV_ki [k][i] == X[index, k ].dot(X[index, k ].T) + X[index, k ].dot(X[index, k ].T)).all()
+    # https://math.stackexchange.com/a/1471836/252693
 
     def _score(V):
         dv = diag(V)
         weights, _, _ = _weights(dv)
         Ey = (Y_treated - weights.T.dot(Y_control)).getA()
+
         # (...).copy() assures that x.flags.writeable is True:
-        return (np.einsum('ij,ij->',Ey,Ey) + LAMBDA * absolute(V).sum()).copy()  # (Ey **2).sum() -> einsum
+        # also einsum is faster than the equivalent (Ey **2).sum()
+        return (np.einsum('ij,ij->',Ey,Ey) + LAMBDA * absolute(V).sum()).copy()  # 
 
     def _grad(V):
         """ Calculates just the diagonal of dGamma0_dV
@@ -174,7 +209,9 @@ def loo_v_matrix(X,
                                K * len(in_controls),))
                     b = linalg.solve(A[in_controls2[i]],dB - dA.dot(b_i[i]))
                 dPI_dV[index, i] = b.flatten() # TODO: is the Transpose  an error???
-            dGamma0_dV_term2[k] = 2 * np.einsum("ij,kj,ki->",Ey, Y_control, dPI_dV) # (Ey * Y_control.T.dot(dPI_dV).T.getA()).sum()
+
+            # einsum is faster than the equivalent (Ey * Y_control.T.dot(dPI_dV).T.getA()).sum()
+            dGamma0_dV_term2[k] = 2 * np.einsum("ij,kj,ki->",Ey, Y_control, dPI_dV) 
         return LAMBDA + dGamma0_dV_term2 
 
     def _weights(V):
@@ -196,7 +233,8 @@ def loo_v_matrix(X,
             B = X.dot(V + V.T).dot(X.T).T # 6
             for i, trt_unit in enumerate(treated_units):
                 if verbose >= 2:  # for large sample sizes, linalg.solve is a huge bottle neck,
-                    print("Calculating weights, linalg.solve() call %s of %s" % (i,len(in_controls),))
+                    print("Calculating weights, linalg.solve() call %s of %s" % 
+                          (i,len(in_controls),))
                 (b) = b_i[i] = linalg.solve(A[in_controls2[i]], 
                                             B[in_controls[i], trt_unit] + 2 * L2_PEN_W / len(in_controls[i]))
                 weights[out_controls[i], i] = b.flatten()
@@ -224,16 +262,25 @@ def loo_v_matrix(X,
 
     return weights, v_mat, ts_score, ts_loss, L2_PEN_W, opt
 
-def loo_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, solve_method = "standard", verbose = False): 
-    treated_units, control_units = complete_treated_control_list(X.shape[0], treated_units, control_units)
+def loo_weights(X,
+                V,
+                L2_PEN_W,
+                treated_units = None,
+                control_units = None,
+                solve_method = "standard",
+                verbose = False): 
+    """ fit the weights using the leave-one-out gradient approach
+    """
+    treated_units, control_units = complete_treated_control_list(X.shape[0],
+                                                                 treated_units,
+                                                                 control_units)
     control_units = np.array(control_units)
     treated_units = np.array(treated_units)
     [N0, N1] = [len(control_units), len(treated_units)]
 
-
     # index with positions of the controls relative to the incoming data
     in_controls = [list(set(control_units) - set([trt_unit])) for trt_unit in treated_units]
-    in_controls2 = [np.ix_(i,i) for i in in_controls] # this is a much faster alternative to A[:,index][index,:]
+    in_controls2 = [np.ix_(i,i) for i in in_controls]
 
     # index of the controls relative to the rows of the outgoing N0 x N1 matrix of weights
     ctrl_rng = np.arange(len(control_units))
@@ -272,7 +319,16 @@ def loo_weights(X, V, L2_PEN_W, treated_units = None, control_units = None, solv
     return weights.T
 
 
-def loo_score(Y, X, V, L2_PEN_W, LAMBDA = 0, treated_units = None, control_units = None,**kwargs):
+def loo_score(Y,
+              X,
+              V,
+              L2_PEN_W,
+              LAMBDA = 0,
+              treated_units = None,
+              control_units = None,
+              **kwargs):
+    """ in-sample residual error using the leave-one-out gradient approach
+    """
     treated_units, control_units = complete_treated_control_list(X.shape[0], treated_units, control_units)
     weights = loo_weights(X = X,
                           V = V,

@@ -24,7 +24,8 @@ def score_train_test(X,
         raise ValueError("parameters `X_treat` and `Y_treat` must both be Matrices or None")
 
     if X_treat is not None:
-        # >> K-fold validation on the Treated units; assuming that Y and Y_treat are pre-intervention outcomes
+        # >> K-fold validation on the Treated units; assuming that Y and
+        # Y_treat are pre-intervention outcomes
 
         # PARAMETER QC
         try:
@@ -44,7 +45,8 @@ def score_train_test(X,
                              (X.shape[0], Y.shape[0],))
 
         # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
-        # note that the weights, score, and loss function value returned here are for the in-sample predictions
+        # note that the weights, score, and loss function value returned here
+        # are for the in-sample predictions
         _, v_mat, _, _, l2_pen_w, _ = \
                     ct_v_matrix(X = np.vstack((X,X_treat[train, :])),
                                 Y = np.vstack((Y,Y_treat[train, :])),
@@ -59,7 +61,8 @@ def score_train_test(X,
                      L2_PEN_W = l2_pen_w)
 
     else: # X_treat *is* None
-        # >> K-fold validation on the only control units; assuming that Y contains post-intervention outcomes 
+        # >> K-fold validation on the only control units; assuming that Y
+        # contains post-intervention outcomes 
         if grad_splits is not None:
 
 
@@ -70,11 +73,15 @@ def score_train_test(X,
                 pass
             else:
                 # TRIM THE GRAD SPLITS NEED TO THE TRAINING SET
-                match = lambda a, b: np.concatenate([np.where(a == x)[0] for x in b])# inspired by R's match() function
+
+                # inspired by R's match() function
+                match = lambda a, b: np.concatenate([np.where(a == x)[0] for x in b])
+
                 grad_splits = [ (match(train,_X),match(train,_Y) ) for _X,_Y in grad_splits]
 
             # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
-            # note that the weights, score, and loss function value returned here are for the in-sample predictions
+            # note that the weights, score, and loss function value returned
+            # here are for the in-sample predictions
             _, v_mat, _, _, l2_pen_w, _ = \
                     fold_v_matrix(X = X[train, :],
                                   Y = Y[train, :], 
@@ -91,7 +98,8 @@ def score_train_test(X,
         else:
 
             # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
-            # note that the weights, score, and loss function value returned here are for the in-sample predictions
+            # note that the weights, score, and loss function value returned
+            # here are for the in-sample predictions
             try:
                 _, v_mat, _, _, l2_pen_w, _ = \
                         loo_v_matrix(X = X[train, :],
@@ -104,9 +112,9 @@ def score_train_test(X,
 
             # GET THE OUT-OF-SAMPLE PREDICTION ERROR
             s = ct_score(X = X, Y = Y, 
-                          treated_units = test,
-                          V = v_mat,
-                          L2_PEN_W = l2_pen_w)
+                         treated_units = test,
+                         V = v_mat,
+                         L2_PEN_W = l2_pen_w)
 
     return v_mat, l2_pen_w, s
 

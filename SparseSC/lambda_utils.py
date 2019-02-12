@@ -1,3 +1,5 @@
+""" utility methods for penalty parameters
+"""
 
 from SparseSC.fit_loo import  loo_v_matrix
 from SparseSC.fit_ct import  ct_v_matrix
@@ -8,10 +10,18 @@ import numpy as np
 _GRADIENT_MESSAGE = "Calculating maximum covariate penalty (i.e. the gradient at zero)"
 
 def L2_pen_guestimate(X):
+    """ A rule of thumb based on pure intuition which happens to work well on
+    the examples we've tested.
+    """
     return np.mean(np.var(X, axis = 0))
 
 def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
-    """ returns the maximum value of the L1 penalty for which the elements of tensor matrix (V) are not all zero.
+    """ returns the maximum value of the L1 penalty for which the elements of
+        tensor matrix (V) are not all zero.
+
+        Provides a unified wrapper to the various *_v_matrix functions, passing
+        the parameter ``max_lambda = True`` in order to obtain the gradient
+        instead of he matrix
     """
 
     # PARAMETER QC
@@ -30,7 +40,8 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
     if Y.shape[1] == 0:
         raise ValueError("Y.shape[1] == 0")
     if X.shape[0] != Y.shape[0]:
-        raise ValueError("X and Y have different number of rows (%s and %s)" % (X.shape[0], Y.shape[0],))
+        raise ValueError("X and Y have different number of rows (%s and %s)" % 
+                         (X.shape[0], Y.shape[0],))
     if L2_PEN_W is None:
         L2_PEN_W = np.mean(np.var(X, axis = 0))
 
@@ -61,7 +72,7 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
                                L2_PEN_W = L2_PEN_W,
                                control_units = control_units,
                                treated_units = treated_units,
-                               max_lambda = True,  # this is terrible at least without documentation...
+                               max_lambda = True,  
                                gradient_message = _GRADIENT_MESSAGE,
                                **kwargs)
 
@@ -71,7 +82,7 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
                                  Y = np.vstack((Y,Y_treat)),
                                  control_units = control_units,
                                  treated_units = treated_units,
-                                 max_lambda = True,  # this is terrible at least without documentation...
+                                 max_lambda = True,  
                                  gradient_message = _GRADIENT_MESSAGE,
                                  L2_PEN_W = l2_pen,
                                  **kwargs)
@@ -87,7 +98,7 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
                 return fold_v_matrix(X = X,
                                      Y = Y,
                                      L2_PEN_W = L2_PEN_W,
-                                     max_lambda = True,  # this is terrible at least without documentation...
+                                     max_lambda = True,  
                                      gradient_message = _GRADIENT_MESSAGE,
                                      **kwargs)
             # L2_PEN_W is a single value
@@ -95,7 +106,7 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
                 return loo_v_matrix(X = X,
                                     Y = Y,
                                     L2_PEN_W = L2_PEN_W,
-                                    max_lambda = True,  # this is terrible at least without documentation...
+                                    max_lambda = True,  
                                     gradient_message = _GRADIENT_MESSAGE,
                                     **kwargs)
             except MemoryError:
@@ -107,7 +118,7 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
                 return [ fold_v_matrix(X = X,
                                        Y = Y,
                                        L2_PEN_W = l2_pen,
-                                       max_lambda = True,  # this is terrible at least without documentation...
+                                       max_lambda = True,
                                        gradient_message = _GRADIENT_MESSAGE,
                                        **kwargs)
                          for l2_pen in L2_PEN_W ]
@@ -117,7 +128,7 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
                 return [ loo_v_matrix(X = X,
                                       Y = Y,
                                       L2_PEN_W = l2_pen,
-                                      max_lambda = True,  # this is terrible at least without documentation...
+                                      max_lambda = True,
                                       gradient_message = _GRADIENT_MESSAGE,
                                       **kwargs)
                          for l2_pen in L2_PEN_W ]

@@ -1,16 +1,13 @@
+""" Optimizer for covariate weights restricted to the positive orthant.
+"""
 import numpy as np
+from collections import namedtuple 
 from scipy.optimize import line_search
 
 import locale 
 locale.setlocale(locale.LC_ALL, '')
 
-class cd_res(object):
-    """ A toy class with the minimal shape to mimic the return value of scipy.optimize.line_search
-    """
-    def __init__(self, x, fun):
-        self.x = x
-        self.fun = fun
-
+cd_res = namedtuple("cd_res", ["x","fun",])
 
 def cdl_step(score,
              guess,
@@ -130,7 +127,8 @@ def cdl_search(score,
     for _i in range(max_iter):
 
         if grad is None:
-            # (this happens when `constrained == True` or the next point falls beyond zero due to rounding error)
+            # (this happens when `constrained == True` or the next point falls
+            # beyond zero due to rounding error)
             if print_path_verbose:
                 print("[INITIALIZING GRADIENT]")
             grad = jac(x_curr)
@@ -170,7 +168,13 @@ def cdl_search(score,
 
         if print_path_verbose: 
             print("[STARTING LINE SEARCH]")
-        res = line_search(f=zed_wrapper(score), myfprime=zed_wrapper(jac), xk=x_curr, pk= direction/max_alpha, gfk= grad, old_fval=val,old_old_fval=val_old) # 
+        res = line_search(f = zed_wrapper(score),
+                          myfprime = zed_wrapper(jac),
+                          xk = x_curr,
+                          pk = direction/max_alpha,
+                          gfk = grad,
+                          old_fval = val,
+                          old_old_fval = val_old) # 
         if print_path_verbose: 
             print("[FINISHED LINE SEARCH]")
         alpha, _, _, _, _, _ = res 
@@ -182,7 +186,8 @@ def cdl_search(score,
                 alpha_t += 1
         elif constrained:
             for j in range(5): # formerly range(17), but that was excessive, 
-                # in general, this succeeds happens when alpha >= 0.1 (super helpful) or alpha <= 1e-14 (super useless)
+                # in general, this succeeds happens when alpha >= 0.1 (super
+                # helpful) or alpha <= 1e-14 (super useless)
                 if score(x_curr - (.3**j)*grad/max_alpha) < val:
                     # This can occur when the strong wolf condition insists that the
                     # current step size is too small (i.e. the gradient is too
@@ -231,7 +236,7 @@ def cdl_search(score,
 
         if print_path: 
             print("[Path] i: %s, In Sample R^2: %0.6f, incremental R^2:: %0.6f, learning rate: %0.5f,  alpha: %0.5f, zeros: %s"  % 
-                    (_i,  1- val / val0, (val_diff/ val0), learning_rate * (learning_rate_adjustment ** alpha_t), alpha, sum( x_curr == 0)))
+                  (_i,  1- val / val0, (val_diff/ val0), learning_rate * (learning_rate_adjustment ** alpha_t), alpha, sum( x_curr == 0)))
             if print_path_verbose:
                 print("old_grad: %s,x_curr %s"  % (old_grad, x_curr, ))
 
@@ -255,7 +260,8 @@ def cdl_search(score,
 
         if val_diff/val < tol:
             # this a heuristic rule, to be sure, but seems to be useful. 
-            # TODO: this is kinda stupid without a minimum on the learning rate (i.e. `learning_rate`).
+            # TODO: this is kinda stupid without a minimum on the learning rate
+            # (i.e. `learning_rate`).
             if _i > min_iter:
                 if print_stop_iteration:
                     # this is kida stupid
@@ -266,7 +272,12 @@ def cdl_search(score,
     raise RuntimeError('Solution did not converge to default tolerance')
 
 def zed_wrapper(fun):
+    """ a wrapper which implements the waterline algorithm (i.e. walk in
+        direction of the gradient, and project to nearest point in the positive
+        orthant.
+    """
     def inner(x,*args,**kwargs):
+        """the wrapped function"""
         return fun(np.maximum(0,x),*args,**kwargs)
     return inner
 
