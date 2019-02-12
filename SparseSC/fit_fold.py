@@ -1,3 +1,5 @@
+""" Implements k-fold gradient descent methods
+"""
 from numpy import ones, diag, zeros, mean,var, linalg, prod, sqrt, absolute
 import numpy as np
 import itertools
@@ -62,7 +64,8 @@ def fold_v_matrix(X,
                         and test units in each fold of the gradient descent.
     :type grad_splits: int or int[][]
 
-    :param random_state: Integer, used for setting the random state for consistency of fold splits across calls
+    :param random_state: Integer, used for setting the random state for
+        consistency of fold splits across calls
     :type random_state: 
 
     :param verbose: If true, print progress to the console (default: false)
@@ -114,7 +117,8 @@ def fold_v_matrix(X,
     if Y.shape[1] == 0:
         raise ValueError("Y.shape[1] == 0")
     if X.shape[0] != Y.shape[0]:
-        raise ValueError("X and Y have different number of rows (%s and %s)" % (X.shape[0], Y.shape[0],))
+        raise ValueError("X and Y have different number of rows (%s and %s)" % 
+                         (X.shape[0], Y.shape[0],))
     if not isinstance(LAMBDA, (float, int)):
         raise TypeError( "LAMBDA is not a number")
     if L2_PEN_W is None:
@@ -130,12 +134,14 @@ def fold_v_matrix(X,
         iter(splits)
     except TypeError: 
         from sklearn.model_selection import KFold
-        splits = KFold(splits, shuffle=True, random_state = random_state).split(np.arange(len(treated_units)))
+        splits = KFold(splits,
+                       shuffle=True,
+                       random_state = random_state).split(np.arange(len(treated_units)))
     splits = list(splits)
 
     for i, split in enumerate(splits):
         assert len(split[0]) + len(split[1]) == len(treated_units), \
-                ("Splits for fold %s do not match the number of treated units.  Expected %s; got %s + %s" % 
+                ("Splits for fold %s do not match the number of treated units.  Expected %s; got %s + %s" %  #pylint: disable=line-too-long
                  (i, len(treated_units),len(split[0]), len(split[1]), ))
 
     # CONSTANTS
@@ -148,12 +154,12 @@ def fold_v_matrix(X,
 
     # CREATE THE INDEX THAT INDICATES THE ELIGIBLE CONTROLS FOR EACH TREATED UNIT
     in_controls = [list(set(control_units) - set(treated_units[test])) for _,test in splits]
-    in_controls2 = [np.ix_(i,i) for i in in_controls] # this is a much faster alternative to A[:,index][index,:]
+    in_controls2 = [np.ix_(i,i) for i in in_controls]
     ctrl_rng = np.arange(len(control_units))
-    out_controls = [ctrl_rng[np.logical_not(np.isin(control_units, treated_units[test]))] for _,test in splits] 
+    out_controls = [ctrl_rng[np.logical_not(np.isin(control_units, treated_units[test]))] for _,test in splits]  #pylint: disable=line-too-long
 
     # this is non-trivial when there control units are also being predicted:
-    #out_treated  = [ctrl_rng[               np.isin(control_units, treated_units[test]) ] for train,test in splits]
+    #out_treated = [ctrl_rng[np.isin(control_units, treated_units[test]) ] for train,test in splits]
 
     # handy constants (for speed purposes):
     Y_treated = Y[treated_units,:]
@@ -167,8 +173,8 @@ def fold_v_matrix(X,
         _, test = splits[i]
         Xc = X[in_controls[i], : ]
         Xt = X[treated_units[test], : ]
-        dA_dV_ki [k][i] = 2 * Xc[:, k ].dot(Xc[:, k ].T) # Xc[:, k ].dot(Xc[:, k ].T) + Xc[:, k ].dot(Xc[:, k ].T) # 8
-        dB_dV_ki [k][i] = 2 * Xc[:, k ].dot(Xt[:, k ].T) # Xc[:, k ].dot(Xt[:, k ].T) + Xt[:, k ].dot(Xc[:, k ].T) # 9
+        dA_dV_ki [k][i] = 2 * Xc[:, k ].dot(Xc[:, k ].T) # 8
+        dB_dV_ki [k][i] = 2 * Xc[:, k ].dot(Xt[:, k ].T) # 9
 
     k=0 # for linting...
     del Xc, Xt, i, k
@@ -178,7 +184,8 @@ def fold_v_matrix(X,
         weights, _, _ = _weights(dv)
         Ey = (Y_treated - weights.T.dot(Y_control)).getA()
         # (...).copy() assures that x.flags.writeable is True
-        return (np.einsum('ij,ij->',Ey,Ey) + LAMBDA * absolute(V).sum()).copy()  # (Ey **2).sum() -> einsum
+        # also einsum is faster than the equivalent (Ey **2).sum()
+        return (np.einsum('ij,ij->',Ey,Ey) + LAMBDA * absolute(V).sum()).copy()
 
     def _grad(V):
         """ Calculates just the diagonal of dGamma0_dV
@@ -196,12 +203,16 @@ def fold_v_matrix(X,
             dPI_dV.fill(0) # faster than re-allocating the memory each loop.
             for i, (_, (_, test)) in enumerate(zip(in_controls,splits)):
                 if verbose >=2:  # for large sample sizes, linalg.solve is a huge bottle neck,
-                    print("Calculating gradient, linalg.solve() call %s of %s" % (i + k*len(splits) ,K*len(splits),))
+                    print("Calculating gradient, linalg.solve() call %s of %s" 
+                          % (i + k*len(splits) ,K*len(splits),))
                 dA = dA_dV_ki[k][i]
                 dB = dB_dV_ki[k][i]
                 b = linalg.solve(A[in_controls2[i]],dB - dA.dot(b_i[i]))
                 dPI_dV[np.ix_(in_controls[i], treated_units[test])] = b
-            dGamma0_dV_term2[k] = 2 * np.einsum("ij,kj,ki->",(weights.T.dot(Y_control) - Y_treated), Y_control, dPI_dV) # (Ey * Y_control.T.dot(dPI_dV).T.getA()).sum()
+            # einsum is faster than the equivalent (Ey * Y_control.T.dot(dPI_dV).T.getA()).sum()
+            dGamma0_dV_term2[k] = 2 * np.einsum("ij,kj,ki->",
+                                                (weights.T.dot(Y_control) - Y_treated),
+                                                Y_control, dPI_dV)
         return LAMBDA + dGamma0_dV_term2 
 
     def _weights(V):
@@ -210,7 +221,8 @@ def fold_v_matrix(X,
         B = X.dot(V + V.T).dot(X.T).T # 6
         for i, (_,test) in enumerate(splits):
             if verbose >=2:  # for large sample sizes, linalg.solve is a huge bottle neck,
-                print("Calculating weights, linalg.solve() call %s of %s" % (i,len(splits),))
+                print("Calculating weights, linalg.solve() call %s of %s" % 
+                      (i,len(splits),))
             b = b_i[i] = linalg.solve(A[in_controls2[i]], 
                                       B[np.ix_(in_controls[i], treated_units[test])] 
                                       + 2 * L2_PEN_W / len(in_controls[i]) )
@@ -226,7 +238,7 @@ def fold_v_matrix(X,
         from scipy.optimize import minimize
         opt = minimize(_score, start.copy(), jac = _grad, method = method, **kwargs)
     else:
-        assert callable(method), "Method must be a valid method name for scipy.optimize.minimize or a minimizer"
+        assert callable(method), "Method must be a valid method name for scipy.optimize.minimize or a minimizer" #pylint: disable=line-too-long
         opt = method(_score, start.copy(), jac = _grad, **kwargs)
     v_mat = diag(opt.x)
     # CALCULATE weights AND ts_score
@@ -283,7 +295,7 @@ def fold_weights(X,
 
     # index of the controls relative to the rows of the outgoing N0 x N1 matrix of weights
     ctrl_rng = np.arange(len(control_units))
-    out_controls = [ctrl_rng[np.logical_not(np.isin(control_units, treated_units[test]))] for _,test in splits] 
+    out_controls = [ctrl_rng[np.logical_not(np.isin(control_units, treated_units[test]))] for _,test in splits]  #pylint: disable=line-too-long
 
     weights = zeros((N0, N1))
     A = X.dot(V + V.T).dot(X.T) + 2 * L2_PEN_W * diag(ones(X.shape[0])) # 5
@@ -291,9 +303,9 @@ def fold_weights(X,
 
     for i, (_,test) in enumerate(splits):
         if verbose >=2:  # for large sample sizes, linalg.solve is a huge bottle neck,
-            print("Calculating weights, linalg.solve() call %s of %s" % (i,len(splits),))
+            print("Calculating weights, linalg.solve() call %s of %s" % (i,len(splits),)) #pylint: disable=line-too-long
         b = linalg.solve(A[in_controls2[i]], 
-                         B[np.ix_(in_controls[i], treated_units[test])] + 2 * L2_PEN_W / len(in_controls[i]))
+                         B[np.ix_(in_controls[i], treated_units[test])] + 2 * L2_PEN_W / len(in_controls[i])) #pylint: disable=line-too-long
         indx2 = np.ix_(out_controls[i], test)
         weights[indx2] = b
     return weights.T

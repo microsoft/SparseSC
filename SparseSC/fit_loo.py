@@ -1,3 +1,5 @@
+""" Implements leave-one-out gradient descent methods
+"""
 from numpy import ones, diag, zeros, absolute, mean,var, linalg, prod, sqrt
 import numpy as np
 import itertools
@@ -9,6 +11,9 @@ from SparseSC.optimizers.cd_line_search import cdl_search
 warnings.filterwarnings('ignore')
 
 def complete_treated_control_list(N, treated_units = None, control_units = None):
+    """ a utility function for calculating the ``treated_units`` from the
+        ``control_units``, and vice versa
+    """
     if treated_units is None: 
         if control_units is None: 
             # both not provided, include all samples as both treat and control unit.
@@ -21,7 +26,7 @@ def complete_treated_control_list(N, treated_units = None, control_units = None)
         if control_units is None: 
             # Set the control units to the not-treated units
             control_units = list(set(range(N)) - set(treated_units)) 
-    return(treated_units, control_units)
+    return (treated_units, control_units,)
 
 def loo_v_matrix(X,
                  Y,
@@ -169,7 +174,7 @@ def loo_v_matrix(X,
     k=0 # for linting...
     del Xc, Xt
 
-    #assert (dA_dV_ki [k][i] == X[index, k ].dot(X[index, k ].T) + X[index, k ].dot(X[index, k ].T)).all()
+    #assert (dA_dV_ki [k][i] == X[index, k ].dot(X[index, k ].T) + X[index, k ].dot(X[index, k ].T)).all() #pylint: disable=line-too-long
     # https://math.stackexchange.com/a/1471836/252693
 
     def _score(V):
@@ -200,7 +205,7 @@ def loo_v_matrix(X,
                 dA = dA_dV_ki[k][i]
                 dB = dB_dV_ki[k][i]
                 if solve_method == "step-down":
-                    raise NotImplementedError("The solve_method 'step-down' is currently not implemented")
+                    raise NotImplementedError("The solve_method 'step-down' is currently not implemented") #pylint: disable=line-too-long
                     # b = Ai_cache[i].dot(dB - dA.dot(b_i[i]))
                 else:
                     if verbose >=2:  # for large sample sizes, linalg.solve is a huge bottle neck,
@@ -218,7 +223,8 @@ def loo_v_matrix(X,
         weights = zeros((N0, N1))
         if solve_method == "step-down":
             raise NotImplementedError("The solve_method 'step-down' is currently not implemented")
-            # A = X_control.dot(V + V.T).dot(X_control.T) + 2 * L2_PEN_W * diag(ones(X_control.shape[0])) # 5
+            # A = (X_control.dot(V + V.T).dot(X_control.T) 
+            #      + 2 * L2_PEN_W * diag(ones(X_control.shape[0]))) # 5
             # B = X_treated.dot(V + V.T).dot(X_control.T) # 6
             # Ai = A.I
             # for i, trt_unit in enumerate(treated_units):
@@ -236,7 +242,7 @@ def loo_v_matrix(X,
                     print("Calculating weights, linalg.solve() call %s of %s" % 
                           (i,len(in_controls),))
                 (b) = b_i[i] = linalg.solve(A[in_controls2[i]], 
-                                            B[in_controls[i], trt_unit] + 2 * L2_PEN_W / len(in_controls[i]))
+                                            B[in_controls[i], trt_unit] + 2 * L2_PEN_W / len(in_controls[i])) #pylint: disable=line-too-long
                 weights[out_controls[i], i] = b.flatten()
         else:
             raise ValueError("Unknown Solve Method: " + solve_method)
@@ -251,7 +257,7 @@ def loo_v_matrix(X,
         from scipy.optimize import minimize
         opt = minimize(_score, start.copy(), jac = _grad, method = method, **kwargs)
     else:
-        assert callable(method), "Method must be a valid method name for scipy.optimize.minimize or a minimizer"
+        assert callable(method), "Method must be a valid method name for scipy.optimize.minimize or a minimizer" #pylint: disable=line-too-long
         opt = method(_score, start.copy(), jac = _grad, **kwargs)
     v_mat = diag(opt.x)
     # CALCULATE weights AND ts_score
@@ -295,7 +301,8 @@ def loo_weights(X,
 
     if solve_method == "step-down":
         raise NotImplementedError("The solve_method 'step-down' is currently not implemented")
-        # A = X_control.dot(V + V.T).dot(X_control.T) + 2 * L2_PEN_W * diag(ones(X_control.shape[0])) # 5
+        # A = (X_control.dot(V + V.T).dot(X_control.T) 
+        #      + 2 * L2_PEN_W * diag(ones(X_control.shape[0]))) # 5
         # B = X_treat.dot(  V + V.T).dot(X_control.T) # 6
         # Ai = A.I
         # for i, trt_unit in enumerate(treated_units):
@@ -309,7 +316,7 @@ def loo_weights(X,
         B = X.dot(V + V.T).dot(X.T).T # 6
         for i, trt_unit in enumerate(treated_units):
             if verbose >= 2:  # for large sample sizes, linalg.solve is a huge bottle neck,
-                print("Calculating weights, linalg.solve() call %s of %s" % (i,len(treated_units),))
+                print("Calculating weights, linalg.solve() call %s of %s" % (i,len(treated_units),)) #pylint: disable=line-too-long
             (b) = linalg.solve(A[in_controls2[i]], 
                                B[in_controls[i], trt_unit] + 2 * L2_PEN_W / len(in_controls[i]))
 
@@ -329,7 +336,9 @@ def loo_score(Y,
               **kwargs):
     """ in-sample residual error using the leave-one-out gradient approach
     """
-    treated_units, control_units = complete_treated_control_list(X.shape[0], treated_units, control_units)
+    treated_units, control_units = complete_treated_control_list(X.shape[0],
+                                                                 treated_units,
+                                                                 control_units)
     weights = loo_weights(X = X,
                           V = V,
                           L2_PEN_W = L2_PEN_W,
@@ -340,6 +349,4 @@ def loo_score(Y,
     Y_c = Y[control_units, :]
     Ey = (Y_tr - weights.dot(Y_c)).getA()
     return np.einsum('ij,ij->',Ey,Ey) + LAMBDA * V.sum() # (Ey **2).sum() -> einsum
-
-
 

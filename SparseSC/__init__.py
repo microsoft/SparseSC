@@ -1,3 +1,5 @@
+""" Public API for SparseSC
+"""
 
 # PRIMARY FITTING FUNCTIONS
 from SparseSC.fit import fit, estimate_effects

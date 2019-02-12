@@ -11,11 +11,12 @@ def simulation_eval(effects, CI_lowers, CI_uppers, true_effect=0):
 
 
 def gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs, 
-                                  tr_scalings = None, ct_scalings = None,
-                                  max_n_pl = 1000000, ret_pl = False, ret_CI=False, level=0.95):
+                                 tr_scalings = None, ct_scalings = None,
+                                 max_n_pl = 1000000, ret_pl = False, ret_CI=False, level=0.95):
     """Generates placebo distribution to compare effects against. 
     For a single treated unit  this is just the control effects.
-    If there are multiple treated units then the averaging process needs to be done to generate placebos also.
+    If there are multiple treated units then the averaging process needs to be
+    done to generate placebos also.
   
     
     :param tr_scalings: Usually the pre-treatment RMS prediction error
@@ -83,7 +84,7 @@ def gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs,
         return itertools.starmap(func, itertools.repeat(args, times))
 
     n_pl = _ncr(N0, N1)
-    if (max_n_pl > 0 & n_pl > max_n_pl): #randomize
+    if max_n_pl > 0 & n_pl > max_n_pl: #randomize
         comb_iter = itertools.combinations(range(N0), N1)
         comb_len = max_n_pl
     else:

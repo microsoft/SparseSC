@@ -1,3 +1,5 @@
+""" Implements cross-train gradient descent methods
+"""
 from numpy import ones, diag, zeros, absolute, mean,var, linalg, prod, sqrt
 import numpy as np
 import warnings
@@ -91,7 +93,8 @@ def ct_v_matrix(X,
     if Y.shape[1] == 0:
         raise ValueError("Y.shape[1] == 0")
     if X.shape[0] != Y.shape[0]: 
-        raise ValueError("X and Y have different number of rows (%s and %s)" % (X.shape[0], Y.shape[0],))
+        raise ValueError("X and Y have different number of rows (%s and %s)" 
+                         % (X.shape[0], Y.shape[0],))
     if not isinstance(LAMBDA, (float, int)):
         raise TypeError( "LAMBDA is not a number")
     if L2_PEN_W is None:
@@ -119,7 +122,8 @@ def ct_v_matrix(X,
         weights, _, _ ,_ = _weights(dv)
         Ey = (Y_treated - weights.T.dot(Y_control)).getA()
         # note that (...).copy() assures that x.flags.writeable is True:
-        return (np.einsum('ij,ij->',Ey,Ey) + LAMBDA * absolute(V).sum()).copy() # (Ey **2).sum() -> einsum
+        # also einsum is faster than the equivalent (Ey **2).sum()
+        return (np.einsum('ij,ij->',Ey,Ey) + LAMBDA * absolute(V).sum()).copy()
 
     def _grad(V):
         """ Calculates just the diagonal of dGamma0_dV
@@ -161,7 +165,7 @@ def ct_v_matrix(X,
         from scipy.optimize import minimize
         opt = minimize(_score, start.copy(), jac = _grad, method = method, **kwargs)
     else:
-        assert callable(method), "Method must be a valid method name for scipy.optimize.minimize or a minimizer"
+        assert callable(method), "Method must be a valid method name for scipy.optimize.minimize or a minimizer" #pylint: disable=line-too-long
         opt = method(_score, start.copy(), jac = _grad, **kwargs)
     v_mat = diag(opt.x)
 
@@ -173,7 +177,13 @@ def ct_v_matrix(X,
 
     return weights, v_mat, ts_score, ts_loss, L2_PEN_W, opt
 
-def ct_weights(X, V, L2_PEN_W, treated_units = None, control_units = None):
+def ct_weights(X,
+               V,
+               L2_PEN_W,
+               treated_units = None,
+               control_units = None):
+    """ fit the weights using the cross-train gradient approach
+    """
     if treated_units is None: 
         if control_units is None: 
             raise ValueError("At least on of treated_units or control_units is required")

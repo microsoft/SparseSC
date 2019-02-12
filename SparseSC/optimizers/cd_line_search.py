@@ -197,7 +197,7 @@ def cdl_search(score,
 
                     # i secretly think this is stupid.
                     if print_stop_iteration: 
-                        print("[STOP ITERATION: simple line search worked :)] i: %s, alpha: 1e-%s" % (_i,j))
+                        print("[STOP ITERATION: simple line search worked :)] i: %s, alpha: 1e-%s" % (_i,j)) #pylint: disable=line-too-long
                     break
             else:
                 # moving in the direction of the gradient yielded no improvement: stop
@@ -207,17 +207,18 @@ def cdl_search(score,
         else:
             # moving in the direction of the gradient yielded no improvement: stop
             if print_stop_iteration: 
-                print("[STOP ITERATION: alpha is None] i: %s, grad: %s, step: %s" % (_i, grad, direction/max_alpha, ))
+                print("[STOP ITERATION: alpha is None] i: %s, grad: %s, step: %s" % 
+                      (_i, grad, direction/max_alpha, ))
             return cd_res(x_curr, val)
 
         # iterate
         if constrained:
             x_next = x_curr + min(1, alpha)*direction/max_alpha
-            x_old, x_curr, val_old, val, grad, old_grad   =   x_curr, x_next, val, score(x_next),  None, grad
+            x_old, x_curr, val_old, val, grad, old_grad   =   x_curr, x_next, val, score(x_next),   None, grad #pylint: disable=line-too-long
         else:
             #x_next = x_curr +        alpha *direction/max_alpha
             x_next = np.maximum(x_curr +        alpha *direction/max_alpha,0)
-            x_old, x_curr, val_old, val, grad, old_grad   =   x_curr, x_next, val,        res[3], res[5], grad
+            x_old, x_curr, val_old, val, grad, old_grad   =   x_curr, x_next, val,        res[3], res[5], grad #pylint: disable=line-too-long
 
         val_diff = val_old - val
 
@@ -235,8 +236,8 @@ def cdl_search(score,
         # NOT SURE IF THIS IS NECESSARY NOW THAT THE GRAD IS WRAPPED IN ZED_WRAPPER
 
         if print_path: 
-            print("[Path] i: %s, In Sample R^2: %0.6f, incremental R^2:: %0.6f, learning rate: %0.5f,  alpha: %0.5f, zeros: %s"  % 
-                  (_i,  1- val / val0, (val_diff/ val0), learning_rate * (learning_rate_adjustment ** alpha_t), alpha, sum( x_curr == 0)))
+            print("[Path] i: %s, In Sample R^2: %0.6f, incremental R^2:: %0.6f, learning rate: %0.5f,  alpha: %0.5f, zeros: %s"  %  #pylint: disable=line-too-long
+                  (_i,  1- val / val0, (val_diff/ val0), learning_rate * (learning_rate_adjustment ** alpha_t), alpha, sum( x_curr == 0))) #pylint: disable=line-too-long
             if print_path_verbose:
                 print("old_grad: %s,x_curr %s"  % (old_grad, x_curr, ))
 
@@ -265,7 +266,8 @@ def cdl_search(score,
             if _i > min_iter:
                 if print_stop_iteration:
                     # this is kida stupid
-                    print("[STOP ITERATION: val_diff/val < tol] i: %s, val: %s, val_diff: %s" % (_i, val, val_diff, ))
+                    print("[STOP ITERATION: val_diff/val < tol] i: %s, val: %s, val_diff: %s" % 
+                          (_i, val, val_diff, ))
                 return cd_res(x_curr, val)
 
     # returns solution in for loop if successfully converges

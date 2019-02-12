@@ -1,3 +1,5 @@
+""" Implements the cross-fold Validation and parallelization methods
+"""
 from SparseSC.fit_fold import  fold_v_matrix
 from SparseSC.fit_loo import  loo_v_matrix
 from SparseSC.fit_ct import  ct_v_matrix, ct_score
@@ -12,12 +14,49 @@ def score_train_test(X,
                      test,
                      X_treat=None,
                      Y_treat=None,
-                     # For consistency of API with score_train_test_sorted_lambdas():
                      FoldNumber=None, # pylint: disable=unused-argument
-                     grad_splits=None, #  If present, use  k fold gradient descent. See fold_v_matrix for details
+                     grad_splits=None,
                      **kwargs):
-    """ presents a unified api for ct_v_matrix and loo_v_matrix
+    """ Presents a unified api for ct_v_matrix and loo_v_matrix
         and returns the v_mat, l2_pen_w (possibly calculated, possibly a parameter), and the score 
+
+        :param X: Matrix of covariates for untreated units
+        :type X: coercible to :class:`numpy.matrix`
+
+        :param Y: Matrix of outcomes for untreated units
+        :type Y: coercible to :class:`numpy.matrix`
+
+        :param train: List of rows in the current training set
+        :type train: int[]
+
+        :param test: LIst of rows in the current test set
+        :type test: int[]
+
+        :param X_treat: Optional matrix of covariates for treated units
+        :type X_treat: coercible to :class:`numpy.matrix`
+
+        :param Y_treat: Optional matrix of outcomes for treated units
+        :type Y_treat: ``None`` or coercible to :class:`numpy.matrix`
+
+        :param FoldNumber: Unused, for API compatibility only.
+        :type FoldNumber: ``None``
+
+        :param grad_splits: Splits for Fitted v.s. Control units in each gradient
+                           descent step. An integer, or a list/generator of train
+                           and test units in each fold of the gradient descent.
+        :type grad_splits: int or int[][], optional
+
+        :param kwargs: additional arguments passed to the underlying matrix method
+
+        :raises ValueError: when X, Y, X_treat, or Y_treat are not coercible to a
+           :class:`numpy.matrix` or have incompatible dimensions
+
+        :raises RuntimeError: When a MemoryError is raised and grad_splits
+            (which reduces memory requirements) is not used.
+
+        :returns: tuple containing the matrix of covariate weights, the unit
+            weights penalty, and the out-of-sample score
+        :rtype: tuple
     """
     # to use `pdb.set_trace()` here, set `parallel = False` above
     if (X_treat is None) != (Y_treat is None):
@@ -188,7 +227,8 @@ def CV_score(X,Y,
     if Y.shape[1] == 0:
         raise ValueError("Y.shape[1] == 0")
     if X.shape[0] != Y.shape[0]:
-        raise ValueError("X and Y have different number of rows (%s and %s)" % (X.shape[0], Y.shape[0],))
+        raise ValueError("X and Y have different number of rows (%s and %s)" % 
+                         (X.shape[0], Y.shape[0],))
 
     try:
         _LAMBDA = iter(LAMBDA)
@@ -230,7 +270,7 @@ def CV_score(X,Y,
 
         # MESSAGING
         if not quiet: 
-            print("%s-fold validation with %s control and %s treated units %s predictors and %s outcomes, holding out one fold among Treated units; Assumes that `Y` and `Y_treat` are pre-intervention outcomes" % 
+            print("%s-fold validation with %s control and %s treated units %s predictors and %s outcomes, holding out one fold among Treated units; Assumes that `Y` and `Y_treat` are pre-intervention outcomes" % # pylint: disable=line-too-long
                   (n_splits, X.shape[0] , X_treat.shape[0],X.shape[1],Y.shape[1],))
 
         if parallel: 
@@ -240,10 +280,10 @@ def CV_score(X,Y,
                 import multiprocessing
                 multiprocessing.cpu_count()
                 if n_splits == 1:
-                    print("WARNING: Using Parallel options with a single split is expected reduce performance")
+                    print("WARNING: Using Parallel options with a single split is expected reduce performance")# pylint: disable=line-too-long
                 max_workers = min(max(multiprocessing.cpu_count() - 2,1),len(train_test_splits))
                 if max_workers == 1 and n_splits > 1:
-                    print("WARNING: Default for max_workers is 1 on a machine with %s cores is 1.")
+                    print("WARNING: Default for max_workers is 1 on a machine with %s cores is 1.")# pylint: disable=line-too-long
 
             _initialize_Global_worker_pool(max_workers)
 
@@ -292,7 +332,7 @@ def CV_score(X,Y,
 
         # MESSAGING
         if not quiet: 
-            print("%s-fold Cross Validation with %s control units, %s predictors and %s outcomes; Y may contain post-intervention outcomes" % 
+            print("%s-fold Cross Validation with %s control units, %s predictors and %s outcomes; Y may contain post-intervention outcomes" % # pylint: disable=line-too-long
                   (n_splits, X.shape[0],X.shape[1],Y.shape[1],) )
 
         if parallel: 
@@ -302,10 +342,10 @@ def CV_score(X,Y,
                 import multiprocessing
                 multiprocessing.cpu_count()
                 if n_splits == 1:
-                    print("WARNING: Using Parallel options with a single split is expected reduce performance")
+                    print("WARNING: Using Parallel options with a single split is expected reduce performance")# pylint: disable=line-too-long
                 max_workers = min(max(multiprocessing.cpu_count() - 2,1),len(train_test_splits))
                 if max_workers == 1 and n_splits > 1:
-                    print("WARNING: Default for max_workers is 1 on a machine with %s cores is 1.")
+                    print("WARNING: Default for max_workers is 1 on a machine with %s cores is 1.")# pylint: disable=line-too-long
 
             _initialize_Global_worker_pool(max_workers)
 
@@ -346,8 +386,6 @@ def CV_score(X,Y,
         total_score = sum(scores)
 
     return total_score
-
-    
 
 # ------------------------------------------------------------
 # utilities for maintaining a worker pool

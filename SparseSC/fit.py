@@ -1,17 +1,10 @@
-# --------------------------------------------------------------------------------
-# Programmer: Jason Thorpe
-# Date    1/11/2019 1:25:57 PM
-# Purpose:   Implement round-robin fitting of Sparse Synthetic Controls Model for DGP based analysis
-# Description:  Main public API providing a single call for fitting SC Models
-# --------------------------------------------------------------------------------
+""" Main public API providing a single call for fitting SC Models
 
+Implements round-robin fitting of Sparse Synthetic Controls Model for DGP based analysis
+"""
 from warnings import warn
-
 import numpy as np
-#import pandas as pd
 from sklearn.model_selection import KFold
-# import SparseSC as SC
-
 
 # From the Public API
 from SparseSC.lambda_utils import get_max_lambda, L2_pen_guestimate
@@ -20,6 +13,9 @@ from SparseSC.tensor import tensor
 from SparseSC.weights import weights
 from SparseSC.utils.metrics_utils import gen_placebo_stats_from_diffs
 
+# TODO: Cleanup task 1:
+#  random_state = gradient_seed, in the calls to CV_score() and tensor() are
+#  only used when grad splits is not None... need to better control this...
 
 def fit(X,Y,
         treated_units = None,
@@ -168,7 +164,7 @@ def fit(X,Y,
         except TypeError:
             raise ValueError('treated_units must be an iterable' )
 
-        assert len(set(treated_units)) == len(treated_units) , "duplicated values in treated_units are not allowed"
+        assert len(set(treated_units)) == len(treated_units) , "duplicated values in treated_units are not allowed" #pylint: disable=line-too-long
         assert all( unit < Y.shape[0] for unit in treated_units )
         assert all( unit >= 0 for unit in treated_units )
 
@@ -212,7 +208,7 @@ def fit(X,Y,
                                progress = progress,
                                L2_PEN_W = weight_penalty,
                                grad_splits = gradient_folds,
-                               random_state = gradient_seed, # TODO: this is only used when grad splits is not None... need to better control this...
+                               random_state = gradient_seed, # TODO: Cleanup Task 1
                                quiet = not progress, 
                                **kwargs)
 
@@ -227,7 +223,7 @@ def fit(X,Y,
                             Y = Ytrain,
                             LAMBDA = best_V_lambda,
                             grad_splits = gradient_folds,
-                            random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
+                            random_state = gradient_seed, # TODO: Cleanup Task 1
                             **kwargs)
 
         elif model_type == "prospective":
@@ -242,18 +238,20 @@ def fit(X,Y,
                                        shuffle=True,
                                        random_state = gradient_seed).split(np.arange(X.shape[0]))
                 gradient_folds = [  [list(set(train).union(treated_units)), 
-                                     list(set(test).difference(treated_units))] for train, test in gradient_folds]
-                gradient_folds = [ [train,test]  for train,test in gradient_folds if len(train) != 0 and len(test) != 0]
+                                     list(set(test).difference(treated_units))] for train, test in gradient_folds] #pylint: disable=line-too-long
+                gradient_folds = [ [train,test]  for train,test in gradient_folds if len(train) != 0 and len(test) != 0] #pylint: disable=line-too-long
                 gradient_folds.append([control_units, treated_units])
             else:
                 # user supplied gradient folds
                 gradient_folds = list(gradient_folds)
                 treated_units_set = set(treated_units)
-                if not any(treated_units_set == set(gf[1]) for gf in gradient_folds): # TODO: this condition logic is untested
-                    warn("User supplied gradient_folds will be re-formed for compatibility with model_type 'prospective'")
+
+                # TODO: this condition logic is untested:
+                if not any(treated_units_set == set(gf[1]) for gf in gradient_folds):
+                    warn("User supplied gradient_folds will be re-formed for compatibility with model_type 'prospective'") #pylint: disable=line-too-long
                     gradient_folds = [  [list(set(train).union(treated_units)), 
-                                         list(set(test).difference(treated_units))] for train, test in gradient_folds]
-                    gradient_folds = [ [train,test] for train,test in gradient_folds if len(train) != 0 and len(test) != 0]
+                                         list(set(test).difference(treated_units))] for train, test in gradient_folds] #pylint: disable=line-too-long
+                    gradient_folds = [ [train,test] for train,test in gradient_folds if len(train) != 0 and len(test) != 0] #pylint: disable=line-too-long
                     gradient_folds.append([control_units, treated_units])
 
             # --------------------------------------------------
@@ -268,7 +266,7 @@ def fit(X,Y,
                                progress = progress,
                                L2_PEN_W = weight_penalty,
                                grad_splits = gradient_folds,
-                               random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
+                               random_state = gradient_seed, # TODO: Cleanup Task 1
                                quiet = not progress, 
                                **kwargs)
 
@@ -283,7 +281,7 @@ def fit(X,Y,
                             Y = Y,
                             LAMBDA = best_V_lambda,
                             grad_splits = gradient_folds,
-                            random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
+                            random_state = gradient_seed, # TODO: Cleanup Task 1
                             **kwargs)
 
         elif model_type == "prospective-restricted":
@@ -338,7 +336,7 @@ def fit(X,Y,
     else:
 
         if model_type != "full":
-            raise ValueError( "Unexpected model_type ='%s' or treated_units is not None" % model_type) 
+            raise ValueError( "Unexpected model_type ='%s' or treated_units is not None" % model_type)  #pylint: disable=line-too-long
 
         control_units = None
 
@@ -372,7 +370,7 @@ def fit(X,Y,
                           progress = progress,
                           L2_PEN_W = weight_penalty,
                           grad_splits = gradient_folds,
-                          random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
+                          random_state = gradient_seed, # TODO: Cleanup Task 1
                           quiet = not progress, 
                           **kwargs)
 
@@ -387,7 +385,7 @@ def fit(X,Y,
                         Y = Y,
                         LAMBDA = best_V_lambda,
                         grad_splits = gradient_folds,
-                        random_state = gradient_seed, # TODO:  this is only used when grad splits is not None... need to better control this...
+                        random_state = gradient_seed, # TODO: Cleanup Task 1
                         **kwargs)
 
         # GET THE BEST SET OF WEIGHTS
@@ -444,8 +442,7 @@ class SparseSCFit(object):
                  weight_penalty,
                  covariate_penalties,
                  # Fitted Synthetic Controls
-                 sc_weights,
-                 ):
+                 sc_weights):
 
         # DATA
         self.X = X
@@ -463,6 +460,8 @@ class SparseSCFit(object):
         self.sc_weights = sc_weights
 
     def predict(self, Ydonor = None):
+        """ predict method
+        """
         if Ydonor is None:
             if self.model_type != "full":
                 Ydonor = self.Y[self.control_units,:]
@@ -500,7 +499,7 @@ def estimate_effects(X,
                      max_n_pl = 1000000,
                      ret_pl = False,
                      ret_CI=False,
-                     level=0.95, 
+                     level = 0.95, 
                      weight_penalty = None,
                      covariate_penalties=None,
                      **kwargs):
