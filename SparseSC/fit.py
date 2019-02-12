@@ -113,27 +113,33 @@ def fit(X,Y,
                 messages indication the progress are printed to the console (stdout).
         :type progress: boolean, default = ``True``
 
-        :param kwargs: Additional arguments passed to the optimizer
-            responsible for performing gradient descent in the covariate weights
-            space. See below
+        :param method: The method or function responsible for performing gradient 
+            descent in the covariate space.  If a string, it is passed as the
+            ``method`` argument to :func:`scipy.optimize.minimize`.  Otherwise,
+            ``method`` must be a function with a signature compatible with
+            :func:`scipy.optimize.minimize` (``method(fun,x0,grad,**kwargs)``)
+            which returns an object having ``x`` and ``fun`` attributes. (Default
+            = :func:`SparseSC.optimizers.cd_line_search.cdl_search`)
+        :type method: str or function
+
+        :param kwargs: Additional arguments passed to the optimizer (i.e. ``method`` or `scipy.optimize.minimize`).
+            See below.
 
         :Keyword Args:
-            * *method* The function responsible for performing gradient descent 
-                in the covariate weights space.  Defaults to :func:`SparseSC.optimizers.cd_line_search.cdl_search`
-            * *learning_rate* (float, Default = 0.2)  -- The initial learning rate
+            * **learning_rate** *(float, Default = 0.2)*  -- The initial learning rate
                 which determines the initial step size, which is set to
                 ``learning_rate * null_model_error / gradient``. Must be between 0 and
                 1.
-            * *learning_rate_adjustment (float, Default = 0.9)* -- Adjustment factor
+            * **learning_rate_adjustment** *(float, Default = 0.9)* -- Adjustment factor
                 applied to the learning rate applied between iterations when the
                 optimal step size returned by :func:`scipy.optimize.line_search` is
                 greater less than 1, else the step size is adjusted by
                 ``1/learning_rate_adjustment``. Must be between 0 and 1,
-            * *tol (float, Default = 1e-4)* -- Tolerance used for the stopping
+            * **tol** *(float, Default = 0.0001)* -- Tolerance used for the stopping
                 rule based on the proportion of the in-sample residual error
                 reduced in the last step of the gradient descent.
 
-        :returns: A :class:`SparseSCFit` object.
+        :returns: A :class:`SparseSCFit` object containing details of the fitted model.
         :rtype: :class:`SparseSCFit`
 
         :raises ValueError: when ``treated_units`` is not None and not an
