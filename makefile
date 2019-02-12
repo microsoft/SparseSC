@@ -3,6 +3,10 @@
 #  Incl in path or use the "Developer Command Prompt for VS...."
 #  Can run 'nmake /NOLOGO ...' to remove logo output.
 
+# For linux, can use Anaconda or if using virtualenv, install virtualenvwrapper 
+# and alias activate->workon.
+# TO DO: make activate read the env variables.
+
 help:
 	@echo "Use one of the common targets: pylint, package, readmedocs, htmldocs"
 
