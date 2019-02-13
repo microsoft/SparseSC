@@ -37,7 +37,7 @@ dependencies:
   - python=3.5.5=h0c2934d_2
   - python-dateutil=2.7.3=py35_0
   - pytz=2018.5=py35_0
-  - requests=2.19.1=py35_0
+  - requests=2.20.0=py35_0
   - scikit-learn=0.19.1=py35hae9bb9f_0
   - scipy=1.0.1=py35hce232c7_0
   - setuptools=40.2.0=py35_0
