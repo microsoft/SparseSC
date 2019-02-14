@@ -69,3 +69,29 @@ tests_both:
 
 #add examples here when working
 check: pylint package_bdist_wheel tests_both
+
+#examples:
+#jupyter nbconvert example.ipynb --to html
+#jupyter nbconvert example.ipynb --to script
+
+#Have to cd into subfulder otherwise will pick up potential SparseSC pkg in build/
+#TODO: Make the prefix filter automatic
+test/SparseSC_27.yml:
+	activate SparseSC_27 && cd test && conda env export > SparseSC_27.yml
+  echo Make sure to remove the last prefix line
+test/SparseSC_35.yml:
+	activate SparseSC_35 && cd test && conda env export > SparseSC_35.yml
+  echo Make sure to remove the last prefix line
+
+#TODO: Github compliains about requests<=2.19.1. Conda can't install 2.20 w/ Python <3.6.
+#doc/rtd-requirements.txt:
+#	activate SparseSC_35 && cd doc && pip freeze > rtd-requirements.txt
+
+conda_env_upate:
+	deactivate && conda env update -f test/SparseSC_27.yml
+	deactivate && conda env update -f test/SparseSC_35.yml
+
+#Just needs to be done once
+conda_env_create:
+	conda env create -f test/SparseSC_27.yml
+	conda env create -f test/SparseSC_35.yml
