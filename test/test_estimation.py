@@ -2,8 +2,6 @@ import unittest
 import numpy as np
 import random
 import SparseSC as SC
-from SparseSC.fit import fit
-from SparseSC.weights import weights
 
 def ge_dgp(N0,N1,T0,T1,K,S,R,groups,group_scale,beta_scale,confounders_scale,model= "full"):
     """
@@ -132,8 +130,31 @@ def factor_dgp(N0,N1,T0,T1,K,R,F):
     return X_control, X_treated, Y_pre_control, Y_pre_treated, Y_post_control, Y_post_treated
 
 class TestDGPs(unittest.TestCase):
+    def testSimpleTrendDGP(self):
+        '''
+        No X, just Y. half the donors are great, other half are bad
+        '''
+        N1,N0_sim,N0_not = 1,50,50
+        N0 = N0_sim + N0_not
+        treated_units = [0]
+        N1_sim = 50 #which ones look like the treatment
+        T0,T1 = 5, 5
+        T=T0+T1
+        proto_sim = np.array(range(0,T,1),ndmin=2)
+        proto_not = np.array(range(0,2*T,2),ndmin=2)
+        te = np.hstack((np.zeros((1,T0)), np.full((1,T0), 2)))
+        Y1 = proto_sim + te
+        Y0_sim = np.matmul(np.ones((N0_sim,1)), proto_sim)
+        Y0_not = np.matmul(np.ones((N0_not,1)), proto_not)
+        Y = np.vstack((Y1,Y0_sim,Y0_not))
+
+        ret = SC.estimate_effects(Y[:,:T0], Y[:,T0:], treated_units)
+        print(ret)
+
+
+
     def testFactorDGP(self):
-        N1, N0 = 2,100
+        N1, N0  = 2,100
         treated_units = [0,1]
         T0,T1 = 20, 10
         K, R, F = 5, 5, 5
@@ -143,7 +164,7 @@ class TestDGPs(unittest.TestCase):
         Out_pre  = np.vstack( (Out_pre_treated, Out_pre_control, ) )
         Out_post = np.vstack( (Out_post_treated,Out_post_control, ) )
         
-        SC.estimate_effects(Cov, Out_pre, Out_post, treated_units=treated_units)
+        SC.estimate_effects(Out_pre, Out_post, treated_units, Cov)
         print(fit_res)
         #est_res = SC.estimate_effects(Cov, Out_pre, Out_post, treated_units, V_penalty = 0, W_penalty = 0.001)
         #print(est_res)
@@ -163,5 +184,5 @@ if __name__ == '__main__':
     np.random.seed(10101)
 
     t = TestDGPs()
-    t.testFactorDGP()
+    t.testSimpleTrendDGP()
     #unittest.main()

@@ -402,6 +402,7 @@ def fit(X,Y,
                        best_V_lambda,
                        weight_penalty,
                        covariate_penalties,
+                       best_V,
                        # Fitted Synthetic Controls
                        sc_weights)
 
@@ -441,6 +442,7 @@ class SparseSCFit(object):
                  V_penalty,
                  weight_penalty,
                  covariate_penalties,
+                 V,
                  # Fitted Synthetic Controls
                  sc_weights):
 
@@ -455,6 +457,7 @@ class SparseSCFit(object):
         self.V_penalty = V_penalty
         self.weight_penalty = weight_penalty
         self.covariate_penalties = covariate_penalties
+        self.V = V
 
         # FITTED SYNTHETIC CONTROLS
         self.sc_weights = sc_weights
@@ -472,9 +475,13 @@ class SparseSCFit(object):
     def __str__(self):
         """ print details of the fit to the console
         """
-        raise NotImplementedError()
+        ret_str = "Model type: " + self.model_type + '\n' + \
+            "V penalty: " + str(self.V_penalty) + '\n' + \
+            "W penalty: " + str(self.weight_penalty) + '\n' + \
+            "V:" + '\n' + str(np.diag(self.V))
+        
 
-        # CALCULATE ERRORS AND R-SQUARED'S
+        #TODO: CALCULATE ERRORS AND R-SQUARED'S
         #ct_prediction_error = Y_SC_test - Ytest
         #null_model_error = Ytest - np.mean(Xtest)
         #betternull_model_error = (Ytest.T - np.mean(Xtest,1)).T
@@ -485,6 +492,8 @@ class SparseSCFit(object):
         #        100*(1 - np.power(ct_prediction_error,2).sum()  /np.power(betternull_model_error,2).sum() )))
         #print("#--------------------------------------------------")
 
+        return(ret_str)
+
     def show(self):
         """ display goodness of figures illustrating goodness of fit
         """
@@ -492,10 +501,10 @@ class SparseSCFit(object):
 
 
 
-def estimate_effects(X, 
-                     Y_pre,
+def estimate_effects(Y_pre,
                      Y_post,
                      treated_units,
+                     X = None, 
                      max_n_pl = 1000000,
                      ret_pl = False,
                      ret_CI=False,
@@ -510,13 +519,19 @@ def estimate_effects(X,
     #T1 = Y_post.shape[1]
     control_units = list(set(range(N)) - set(treated_units)) 
     all_units = list(range(N))
-    
-    fit_res = fit(X = np.hstack( ( X, Y_pre,) ), Y = Y_post, model_type = "retrospective",
+
+    if X is None:
+        X_and_Y_pre = Y_pre
+    else:
+        X_and_Y_pre = np.hstack( ( X, Y_pre,) )
+    fit_res = fit(X = X_and_Y_pre, Y = Y_post, model_type = "retrospective",
                   treated_units = treated_units,
                   print_path = False, progress = False, verbose=0,
                   min_iter = -1, tol = 1)
-    Y_pre_sc = fit_res.predict(Out_pre_control)
-    Y_post_sc = fit_res.predict(Out_post_control)
+    Y_pre_c = Y_pre[control_units, :]
+    Y_post_c = Y_post[control_units, :]
+    Y_pre_sc = fit_res.predict(Y_pre_c)
+    Y_post_sc = fit_res.predict(Y_post_c)
     
     diff_pre = Y_pre - Y_pre_sc
     diff_post = Y_post - Y_post_sc
@@ -533,5 +548,4 @@ def estimate_effects(X,
     pl_res = gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs, 
                                           pre_tr_rmspes, pre_c_rmspes,
                                           max_n_pl, ret_pl, ret_CI, level)
-    pl_res.fit_res = fit_res
-    return fit_res
+    return (fit_res, pl_res)

@@ -90,10 +90,12 @@ def gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs,
     else:
         comb_iter = _repeatfunc(_random_combination, n_pl, range(N0), N1)
         comb_len = n_pl
-    placebo_effect_vecs = None
     if keep_pl:
         placebo_effect_vecs = np.empty((comb_len,T1))
         placebo_avg_joint_effects = np.empty(comb_len)
+    else:
+        placebo_effect_vecs = None
+        placebo_avg_joint_effects = None
     #p1s = np.zero((1,T1))
     #p1s_std = np.zero((1,T1))
     #effect_vec_sgn = np.sign(effect_vec)
@@ -107,12 +109,12 @@ def gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs,
 
     for idx, comb in enumerate(comb_iter):
         placebo_effect_vec = np.mean(control_effect_vecs[comb,:], 0)
-        placebo_rms_joint_effect = np.mean(control_rms_joint_effects[comb,:])
-        placebo_avg_joint_effect = np.mean(control_avg_joint_effects[comb,:])
+        placebo_rms_joint_effect = np.mean(control_rms_joint_effects[comb])
+        placebo_avg_joint_effect = np.mean(control_avg_joint_effects[comb])
         if tr_scalings is not None and ct_scalings is not None:
             placebo_std_effect_vec = np.mean(control_std_effect_vecs[comb,:], 0)
-            placebo_rms_joint_std_effect = np.mean(control_rms_joint_std_effects[comb,:])
-            placebo_avg_joint_std_effect = np.mean(control_avg_joint_std_effects[comb,:])
+            placebo_rms_joint_std_effect = np.mean(control_rms_joint_std_effects[comb])
+            placebo_avg_joint_std_effect = np.mean(control_avg_joint_std_effects[comb])
             
         #p1s += (effect_vec_sgn*placebo_effect_vec >= effect_vec_sgn*effect_vec)
         #p1s_std += (effect_vec_sgn*placebo_std_effect_vec >= effect_vec_sgn*std_effect_vec)
