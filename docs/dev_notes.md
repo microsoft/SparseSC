@@ -14,6 +14,10 @@ Building docs
 Required python packages: `sphinx`, `recommonmark`, `sphinx-markdown-tables`
 Index HTML file is at `docs/build/html/index.html`
 
+Running examples
+================
+The Jupyter notebooks require `matplotlib`, `jupyter`, and `notebook`.
+
 Testing
 =======
 We use the built-in `unittest`. Can run from makefile using the `tests` target or you can run python directly from the repo root using the following types of commands:

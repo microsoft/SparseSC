@@ -181,7 +181,8 @@ def ct_weights(X,
                V,
                L2_PEN_W,
                treated_units = None,
-               control_units = None):
+               control_units = None,
+               custom_donor_pool = None):
     """ fit the weights using the cross-train gradient approach
     """
     if treated_units is None: 
@@ -192,14 +193,24 @@ def ct_weights(X,
     if control_units is None: 
         control_units = list(set(range(X.shape[0])) - set(treated_units)) 
 
-    X_treated = X[treated_units,:]
-    X_control = X[control_units,:]
+    def _calc_W_ct(X_treated, X_control, V, L2_PEN_W):
+        A = X_control.dot(2*V).dot(X_control.T)   + 2 * L2_PEN_W * diag(ones(X_control.shape[0])) # 5
+        B = X_treated.dot(2*V).dot(X_control.T).T + 2 * L2_PEN_W / X_control.shape[0]# 6
 
-    A = X_control.dot(2*V).dot(X_control.T)   + 2 * L2_PEN_W * diag(ones(X_control.shape[0])) # 5
-    B = X_treated.dot(2*V).dot(X_control.T).T + 2 * L2_PEN_W / X_control.shape[0]# 6
+        weights = linalg.solve(A,B).T
+        return weights
 
-    weights = linalg.solve(A,B)
-    return weights.T
+
+    if custom_donor_pool is None:
+        weights = _calc_W_ct(X[treated_units,:], X[control_units,:], V, L2_PEN_W)
+    else:
+        weights = np.zeros((len(treated_units),len(control_units)))
+        for i, treated_unit in enumerate(treated_units):
+            donors = np.where(custom_donor_pool[treated_unit,:])
+            weights[i,donors] = _calc_W_ct(X[treated_unit,:], X[donors,:], V, L2_PEN_W)
+
+
+    return weights
 
 def ct_score(Y,
              X,

@@ -5,7 +5,7 @@ from SparseSC.fit_ct import ct_weights
 from SparseSC.fit_fold import fold_weights
 import numpy as np
 
-def weights(X, X_treat=None, grad_splits = None, **kwargs):
+def weights(X, X_treat=None, grad_splits = None, custom_donor_pool = None, **kwargs):
     """ Calculate synthetic control weights
     """
 
@@ -35,6 +35,7 @@ def weights(X, X_treat=None, grad_splits = None, **kwargs):
         return ct_weights(X = np.vstack((X,X_treat)),
                           control_units = np.arange(X.shape[0]),
                           treated_units = np.arange(X_treat.shape[0]) + X.shape[0],
+                          custom_donor_pool = custom_donor_pool,
                           **kwargs)
 
     # === X_treat is None: === 
@@ -50,4 +51,5 @@ def weights(X, X_treat=None, grad_splits = None, **kwargs):
     return loo_weights(X = X,
                        control_units = np.arange(X.shape[0]),
                        treated_units = np.arange(X.shape[0]),
+                       custom_donor_pool = custom_donor_pool,
                        **kwargs)

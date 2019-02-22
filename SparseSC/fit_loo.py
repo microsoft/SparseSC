@@ -274,7 +274,8 @@ def loo_weights(X,
                 treated_units = None,
                 control_units = None,
                 solve_method = "standard",
-                verbose = False): 
+                verbose = False,
+                custom_donor_pool = None): 
     """ fit the weights using the leave-one-out gradient approach
     """
     treated_units, control_units = complete_treated_control_list(X.shape[0],
@@ -312,15 +313,22 @@ def loo_weights(X,
         #         (b) = Ai.dot(B[:, i])
         #     weights[out_controls[i], i] = b.flatten()
     elif solve_method == "standard":
-        A = X.dot(V + V.T).dot(X.T) + 2 * L2_PEN_W * diag(ones(X.shape[0])) # 5
-        B = X.dot(V + V.T).dot(X.T).T # 6
-        for i, trt_unit in enumerate(treated_units):
-            if verbose >= 2:  # for large sample sizes, linalg.solve is a huge bottle neck,
-                print("Calculating weights, linalg.solve() call %s of %s" % (i,len(treated_units),)) #pylint: disable=line-too-long
-            (b) = linalg.solve(A[in_controls2[i]], 
-                               B[in_controls[i], trt_unit] + 2 * L2_PEN_W / len(in_controls[i]))
+        if custom_donor_pool is None:
+            A = X.dot(V + V.T).dot(X.T) + 2 * L2_PEN_W * diag(ones(X.shape[0])) # 5
+            B = X.dot(V + V.T).dot(X.T).T # 6
+            for i, trt_unit in enumerate(treated_units):
+                if verbose >= 2:  # for large sample sizes, linalg.solve is a huge bottle neck,
+                    print("Calculating weights, linalg.solve() call %s of %s" % (i,len(treated_units),)) #pylint: disable=line-too-long
+                (b) = linalg.solve(A[in_controls2[i]], 
+                                   B[in_controls[i], trt_unit] + 2 * L2_PEN_W / len(in_controls[i]))
 
-            weights[out_controls[i], i] = b.flatten()
+                weights[out_controls[i], i] = b.flatten()
+        else:
+            for i, trt_unit in enumerate(treated_units):
+                donors = np.where(custom_donor_pool[trt_unit,:])
+                A = X[donors,:].dot(2*V).dot(X[donors,:].T)   + 2 * L2_PEN_W * diag(ones(X[donors,:].shape[0])) # 5
+                B = X[trt_unit,:].dot(2*V).dot(X[donors,:].T).T + 2 * L2_PEN_W / X[donors,:].shape[0]# 6
+                weights[donors,i] = linalg.solve(A,B)
     else:
         raise ValueError("Unknown Solve Method: " + solve_method)
     return weights.T

@@ -31,6 +31,7 @@ def fit(X,Y,
         gradient_folds = 10,
         gradient_seed = 10101, 
         model_type = "retrospective",
+        custom_donor_pool = None,
         # VERBOSITY
         progress = True,
         **kwargs):
@@ -43,23 +44,23 @@ def fit(X,Y,
         :type Y: matrix of floats
 
         :param model_type:  Type of model being
-                fit. One of ``"retrospective"``, ``"prospective"``,
-                ``"prospective-restricted"`` or ``"full"``
+            fit. One of ``"retrospective"``, ``"prospective"``,
+            ``"prospective-restricted"`` or ``"full"``
         :type model_type: str, default = ``"retrospective"``
 
         :param treated_units:  An iterable indicating the rows
-                of `X` and `Y` which contain data from treated units.  
+            of `X` and `Y` which contain data from treated units.  
         :type treated_units: int[], Optional
 
         :param weight_penalty: Penalty applied to the difference
-                between the current weights and the null weights (1/n). default
-                provided by :func:``L2_pen_guestimate``.
+            between the current weights and the null weights (1/n). default
+            provided by :func:``L2_pen_guestimate``.
         :type weight_penalty: float, Optional
 
         :param covariate_penalties: penalty
-                (penalties) applied to the magnitude of the covariate weights.
-                Defaults to ``[ Lambda_c_max * g for g in grid]``, where
-                `Lambda_c_max` is determined via :func:`get_max_lambda` .
+            (penalties) applied to the magnitude of the covariate weights.
+            Defaults to ``[ Lambda_c_max * g for g in grid]``, where
+            `Lambda_c_max` is determined via :func:`get_max_lambda` .
         :type covariate_penalties: float | float[], optional
 
         :param grid: only used when `covariate_penalties` is not provided.
@@ -107,11 +108,25 @@ def fit(X,Y,
         :type gradient_seed: int, default = 10101
 
         :param progress: Controls the level of verbosity.  If `True`, the
-                messages indication the progress are printed to the console (stdout).
+            messages indication the progress are printed to the console (stdout).
         :type progress: boolean, default = ``True``
 
         :param kwargs: Additional arguments passed to the optimizer (i.e.
             ``method`` or `scipy.optimize.minimize`).  See below.
+
+        :param custom_donor_pool: By default all control units are allowed to be donors
+            for all units. There are cases where this is not desired and so the user
+            can pass in a matrix specifying a unit-specific donor pool (NxC matrix 
+            of booleans). 
+            Common reasons for restricting the allowability: 
+            (a) When we would like to reduce interpolation bias by restricting the 
+            donor pool to those units similar along certain features.
+            (b) If units are not completely independent (for example there may be
+            contamination between neighboring units). This is a violation of the 
+            Single Unit Treatment Value Assumption (SUTVA).
+            Note: These are not used in the fitting stage (of V and penalties) just
+            in final unit weight determination.
+        :type custom_donor_pool: boolean, default = ``None``
 
         :Keyword Args:
 
@@ -326,13 +341,21 @@ def fit(X,Y,
         
         # GET THE BEST SET OF WEIGHTS
         sc_weights = np.empty((X.shape[0],Ytrain.shape[0]))
+        if custom_donor_pool is None:
+            custom_donor_pool_t = None
+            custom_donor_pool_c = None
+        else:
+            custom_donor_pool_t = custom_donor_pool[treated_units,:]
+            custom_donor_pool_c = custom_donor_pool[control_units,:]
         sc_weights[treated_units,:] = weights(Xtrain,
                                               Xtest,
                                               V = best_V,
-                                              L2_PEN_W = weight_penalty)
+                                              L2_PEN_W = weight_penalty,
+                                              custom_donor_pool = custom_donor_pool_t)
         sc_weights[control_units,:] = weights(Xtrain,
                                               V = best_V,
-                                              L2_PEN_W = weight_penalty)
+                                              L2_PEN_W = weight_penalty,
+                                              custom_donor_pool = custom_donor_pool_c)
     else:
 
         if model_type != "full":
@@ -391,7 +414,8 @@ def fit(X,Y,
         # GET THE BEST SET OF WEIGHTS
         sc_weights = weights(X,
                              V = best_V,
-                             L2_PEN_W = weight_penalty)
+                             L2_PEN_W = weight_penalty,
+                             custom_donor_pool = custom_donor_pool)
 
     return SparseSCFit(X,
                        Y,
