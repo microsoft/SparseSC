@@ -80,6 +80,11 @@ examples/DifferentialTrends.html: examples/DifferentialTrends.ipynb
 examples/DifferentialTrends.pdf: examples/DifferentialTrends.ipynb
 	cd examples && jupyter nbconvert DifferentialTrends.ipynb --to pdf
 
+clear_ipynb_output:
+	jupyter nbconvert --ClearOutputPreprocessor.enabled=True --inplace examples/DifferentialTrends.ipynb
+gen_ipynb_output:
+	jupyter nbconvert --to notebook --execute examples/DifferentialTrends.ipynb
+
 #Have to cd into subfulder otherwise will pick up potential SparseSC pkg in build/
 #TODO: Make the prefix filter automatic
 #TODO: check if this way of doing phony targets for nmake works with make
