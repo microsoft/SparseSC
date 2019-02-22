@@ -172,9 +172,9 @@ def gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs,
         CI_avg = None
 
     EstResultCI = namedtuple('EstResults', 'effect p ci')
-    SparseSCEstResults = namedtuple('SparseSCEstResults', 'effect_vec_res effect_avg_res std_p rms_joint_p rms_joint_std_p N_placebo placebo_effect_vecs placebo_avg_joint_effects')
+    PlaceboResults = namedtuple('PlaceboResults', 'effect_vec_res effect_avg_res std_p rms_joint_p rms_joint_std_p N_placebo placebo_effect_vecs placebo_avg_joint_effects')
         
-    ret_struct = SparseSCEstResults(EstResultCI(effect_vec, p2s, CI_vec), 
+    ret_struct = PlaceboResults(EstResultCI(effect_vec, p2s, CI_vec), 
                                     EstResultCI(avg_joint_effect, avg_joint_p, CI_avg), 
                                     p2s_std, rms_joint_p, rms_joint_std_p, 
                                     comb_len, placebo_effect_vecs, placebo_avg_joint_effects)

@@ -470,7 +470,7 @@ class SparseSCFit(object):
                 Ydonor = self.Y[self.control_units,:]
             else:
                 Ydonor = self.Y
-        return self.sc_weights.dot(self.Y[self.control_units,:])
+        return self.sc_weights.dot(Ydonor)
 
     def __str__(self):
         """ print details of the fit to the console
@@ -548,4 +548,7 @@ def estimate_effects(Y_pre,
     pl_res = gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs, 
                                           pre_tr_rmspes, pre_c_rmspes,
                                           max_n_pl, ret_pl, ret_CI, level)
-    return (fit_res, pl_res)
+    from collections import namedtuple
+    SparseSCEstResults = namedtuple('SparseSCEstResults', 'fit est_results')
+    
+    return SparseSCEstResults(fit_res, pl_res)

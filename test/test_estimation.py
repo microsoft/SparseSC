@@ -136,8 +136,8 @@ class TestDGPs(unittest.TestCase):
         '''
         N1,N0_sim,N0_not = 1,50,50
         N0 = N0_sim + N0_not
+        N=N1+N0
         treated_units = [0]
-        N1_sim = 50 #which ones look like the treatment
         T0,T1 = 5, 5
         T=T0+T1
         proto_sim = np.array(range(0,T,1),ndmin=2)
