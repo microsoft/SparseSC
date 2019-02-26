@@ -207,7 +207,13 @@ def fold_v_matrix(X,
                           % (i + k*len(splits) ,K*len(splits),))
                 dA = dA_dV_ki[k][i]
                 dB = dB_dV_ki[k][i]
-                b = linalg.solve(A[in_controls2[i]],dB - dA.dot(b_i[i]))
+                try:
+                    b = linalg.solve(A[in_controls2[i]],dB - dA.dot(b_i[i]))
+                except linalg.LinAlgError as exc:
+                    print("Unique weights not possible.")
+                    if L2_PEN_W==0:
+                        print("Try specifying a very small L2_PEN_W rather than 0.")
+                    raise exc
                 dPI_dV[np.ix_(in_controls[i], treated_units[test])] = b
             # einsum is faster than the equivalent (Ey * Y_control.T.dot(dPI_dV).T.getA()).sum()
             dGamma0_dV_term2[k] = 2 * np.einsum("ij,kj,ki->",
@@ -223,9 +229,15 @@ def fold_v_matrix(X,
             if verbose >=2:  # for large sample sizes, linalg.solve is a huge bottle neck,
                 print("Calculating weights, linalg.solve() call %s of %s" % 
                       (i,len(splits),))
-            b = b_i[i] = linalg.solve(A[in_controls2[i]], 
-                                      B[np.ix_(in_controls[i], treated_units[test])] 
-                                      + 2 * L2_PEN_W / len(in_controls[i]) )
+            try:
+                b = b_i[i] = linalg.solve(A[in_controls2[i]], 
+                                          B[np.ix_(in_controls[i], treated_units[test])] 
+                                          + 2 * L2_PEN_W / len(in_controls[i]) )
+            except linalg.LinAlgError as exc:
+                print("Unique weights not possible.")
+                if L2_PEN_W==0:
+                    print("Try specifying a very small L2_PEN_W rather than 0.")
+                raise exc
             weights[np.ix_(out_controls[i], test)] = b
         return weights, A, B
 
@@ -304,8 +316,15 @@ def fold_weights(X,
     for i, (_,test) in enumerate(splits):
         if verbose >=2:  # for large sample sizes, linalg.solve is a huge bottle neck,
             print("Calculating weights, linalg.solve() call %s of %s" % (i,len(splits),)) #pylint: disable=line-too-long
-        b = linalg.solve(A[in_controls2[i]], 
-                         B[np.ix_(in_controls[i], treated_units[test])] + 2 * L2_PEN_W / len(in_controls[i])) #pylint: disable=line-too-long
+        try:
+            b = linalg.solve(A[in_controls2[i]], 
+                             B[np.ix_(in_controls[i], treated_units[test])] + 2 * L2_PEN_W / len(in_controls[i])) #pylint: disable=line-too-long
+        except linalg.LinAlgError as exc:
+            print("Unique weights not possible.")
+            if L2_PEN_W==0:
+                print("Try specifying a very small L2_PEN_W rather than 0.")
+            raise exc
+            
         indx2 = np.ix_(out_controls[i], test)
         weights[indx2] = b
     return weights.T

@@ -212,7 +212,13 @@ def loo_v_matrix(X,
                         print("Calculating weights, linalg.solve() call %s of %s" % 
                               (i + k*K , 
                                K * len(in_controls),))
-                    b = linalg.solve(A[in_controls2[i]],dB - dA.dot(b_i[i]))
+                    try:
+                        b = linalg.solve(A[in_controls2[i]],dB - dA.dot(b_i[i]))
+                    except linalg.LinAlgError as exc:
+                        print("Unique weights not possible.")
+                        if L2_PEN_W==0:
+                            print("Try specifying a very small L2_PEN_W rather than 0.")
+                        raise exc
                 dPI_dV[index, i] = b.flatten() # TODO: is the Transpose  an error???
 
             # einsum is faster than the equivalent (Ey * Y_control.T.dot(dPI_dV).T.getA()).sum()
@@ -241,8 +247,14 @@ def loo_v_matrix(X,
                 if verbose >= 2:  # for large sample sizes, linalg.solve is a huge bottle neck,
                     print("Calculating weights, linalg.solve() call %s of %s" % 
                           (i,len(in_controls),))
-                (b) = b_i[i] = linalg.solve(A[in_controls2[i]], 
-                                            B[in_controls[i], trt_unit] + 2 * L2_PEN_W / len(in_controls[i])) #pylint: disable=line-too-long
+                try:
+                    (b) = b_i[i] = linalg.solve(A[in_controls2[i]], 
+                                                B[in_controls[i], trt_unit] + 2 * L2_PEN_W / len(in_controls[i])) #pylint: disable=line-too-long
+                except linalg.LinAlgError as exc:
+                    print("Unique weights not possible.")
+                    if L2_PEN_W==0:
+                        print("Try specifying a very small L2_PEN_W rather than 0.")
+                    raise exc
                 weights[out_controls[i], i] = b.flatten()
         else:
             raise ValueError("Unknown Solve Method: " + solve_method)
@@ -319,8 +331,14 @@ def loo_weights(X,
             for i, trt_unit in enumerate(treated_units):
                 if verbose >= 2:  # for large sample sizes, linalg.solve is a huge bottle neck,
                     print("Calculating weights, linalg.solve() call %s of %s" % (i,len(treated_units),)) #pylint: disable=line-too-long
-                (b) = linalg.solve(A[in_controls2[i]], 
-                                   B[in_controls[i], trt_unit] + 2 * L2_PEN_W / len(in_controls[i]))
+                try:
+                    (b) = linalg.solve(A[in_controls2[i]], 
+                                       B[in_controls[i], trt_unit] + 2 * L2_PEN_W / len(in_controls[i]))
+                except linalg.LinAlgError as exc:
+                    print("Unique weights not possible.")
+                    if L2_PEN_W==0:
+                        print("Try specifying a very small L2_PEN_W rather than 0.")
+                    raise exc
 
                 weights[out_controls[i], i] = b.flatten()
         else:
@@ -328,7 +346,13 @@ def loo_weights(X,
                 donors = np.where(custom_donor_pool[trt_unit,:])
                 A = X[donors,:].dot(2*V).dot(X[donors,:].T)   + 2 * L2_PEN_W * diag(ones(X[donors,:].shape[0])) # 5
                 B = X[trt_unit,:].dot(2*V).dot(X[donors,:].T).T + 2 * L2_PEN_W / X[donors,:].shape[0]# 6
-                weights[donors,i] = linalg.solve(A,B)
+                try:
+                    weights[donors,i] = linalg.solve(A,B)
+                except linalg.LinAlgError as exc:
+                    print("Unique weights not possible.")
+                    if L2_PEN_W==0:
+                        print("Try specifying a very small L2_PEN_W rather than 0.")
+                    raise exc
     else:
         raise ValueError("Unknown Solve Method: " + solve_method)
     return weights.T

@@ -142,7 +142,13 @@ def ct_v_matrix(X,
             #dPI_dV.fill(0) # faster than re-allocating the memory each loop.
             dA = dA_dV_ki[k]
             dB = dB_dV_ki[k]
-            dPI_dV = linalg.solve(A,(dB - dA.dot(AinvB))) 
+            try:
+                dPI_dV = linalg.solve(A,(dB - dA.dot(AinvB))) 
+            except linalg.LinAlgError as exc:
+                print("Unique weights not possible.")
+                if L2_PEN_W==0:
+                    print("Try specifying a very small L2_PEN_W rather than 0.")
+                raise exc
             #dPI_dV = Ai.dot(dB - dA.dot(AinvB))
             # faster than the equivalent (Ey * Y_control.T.dot(dPI_dV).T.getA()).sum()
             dGamma0_dV_term2[k] = np.einsum("ij,kj,ki->",Ey, Y_control, dPI_dV) 
@@ -153,7 +159,13 @@ def ct_v_matrix(X,
         weights = zeros((N0, N1))
         A = X_control.dot(2*V).dot(X_control.T) + L2_PEN_W_mat # 5
         B = X_treated.dot(2*V).dot(X_control.T).T + 2 * L2_PEN_W / X_control.shape[0] # 6
-        b = linalg.solve(A,B)
+        try:
+            b = linalg.solve(A,B)
+        except linalg.LinAlgError as exc:
+            print("Unique weights not possible.")
+            if L2_PEN_W==0:
+                print("Try specifying a very small L2_PEN_W rather than 0.")
+            raise exc
         return weights, A, B,b
 
     if max_lambda:
@@ -196,8 +208,13 @@ def ct_weights(X,
     def _calc_W_ct(X_treated, X_control, V, L2_PEN_W):
         A = X_control.dot(2*V).dot(X_control.T)   + 2 * L2_PEN_W * diag(ones(X_control.shape[0])) # 5
         B = X_treated.dot(2*V).dot(X_control.T).T + 2 * L2_PEN_W / X_control.shape[0]# 6
-
-        weights = linalg.solve(A,B).T
+        try:
+            weights = linalg.solve(A,B).T
+        except linalg.LinAlgError as exc:
+            print("Unique weights not possible.")
+            if L2_PEN_W==0:
+                print("Try specifying a very small L2_PEN_W rather than 0.")
+            raise exc
         return weights
 
 
