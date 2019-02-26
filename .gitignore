@@ -80,3 +80,6 @@ docs/SyntheticControlsReadme.*
 examples/*.pdf
 examples/*.html
 examples/DifferentialTrends.py
+
+#Jupyter Windows
+jupyter_launch.log

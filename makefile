@@ -108,3 +108,7 @@ conda_env_upate:
 conda_env_create:
 	conda env create -f test/SparseSC_27.yml
 	conda env create -f test/SparseSC_35.yml
+
+jupyter_DifferentialTrends:
+	START jupyter notebook examples/DifferentialTrends.ipynb > jupyter_launch.log
+  
