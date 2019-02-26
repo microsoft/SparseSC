@@ -551,7 +551,8 @@ def estimate_effects(Y_pre,
     fit_res = fit(X = X_and_Y_pre, Y = Y_post, model_type = "retrospective",
                   treated_units = treated_units,
                   print_path = False, progress = False, verbose=0,
-                  min_iter = -1, tol = 1)
+                  min_iter = -1, tol = 1, 
+                  weight_penalty = weight_penalty, covariate_penalties = covariate_penalties)
     Y_pre_c = Y_pre[control_units, :]
     Y_post_c = Y_post[control_units, :]
     Y_pre_sc = fit_res.predict(Y_pre_c)
