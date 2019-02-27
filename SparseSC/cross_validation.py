@@ -207,6 +207,7 @@ def CV_score(X,Y,
              quiet=False,
              parallel=False,
              max_workers=None,
+             progress=None,
              **kwargs):
     """ Cross fold validation for 1 or more L1 Penalties, holding the L2 penalty fixed. 
     """
