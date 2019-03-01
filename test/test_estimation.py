@@ -138,6 +138,7 @@ class TestDGPs(unittest.TestCase):
         N0 = N0_sim + N0_not
         N=N1+N0
         treated_units = [0]
+        control_units = range(1,N)
         T0,T1 = 5, 5
         T=T0+T1
         proto_sim = np.array(range(0,T,1),ndmin=2)
@@ -148,8 +149,10 @@ class TestDGPs(unittest.TestCase):
         Y0_not = np.matmul(np.ones((N0_not,1)), proto_not)
         Y = np.vstack((Y1,Y0_sim,Y0_not))
 
-        ret = SC.estimate_effects(Y[:,:T0], Y[:,T0:], treated_units, weight_penalty=0)
-        weight_sums = np.sum(ret[0].sc_weights, axis=1)
+        ret = SC.estimate_effects(Y[:,:T0], Y[:,T0:], treated_units, covariate_penalties=[15259436.3697], weight_penalty=0.00000000001, ret_CI=True)
+        Y_sc = ret.fit.predict(Y[control_units, :])
+        te = (Y-Y_sc)[0:T0:]
+        weight_sums = np.sum(ret.fit.sc_weights, axis=1)
         print(weight_sums[0])
         print(np.mean(weight_sums[0]))
         print(ret)

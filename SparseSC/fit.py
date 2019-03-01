@@ -537,12 +537,13 @@ def estimate_effects(Y_pre,
                      covariate_penalties=None,
                      **kwargs):
     #TODO: Cleanup returning placebo distribution (incl pre?)
-    #N1 = len(treated_units)
+    N1 = len(treated_units)
     N = Y_pre.shape[0]
-    #N0 = N - N1
-    #T1 = Y_post.shape[1]
+    N0 = N - N1
+    T0 = Y_pre.shape[1]
+    T1 = Y_post.shape[1]
+    Y = np.hstack((Y_pre, Y_post))
     control_units = list(set(range(N)) - set(treated_units)) 
-    all_units = list(range(N))
 
     if X is None:
         X_and_Y_pre = Y_pre
@@ -553,27 +554,35 @@ def estimate_effects(Y_pre,
                   print_path = False, progress = False, verbose=0,
                   min_iter = -1, tol = 1, 
                   weight_penalty = weight_penalty, covariate_penalties = covariate_penalties)
-    Y_pre_c = Y_pre[control_units, :]
-    Y_post_c = Y_post[control_units, :]
-    Y_pre_sc = fit_res.predict(Y_pre_c)
-    Y_post_sc = fit_res.predict(Y_post_c)
-    
-    diff_pre = Y_pre - Y_pre_sc
-    diff_post = Y_post - Y_post_sc
-    # Get post effects
-    effect_vecs = diff_post[treated_units, :]
-    control_effect_vecs = diff_post[control_units, :]
-    
-    # Get pre match MSE (match quality)
-    pre_tr_pes = diff_pre[treated_units, :]
-    pre_c_pes = diff_post[control_units, :]
-    pre_tr_rmspes = np.sqrt(np.mean(np.square(pre_tr_pes), axis=1))
-    pre_c_rmspes = np.sqrt(np.mean(np.square(pre_c_pes), axis=1))
+    Y_sc = fit_res.predict(Y[control_units, :])
+    diffs = Y - Y_sc
 
-    pl_res = gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs, 
-                                          pre_tr_rmspes, pre_c_rmspes,
+    #diagnostics
+    diffs_pre = diffs[:,:T0]
+    pl_res_pre = gen_placebo_stats_from_diffs(diffs_pre[treated_units,:], diffs_pre[control_units,:], 
                                           max_n_pl, ret_pl, ret_CI, level)
-    from collections import namedtuple
-    SparseSCEstResults = namedtuple('SparseSCEstResults', 'fit est_results')
+
+    #effects
+    diffs_post = diffs[:,T0:]
+    pl_res_post = gen_placebo_stats_from_diffs(diffs_post[treated_units,:], diffs_post[control_units,:], 
+                                          max_n_pl, ret_pl, ret_CI, level)
     
-    return SparseSCEstResults(fit_res, pl_res)
+    rmspes_pre = np.sqrt(np.mean(np.square(diffs_pre), axis=1))
+    diffs_post_scaled = np.diagflat(1/rmspes_pre).dot(diffs_post)
+    pl_res_post_scaled = gen_placebo_stats_from_diffs(diffs_post_scaled[treated_units,:], diffs_post_scaled[control_units,:], 
+                                          max_n_pl, ret_pl, ret_CI, level)
+    
+    return SparseSCEstResults(fit_res, pl_res_pre, pl_res_post, pl_res_post_scaled)
+
+class SparseSCEstResults(object):
+    """
+    Holds estimation info
+    """
+    def __init__(self, fit, pl_res_pre, pl_res_post, pl_res_post_scaled):
+        self.fit = fit
+        self.pl_res_pre = pl_res_pre
+        self.pl_res_post = pl_res_post
+        self.pl_res_post_scaled = pl_res_post_scaled
+
+    #__str__(self):
+    #    str_ret = "Diagnostics: "
