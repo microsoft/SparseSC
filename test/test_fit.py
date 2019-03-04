@@ -2,16 +2,16 @@
 # Programmer: Jason Thorpe
 # Date    1/25/2019 3:34:02 PM
 # Language:  Python (.py) Version 2.7 or 3.5
-# Usage: 
-# 
+# Usage:
+#
 # Test all model types
-# 
-#     \SpasrseSC > python -m unittest test/fit-test.py
-# 
-# Test a specific model type (e.g. "prospective-restricted"): 
-# 
+#
+#     \SpasrseSC > python -m unittest test/test_fit.py
+#
+# Test a specific model type (e.g. "prospective-restricted"):
+#
 #     \SpasrseSC > python -m unittest test.test_fit.TestFit.test_retrospective
-# 
+#
 # --------------------------------------------------------------------------------
 
 from __future__ import print_function # for compatibility with python 2.7
@@ -21,15 +21,15 @@ import unittest
 
 # Bootstrapping the system path
 sys.path.insert(0,os.path.abspath('.'))
-#try: 
+#try:
 from SparseSC.fit import fit
-#except Exception as exc: 
+#except Exception as exc:
 #    print("Importing fit module failed with %s: %s" % (exc.__class__.__name__,exc.message,) )
 #    exit()
 
 class TestFit(unittest.TestCase):
     def setUp(self):
-        
+
         random.seed(12345)
         np.random.seed(101101001)
         control_units = 50
@@ -46,22 +46,22 @@ class TestFit(unittest.TestCase):
         if(verbose):
             print("Calling fit with `model_type  = '%s'`..." % (model_type, ),end="")
         sys.stdout.flush()
-#--     try: 
+#--     try:
         fit(X = obj.X,
             Y = obj.Y,
             model_type = model_type,
             treated_units = obj.treated_units if model_type in ("retrospective", "prospective", "prospective-restricted") else None,
-            # KWARGS: 
+            # KWARGS:
             print_path = False,
             progress = False,
             min_iter = -1,
             tol = 1,
             verbose=0,
             )
-#--     except Exception as exc: 
+#--     except Exception as exc:
 #--         print("Failed with %s: %s" % (exc.__class__.__name__,exc.message,) )
 #--         exit()
-#--     else: 
+#--     else:
         if(verbose):
             print("DONE")
 
@@ -88,7 +88,7 @@ class TestFit(unittest.TestCase):
         TestFit.run_test(self, "full")
 
 
-        
+
 if __name__ == '__main__':
     #t = TestFit()
     #t.setUp()

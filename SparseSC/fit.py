@@ -7,7 +7,7 @@ import numpy as np
 from sklearn.model_selection import KFold
 
 # From the Public API
-from SparseSC.lambda_utils import get_max_lambda, L2_pen_guestimate
+from SparseSC.utils.penalty_utils import get_max_v_pen, w_pen_guestimate
 from SparseSC.cross_validation import CV_score
 from SparseSC.tensor import tensor
 from SparseSC.weights import weights
@@ -21,15 +21,15 @@ def fit(X,Y,
         treated_units = None,
         weight_penalty = None, # Float
         covariate_penalties = None, # Float or an array of floats
-        # PARAMETERS USED TO CONSTRUCT DEFAULT GRID COVARIATE_PENALTIES 
+        # PARAMETERS USED TO CONSTRUCT DEFAULT GRID COVARIATE_PENALTIES
         grid = None, # USER SUPPLIED GRID OF COVARIATE PENALTIES
-        Lambda_min = 1e-6,
-        Lambda_max = 1,
+        min_v_pen = 1e-6,
+        max_v_pen = 1,
         grid_points = 20,
-        choice = "min", 
+        choice = "min",
         cv_folds = 10,
         gradient_folds = 10,
-        gradient_seed = 10101, 
+        gradient_seed = 10101,
         model_type = "retrospective",
         custom_donor_pool = None,
         # VERBOSITY
@@ -49,33 +49,33 @@ def fit(X,Y,
         :type model_type: str, default = ``"retrospective"``
 
         :param treated_units:  An iterable indicating the rows
-            of `X` and `Y` which contain data from treated units.  
+            of `X` and `Y` which contain data from treated units.
         :type treated_units: int[], Optional
 
         :param weight_penalty: Penalty applied to the difference
             between the current weights and the null weights (1/n). default
-            provided by :func:``L2_pen_guestimate``.
+            provided by :func:``w_pen_guestimate``.
         :type weight_penalty: float, Optional
 
         :param covariate_penalties: penalty
             (penalties) applied to the magnitude of the covariate weights.
             Defaults to ``[ Lambda_c_max * g for g in grid]``, where
-            `Lambda_c_max` is determined via :func:`get_max_lambda` .
+            `Lambda_c_max` is determined via :func:`get_max_v_pen` .
         :type covariate_penalties: float | float[], optional
 
         :param grid: only used when `covariate_penalties` is not provided.
-            Defaults to ``np.exp(np.linspace(np.log(Lambda_min),np.log(Lambda_max),grid_points))``
+            Defaults to ``np.exp(np.linspace(np.log(min_v_pen),np.log(max_v_pen),grid_points))``
         :type grid: float | float[], optional
 
-        :param Lambda_min: Lower bound for ``grid`` when
+        :param min_v_pen: Lower bound for ``grid`` when
             ``covariate_penalties`` and ``grid`` are not provided.  Must be in the
             range ``(0,1)``
-        :type Lambda_min: float, default = 1e-6
+        :type min_v_pen: float, default = 1e-6
 
-        :param Lambda_max: Upper bound for ``grid`` when
+        :param max_v_pen: Upper bound for ``grid`` when
             ``covariate_penalties`` and ``grid`` are not provided.  Must be in the
             range ``(0,1]``
-        :type Lambda_max: float, default = 1
+        :type max_v_pen: float, default = 1
 
         :param grid_points: number of points in the ``grid`` parameter when
             ``covariate_penalties`` and ``grid`` are not provided
@@ -83,7 +83,7 @@ def fit(X,Y,
 
         :param choice: Method for choosing from among the
             covariate_penalties.  Only used when covariate_penalties is an
-            iterable.  Defaults to ``"min"`` which selects the lambda parameter
+            iterable.  Defaults to ``"min"`` which selects the v_pen parameter
             associated with the lowest cross validation error.
         :type choice: str or function. default = ``"min"``
 
@@ -116,13 +116,13 @@ def fit(X,Y,
 
         :param custom_donor_pool: By default all control units are allowed to be donors
             for all units. There are cases where this is not desired and so the user
-            can pass in a matrix specifying a unit-specific donor pool (NxC matrix 
-            of booleans). 
-            Common reasons for restricting the allowability: 
-            (a) When we would like to reduce interpolation bias by restricting the 
+            can pass in a matrix specifying a unit-specific donor pool (NxC matrix
+            of booleans).
+            Common reasons for restricting the allowability:
+            (a) When we would like to reduce interpolation bias by restricting the
             donor pool to those units similar along certain features.
             (b) If units are not completely independent (for example there may be
-            contamination between neighboring units). This is a violation of the 
+            contamination between neighboring units). This is a violation of the
             Single Unit Treatment Value Assumption (SUTVA).
             Note: These are not used in the fitting stage (of V and penalties) just
             in final unit weight determination.
@@ -167,7 +167,7 @@ def fit(X,Y,
         verbose = kwargs["verbose"]
     else:
         verbose = 1
-    
+
     if treated_units is not None:
 
         # --------------------------------------------------
@@ -193,50 +193,50 @@ def fit(X,Y,
         # --------------------------------------------------
         # (sensible?) defaults
         # --------------------------------------------------
-        # Get the L2 penalty guestimate:  very quick ( milliseconds )
+        # Get the weight penalty guestimate:  very quick ( milliseconds )
         if weight_penalty is None:
-            weight_penalty  = L2_pen_guestimate(Xtrain) 
-        if covariate_penalties is None: 
+            weight_penalty  = w_pen_guestimate(Xtrain)
+        if covariate_penalties is None:
             if grid is None:
-                grid = np.exp(np.linspace(np.log(Lambda_min),np.log(Lambda_max),grid_points))
-            # GET THE MAXIMUM LAMBDAS: quick ~ ( seconds to tens of seconds )
-            LAMBDA_max = get_max_lambda(Xtrain,
+                grid = np.exp(np.linspace(np.log(min_v_pen),np.log(max_v_pen),grid_points))
+            # GET THE MAXIMUM v_penS: quick ~ ( seconds to tens of seconds )
+            v_pen_max = get_max_v_pen(Xtrain,
                                         Ytrain,
-                                        L2_PEN_W = weight_penalty,
+                                        w_pen = weight_penalty,
                                         grad_splits = gradient_folds,
                                         verbose=verbose)
-            covariate_penalties = grid * LAMBDA_max
+            covariate_penalties = grid * v_pen_max
 
 
         if model_type == "retrospective":
             # Retrospective Treatment Effects:  ( *model_type = "prospective"*)
 
             # --------------------------------------------------
-            # Phase 1: extract cross fold residual errors for each lambda
+            # Phase 1: extract cross fold residual errors for each v_pen
             # --------------------------------------------------
 
             # SCORES FOR EACH VALUE OF THE GRID: very slow ( minutes to hours )
             scores = CV_score( X = Xtrain,
                                Y = Ytrain,
                                splits = cv_folds,
-                               LAMBDA = covariate_penalties,
+                               v_pen = covariate_penalties,
                                progress = progress,
-                               L2_PEN_W = weight_penalty,
+                               w_pen = weight_penalty,
                                grad_splits = gradient_folds,
                                random_state = gradient_seed, # TODO: Cleanup Task 1
-                               quiet = not progress, 
+                               quiet = not progress,
                                **kwargs)
 
             # GET THE INDEX OF THE BEST SCORE
-            best_V_lambda = __choose(scores, covariate_penalties, choice)
+            best_v_pen = __choose(scores, covariate_penalties, choice)
 
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
             # --------------------------------------------------
 
-            best_V = tensor(X = Xtrain, 
+            best_V = tensor(X = Xtrain,
                             Y = Ytrain,
-                            LAMBDA = best_V_lambda,
+                            v_pen = best_v_pen,
                             grad_splits = gradient_folds,
                             random_state = gradient_seed, # TODO: Cleanup Task 1
                             **kwargs)
@@ -252,7 +252,7 @@ def fit(X,Y,
                 gradient_folds = KFold(gradient_folds,
                                        shuffle=True,
                                        random_state = gradient_seed).split(np.arange(X.shape[0]))
-                gradient_folds = [  [list(set(train).union(treated_units)), 
+                gradient_folds = [  [list(set(train).union(treated_units)),
                                      list(set(test).difference(treated_units))] for train, test in gradient_folds] #pylint: disable=line-too-long
                 gradient_folds = [ [train,test]  for train,test in gradient_folds if len(train) != 0 and len(test) != 0] #pylint: disable=line-too-long
                 gradient_folds.append([control_units, treated_units])
@@ -264,37 +264,37 @@ def fit(X,Y,
                 # TODO: this condition logic is untested:
                 if not any(treated_units_set == set(gf[1]) for gf in gradient_folds):
                     warn("User supplied gradient_folds will be re-formed for compatibility with model_type 'prospective'") #pylint: disable=line-too-long
-                    gradient_folds = [  [list(set(train).union(treated_units)), 
+                    gradient_folds = [  [list(set(train).union(treated_units)),
                                          list(set(test).difference(treated_units))] for train, test in gradient_folds] #pylint: disable=line-too-long
                     gradient_folds = [ [train,test] for train,test in gradient_folds if len(train) != 0 and len(test) != 0] #pylint: disable=line-too-long
                     gradient_folds.append([control_units, treated_units])
 
             # --------------------------------------------------
-            # Phase 1: extract cross fold residual errors for each lambda
+            # Phase 1: extract cross fold residual errors for each v_pen
             # --------------------------------------------------
 
             # SCORES FOR EACH VALUE OF THE GRID: very slow ( minutes to hours )
             scores = CV_score( X = X,
                                Y = Y,
                                splits = cv_folds,
-                               LAMBDA = covariate_penalties,
+                               v_pen = covariate_penalties,
                                progress = progress,
-                               L2_PEN_W = weight_penalty,
+                               w_pen = weight_penalty,
                                grad_splits = gradient_folds,
                                random_state = gradient_seed, # TODO: Cleanup Task 1
-                               quiet = not progress, 
+                               quiet = not progress,
                                **kwargs)
 
             # GET THE INDEX OF THE BEST SCORE
-            best_V_lambda = __choose(scores, covariate_penalties, choice)
+            best_v_pen = __choose(scores, covariate_penalties, choice)
 
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
             # --------------------------------------------------
 
-            best_V = tensor(X = X, 
+            best_V = tensor(X = X,
                             Y = Y,
-                            LAMBDA = best_V_lambda,
+                            v_pen = best_v_pen,
                             grad_splits = gradient_folds,
                             random_state = gradient_seed, # TODO: Cleanup Task 1
                             **kwargs)
@@ -303,10 +303,10 @@ def fit(X,Y,
             # we're doing in-sample -- i.e. we're optimizing hold-out error in
             # the controls ( || Y_ctrl - W Y_ctrl || ) in the hopes that the
             # chosen penalty parameters and V matrix also optimizes the
-            # unobserved ( || Y_treat - W Y_ctrl || ) in counter factual 
+            # unobserved ( || Y_treat - W Y_ctrl || ) in counter factual
 
             # --------------------------------------------------
-            # Phase 1: extract cross fold residual errors for each lambda
+            # Phase 1: extract cross fold residual errors for each v_pen
             # --------------------------------------------------
 
             # SCORES FOR EACH VALUE OF THE GRID: very slow ( minutes to hours )
@@ -315,30 +315,30 @@ def fit(X,Y,
                                X_treat = Xtest,
                                Y_treat = Ytest,
                                splits = cv_folds,
-                               LAMBDA = covariate_penalties,
+                               v_pen = covariate_penalties,
                                progress = progress,
-                               L2_PEN_W = weight_penalty,
-                               quiet = not progress, 
+                               w_pen = weight_penalty,
+                               quiet = not progress,
                                **kwargs)
 
             # GET THE INDEX OF THE BEST SCORE
-            best_V_lambda = __choose(scores, covariate_penalties, choice)
+            best_v_pen = __choose(scores, covariate_penalties, choice)
 
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
             # --------------------------------------------------
 
-            best_V = tensor(X = Xtrain, 
+            best_V = tensor(X = Xtrain,
                             Y = Ytrain,
                             X_treat = Xtest,
                             Y_treat = Ytest,
-                            LAMBDA = best_V_lambda,
+                            v_pen = best_v_pen,
                             **kwargs)
 
 
         else:
             raise ValueError("unexpected model_type '%s' or treated_units = None" % model_type)
-        
+
         # GET THE BEST SET OF WEIGHTS
         sc_weights = np.empty((X.shape[0],Ytrain.shape[0]))
         if custom_donor_pool is None:
@@ -350,11 +350,11 @@ def fit(X,Y,
         sc_weights[treated_units,:] = weights(Xtrain,
                                               Xtest,
                                               V = best_V,
-                                              L2_PEN_W = weight_penalty,
+                                              w_pen = weight_penalty,
                                               custom_donor_pool = custom_donor_pool_t)
         sc_weights[control_units,:] = weights(Xtrain,
                                               V = best_V,
-                                              L2_PEN_W = weight_penalty,
+                                              w_pen = weight_penalty,
                                               custom_donor_pool = custom_donor_pool_c)
     else:
 
@@ -366,47 +366,47 @@ def fit(X,Y,
         # --------------------------------------------------
         # (sensible?) defaults
         # --------------------------------------------------
-        if covariate_penalties is None: 
+        if covariate_penalties is None:
             if grid is None:
-                grid = np.exp(np.linspace(np.log(Lambda_min),np.log(Lambda_max),grid_points))
-            # GET THE MAXIMUM LAMBDAS: quick ~ ( seconds to tens of seconds )
-            LAMBDA_max = get_max_lambda(X,
+                grid = np.exp(np.linspace(np.log(min_v_pen),np.log(max_v_pen),grid_points))
+            # GET THE MAXIMUM v_penS: quick ~ ( seconds to tens of seconds )
+            v_pen_max = get_max_v_pen(X,
                                         Y,
-                                        L2_PEN_W = weight_penalty,
+                                        w_pen = weight_penalty,
                                         grad_splits = gradient_folds,
                                         verbose=verbose)
-            covariate_penalties = grid * LAMBDA_max
+            covariate_penalties = grid * v_pen_max
 
-        # Get the L2 penalty guestimate:  very quick ( milliseconds )
+        # Get the weight penalty guestimate:  very quick ( milliseconds )
         if weight_penalty is None:
-            weight_penalty  = L2_pen_guestimate(X) 
+            weight_penalty  = w_pen_guestimate(X)
 
         # --------------------------------------------------
-        # Phase 1: extract cross fold residual errors for each lambda
+        # Phase 1: extract cross fold residual errors for each v_pen
         # --------------------------------------------------
 
         # SCORES FOR EACH VALUE OF THE GRID: very slow ( minutes to hours )
         scores = CV_score(X = X,
                           Y = Y,
                           splits = cv_folds,
-                          LAMBDA = covariate_penalties,
+                          v_pen = covariate_penalties,
                           progress = progress,
-                          L2_PEN_W = weight_penalty,
+                          w_pen = weight_penalty,
                           grad_splits = gradient_folds,
                           random_state = gradient_seed, # TODO: Cleanup Task 1
-                          quiet = not progress, 
+                          quiet = not progress,
                           **kwargs)
 
         # GET THE INDEX OF THE BEST SCORE
-        best_V_lambda = __choose(scores, covariate_penalties, choice)
+        best_v_pen = __choose(scores, covariate_penalties, choice)
 
         # --------------------------------------------------
         # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
         # --------------------------------------------------
 
-        best_V = tensor(X = X, 
+        best_V = tensor(X = X,
                         Y = Y,
-                        LAMBDA = best_V_lambda,
+                        v_pen = best_v_pen,
                         grad_splits = gradient_folds,
                         random_state = gradient_seed, # TODO: Cleanup Task 1
                         **kwargs)
@@ -414,7 +414,7 @@ def fit(X,Y,
         # GET THE BEST SET OF WEIGHTS
         sc_weights = weights(X,
                              V = best_V,
-                             L2_PEN_W = weight_penalty,
+                             w_pen = weight_penalty,
                              custom_donor_pool = custom_donor_pool)
 
     return SparseSCFit(X,
@@ -423,7 +423,7 @@ def fit(X,Y,
                        treated_units,
                        model_type,
                        # fitting parameters
-                       best_V_lambda,
+                       best_v_pen,
                        weight_penalty,
                        covariate_penalties,
                        best_V,
@@ -434,21 +434,21 @@ def __choose(scores, covariate_penalties, choice):
     """ helper function which implements the choice of covariate weights penalty parameter
     """
     # GET THE INDEX OF THE BEST SCORE
-    try: 
+    try:
         iter(covariate_penalties)
     except TypeError:
-        best_lambda = scores
+        best_v_pen = scores
     else:
         if choice == "min":
             best_i = np.argmin(scores)
-            best_lambda = (covariate_penalties)[best_i]
+            best_v_pen = (covariate_penalties)[best_i]
         elif callable(choice):
-            best_lambda = choice(scores)
+            best_v_pen = choice(scores)
         else:
             # TODO: this is a terrible place to throw this error
             raise ValueError("Unexpected value for choice parameter: %s" % choice)
 
-    return best_lambda
+    return best_v_pen
 
 
 class SparseSCFit(object):
@@ -503,7 +503,7 @@ class SparseSCFit(object):
             "V penalty: " + str(self.V_penalty) + '\n' + \
             "W penalty: " + str(self.weight_penalty) + '\n' + \
             "V:" + '\n' + str(np.diag(self.V))
-        
+
 
         #TODO: CALCULATE ERRORS AND R-SQUARED'S
         #ct_prediction_error = Y_SC_test - Ytest
@@ -528,11 +528,11 @@ class SparseSCFit(object):
 def estimate_effects(Y_pre,
                      Y_post,
                      treated_units,
-                     X = None, 
+                     X = None,
                      max_n_pl = 1000000,
                      ret_pl = False,
                      ret_CI=False,
-                     level = 0.95, 
+                     level = 0.95,
                      weight_penalty = None,
                      covariate_penalties=None,
                      **kwargs):
@@ -560,7 +560,7 @@ def estimate_effects(Y_pre,
     T1 = Y_post.shape[1]
     T = T0 + T1
     Y = np.hstack((Y_pre, Y_post))
-    control_units = list(set(range(N)) - set(treated_units)) 
+    control_units = list(set(range(N)) - set(treated_units))
 
     if X is None:
         X_and_Y_pre = Y_pre
@@ -569,7 +569,7 @@ def estimate_effects(Y_pre,
     fit_res = fit(X = X_and_Y_pre, Y = Y_post, model_type = "retrospective",
                   treated_units = treated_units,
                   print_path = False, progress = False, verbose=0,
-                  min_iter = -1, tol = 1, 
+                  min_iter = -1, tol = 1,
                   weight_penalty = weight_penalty, covariate_penalties = covariate_penalties)
     Y_sc = fit_res.predict(Y[control_units, :])
     diffs = Y - Y_sc
@@ -583,7 +583,7 @@ def estimate_effects(Y_pre,
     diffs_post = diffs[:,T0:]
     pl_res_post = gen_placebo_stats_from_diffs(diffs_post[control_units,:], diffs_post[treated_units,:], 
                                           max_n_pl, ret_pl, ret_CI, level)
-    
+
     rmspes_pre = np.sqrt(np.mean(np.square(diffs_pre), axis=1))
     diffs_post_scaled = np.diagflat(1/rmspes_pre).dot(diffs_post)
     pl_res_post_scaled = gen_placebo_stats_from_diffs(diffs_post_scaled[control_units,:], diffs_post_scaled[treated_units,:], 

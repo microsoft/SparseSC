@@ -29,7 +29,7 @@ def weights(X, X_treat=None, grad_splits = None, custom_donor_pool = None, **kwa
         if X_treat.shape[1] == 0:
             raise ValueError("X_treat.shape[1] == 0")
 
-        # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
+        # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE w_pen
         # note that the weights, score, and loss function value returned here
         # are for the in-sample predictions
         return ct_weights(X = np.vstack((X,X_treat)),
@@ -38,14 +38,14 @@ def weights(X, X_treat=None, grad_splits = None, custom_donor_pool = None, **kwa
                           custom_donor_pool = custom_donor_pool,
                           **kwargs)
 
-    # === X_treat is None: === 
+    # === X_treat is None: ===
 
     if grad_splits is not None:
         return fold_weights(X = X,
                             grad_splits = grad_splits,
                             **kwargs)
 
-    # === X_treat is None and grad_splits is None: === 
+    # === X_treat is None and grad_splits is None: ===
 
     # weight for the control units against the remaining controls
     return loo_weights(X = X,

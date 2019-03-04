@@ -2,20 +2,20 @@
 # Programmer: Jason Thorpe
 # Date    1/11/2019 1:25:57 PM
 # Purpose:   Implement round-robin fitting of Sparse Synthetic Controls Model for DGP based analysis
-# Description:   
-# 
+# Description:
+#
 # This is intended for use in Proofs of concepts where the underlying data
 # model is known and the experiment is aimed at understing the extent to which
 # the SparseSC model correctly and efficiently estimates the underlying data
-# model. 
-# 
+# model
+#
 # This code therefor repeatedly splits the data into fitting and hold-out sets
 # in a round-robin fassion, fits the covariate coefficients in the fitting set,
 # applies the covariate weights estimsted in the fitting set to creat weights
 # for individual units in the held-out set, and returns the fitted weights and
 # synthetic controls for every unit.
-# 
-# Usage: 
+#
+# Usage:
 #
 #
 #    import sys
@@ -26,20 +26,19 @@
 #    sys.path.append(os.path.join(repo_path,'examples'))
 #    x = np.random.rand(100,20)
 #    y = np.random.rand(100,8)
-#    from fit_poc import fit_poc 
+#    from fit_poc import fit_poc
 #    weights, syntetic_y = fit_poc(x,y)
 #
-# 
+#
 # --------------------------------------------------------------------------------
 
-import pandas as pd
+from sklearn.model_selection import KFold
 import numpy as np
 import SparseSC as SC
-from sklearn.model_selection import KFold
 
 def fit_poc(X,Y,
-            Lambda_min = 1e-6,
-            Lambda_max = 1,
+            min_v_pen = 1e-6,
+            max_v_pen = 1,
             grid_points = 20,
             grid = None,
             # fold tuning parameters: either a integer or list of test/train subsets such as the result of calling Kfold().split()
@@ -50,7 +49,7 @@ def fit_poc(X,Y,
             ):
 
     if grid is None:
-        grid = np.exp(np.linspace(np.log(Lambda_min),np.log(Lambda_max),grid_points))
+        grid = np.exp(np.linspace(np.log(min_v_pen),np.log(max_v_pen),grid_points))
 
     assert X.shape[0] == Y.shape[0]
     out_weights = np.zeros( (Y.shape[0],X.shape[0] ))
@@ -73,14 +72,14 @@ def fit_poc(X,Y,
         Ytrain = Y[train,:]
         Ytest = Y[test,:]
 
-        # Get the L2 penalty guestimate:  very quick ( milliseconds )
-        L2_PEN_W  = SC.L2_pen_guestimate(Xtrain) 
+        # Get the weight penalty guestimate:  very quick ( milliseconds )
+        w_pen  = SC.w_pen_guestimate(Xtrain) 
 
-        # GET THE MAXIMUM LAMBDAS: quick ~ ( seconds to tens of seconds )
-        LAMBDA_max = SC.get_max_lambda(
+        # GET THE MAXIMUM v_penS: quick ~ ( seconds to tens of seconds )
+        v_pen_max = SC.get_max_v_pen(
                     Xtrain,
                     Ytrain,
-                    L2_PEN_W = L2_PEN_W,
+                    w_pen = w_pen,
                     grad_splits=gradient_folds,
                     learning_rate = 0.2, # initial learning rate
                     verbose=1)
@@ -93,14 +92,14 @@ def fit_poc(X,Y,
         scores = SC.CV_score( X = Xtrain,
                               Y = Ytrain,
                               splits = cv_folds,
-                              LAMBDA = grid * LAMBDA_max,
+                              v_pen = grid * v_pen_max,
                               progress = True,
-                              L2_PEN_W = L2_PEN_W,
+                              w_pen = w_pen,
                               grad_splits = gradient_folds) 
 
         # GET THE INDEX OF THE BEST SCORE
         best_i = np.argmin(scores)
-        best_lambda = (grid * LAMBDA_max)[best_i]
+        best_v_pen = (grid * v_pen_max)[best_i]
 
         # --------------------------------------------------
         # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -108,7 +107,7 @@ def fit_poc(X,Y,
 
         best_V = SC.tensor(X = Xtrain, 
                            Y = Ytrain,
-                           LAMBDA = best_lambda,
+                           v_pen = best_v_pen,
                            grad_splits = gradient_folds,
                            learning_rate = 0.2) 
 
@@ -116,7 +115,7 @@ def fit_poc(X,Y,
         out_of_sample_weights = SC.weights(Xtrain,
                                            Xtest,
                                            V = best_V,
-                                           L2_PEN_W = L2_PEN_W)
+                                           w_pen = w_pen)
 
         Y_SC_test = out_of_sample_weights.dot(Ytrain)
 

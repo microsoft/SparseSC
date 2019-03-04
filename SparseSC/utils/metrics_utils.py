@@ -1,7 +1,9 @@
+""" Utility functions
+"""
+from collections import namedtuple
 import numpy as np
 import itertools
 import warnings
-from collections import namedtuple
 
 def simulation_eval(effects, CI_lowers, CI_uppers, true_effect=0):
     te_mse = np.mean(np.square((effects-true_effect)))
@@ -58,7 +60,7 @@ def gen_placebo_stats_from_diffs(control_effect_vecs, effect_vecs=None,
     If there are multiple treated units then the averaging process needs to be
     done to generate placebos also.
     Generates 2-sided p-values
-  
+
     :param effect_vecs:
     :param control_effect_vecs:
     :param max_n_pl:
@@ -85,7 +87,7 @@ def gen_placebo_stats_from_diffs(control_effect_vecs, effect_vecs=None,
     rms_joint_effect = np.mean(rms_joint_effects)
     avg_joint_effect = np.mean(avg_joint_effects)
 
-    
+
     def _ncr(n, r):
         #https://stackoverflow.com/questions/4941753/is-there-a-math-ncr-function-in-python
         import operator as op

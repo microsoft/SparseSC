@@ -8,7 +8,7 @@ import numpy as np
 from concurrent import futures
 #from collections import namedtuple
 
-def score_train_test(X, 
+def score_train_test(X,
                      Y,
                      train,
                      test,
@@ -18,7 +18,7 @@ def score_train_test(X,
                      grad_splits=None,
                      **kwargs):
     """ Presents a unified api for ct_v_matrix and loo_v_matrix
-        and returns the v_mat, l2_pen_w (possibly calculated, possibly a parameter), and the score 
+        and returns the v_mat, w_pen (possibly calculated, possibly a parameter), and the score
 
         :param X: Matrix of covariates for untreated units
         :type X: coercible to :class:`numpy.matrix`
@@ -80,13 +80,13 @@ def score_train_test(X,
         if Y_treat.shape[1] == 0:
             raise ValueError("Y_treat.shape[1] == 0")
         if X_treat.shape[0] != Y_treat.shape[0]:
-            raise ValueError("X_treat and Y_treat have different number of rows (%s and %s)" % 
+            raise ValueError("X_treat and Y_treat have different number of rows (%s and %s)" %
                              (X.shape[0], Y.shape[0],))
 
-        # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
+        # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE w_pen
         # note that the weights, score, and loss function value returned here
         # are for the in-sample predictions
-        _, v_mat, _, _, l2_pen_w, _ = \
+        _, v_mat, _, _, w_pen, _ = \
                     ct_v_matrix(X = np.vstack((X,X_treat[train, :])),
                                 Y = np.vstack((Y,Y_treat[train, :])),
                                 treated_units = [X.shape[0] + i for i in  range(len(train))],
@@ -94,14 +94,14 @@ def score_train_test(X,
 
         # GET THE OUT-OF-SAMPLE PREDICTION ERROR
         s = ct_score(X = np.vstack((X,X_treat[test, :])),
-                     Y = np.vstack((Y,Y_treat[test, :])), 
+                     Y = np.vstack((Y,Y_treat[test, :])),
                      treated_units = [X.shape[0] + i for i in  range(len(test))],
                      V = v_mat,
-                     L2_PEN_W = l2_pen_w)
+                     w_pen = w_pen)
 
     else: # X_treat *is* None
         # >> K-fold validation on the only control units; assuming that Y
-        # contains post-intervention outcomes 
+        # contains post-intervention outcomes
         if grad_splits is not None:
 
 
@@ -118,12 +118,12 @@ def score_train_test(X,
 
                 grad_splits = [ (match(train,_X),match(train,_Y) ) for _X,_Y in grad_splits]
 
-            # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
+            # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE w_pen
             # note that the weights, score, and loss function value returned
             # here are for the in-sample predictions
-            _, v_mat, _, _, l2_pen_w, _ = \
+            _, v_mat, _, _, w_pen, _ = \
                     fold_v_matrix(X = X[train, :],
-                                  Y = Y[train, :], 
+                                  Y = Y[train, :],
                                   # treated_units = [X.shape[0] + i for i in  range(len(train))],
                                   grad_splits = grad_splits,
                                   **kwargs)
@@ -132,17 +132,17 @@ def score_train_test(X,
             s = ct_score(X = X, Y = Y,  # formerly: fold_score
                          treated_units = test,
                          V = v_mat,
-                         L2_PEN_W = l2_pen_w)
+                         w_pen = w_pen)
 
         else:
 
-            # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
+            # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE w_pen
             # note that the weights, score, and loss function value returned
             # here are for the in-sample predictions
             try:
-                _, v_mat, _, _, l2_pen_w, _ = \
+                _, v_mat, _, _, w_pen, _ = \
                         loo_v_matrix(X = X[train, :],
-                                     Y = Y[train, :], 
+                                     Y = Y[train, :],
                                      # treated_units = [X.shape[0] + i for i in  range(len(train))],
                                      **kwargs)
             except MemoryError:
@@ -150,56 +150,56 @@ def score_train_test(X,
                     "parameter to reduce memory requirements.")
 
             # GET THE OUT-OF-SAMPLE PREDICTION ERROR
-            s = ct_score(X = X, Y = Y, 
+            s = ct_score(X = X, Y = Y,
                          treated_units = test,
                          V = v_mat,
-                         L2_PEN_W = l2_pen_w)
+                         w_pen = w_pen)
 
-    return v_mat, l2_pen_w, s
+    return v_mat, w_pen, s
 
 
-def score_train_test_sorted_lambdas(LAMBDA,
+def score_train_test_sorted_v_pens(v_pen,
                                     start=None,
                                     cache=False,
                                     progress=False,
                                     FoldNumber=None,
                                     **kwargs):
     """ a wrapper which calls  score_train_test() for each element of an
-        array of `LAMBDA`'s, optionally caching the optimized v_mat and using it
+        array of `v_pen`'s, optionally caching the optimized v_mat and using it
         as the start position for the next iteration.
     """
 
     # DEFAULTS
-    values = [None]*len(LAMBDA)
+    values = [None]*len(v_pen)
 
     if progress > 0:
         import time
         t0 = time.time()
 
-    for i,Lam in enumerate(LAMBDA):
-        v_mat, _, _ = values[i] = score_train_test( LAMBDA = Lam, start = start, **kwargs)
+    for i,Lam in enumerate(v_pen):
+        v_mat, _, _ = values[i] = score_train_test( v_pen = Lam, start = start, **kwargs)
 
-        if cache: 
+        if cache:
             start = np.diag(v_mat)
         if progress > 0 and (i % progress) == 0:
-            t1 = time.time() 
+            t1 = time.time()
             if FoldNumber is None:
-                print("lambda: %0.4f, value %s of %s, time elapsed: %0.4f sec." % 
-                      (Lam, i+1, len(LAMBDA), t1 - t0, ))
-                #print("iteration %s of %s time: %0.4f ,lambda: %0.4f, diags: %s" % 
-                #      (i+1, len(LAMBDA), t1 - t0, Lam, np.diag(v_mat),))
+                print("v_pen: %0.4f, value %s of %s, time elapsed: %0.4f sec." %
+                      (Lam, i+1, len(v_pen), t1 - t0, ))
+                #print("iteration %s of %s time: %0.4f ,v_pen: %0.4f, diags: %s" %
+                #      (i+1, len(v_pen), t1 - t0, Lam, np.diag(v_mat),))
             else:
-                print("Fold %s,lambda: %0.4f, value %s of %s, time elapsed: %0.4f sec." % 
-                      (FoldNumber, Lam, i+1, len(LAMBDA), t1 - t0, ))
-                #print("Fold %s, iteration %s of %s, time: %0.4f ,lambda: %0.4f, diags: %s" % 
-                #      (FoldNumber, i+1, len(LAMBDA), t1 - t0, Lam, np.diag(v_mat),))
-            t0 = time.time() 
+                print("Fold %s,v_pen: %0.4f, value %s of %s, time elapsed: %0.4f sec." %
+                      (FoldNumber, Lam, i+1, len(v_pen), t1 - t0, ))
+                #print("Fold %s, iteration %s of %s, time: %0.4f ,v_pen: %0.4f, diags: %s" %
+                #      (FoldNumber, i+1, len(v_pen), t1 - t0, Lam, np.diag(v_mat),))
+            t0 = time.time()
 
     return list(zip(*values))
 
 
 def CV_score(X,Y,
-             LAMBDA,
+             v_pen,
              X_treat=None,
              Y_treat=None,
              splits=5,
@@ -209,7 +209,7 @@ def CV_score(X,Y,
              max_workers=None,
              progress=None,
              **kwargs):
-    """ Cross fold validation for 1 or more L1 Penalties, holding the L2 penalty fixed. 
+    """ Cross fold validation for 1 or more v Penalties, holding the w penalty fixed.
     """
 
     # PARAMETER QC
@@ -228,19 +228,19 @@ def CV_score(X,Y,
     if Y.shape[1] == 0:
         raise ValueError("Y.shape[1] == 0")
     if X.shape[0] != Y.shape[0]:
-        raise ValueError("X and Y have different number of rows (%s and %s)" % 
+        raise ValueError("X and Y have different number of rows (%s and %s)" %
                          (X.shape[0], Y.shape[0],))
 
     try:
-        _LAMBDA = iter(LAMBDA)
+        _v_pen = iter(v_pen)
     except TypeError:
-        # Lambda is a single value 
-        multi_lambda = False
+        # v_pen is a single value
+        multi_v_pen = False
         __score_train_test__ = score_train_test
     else:
-        # Lambda is an iterable of values
-        multi_lambda = True
-        __score_train_test__ = score_train_test_sorted_lambdas
+        # v_pen is an iterable of values
+        multi_v_pen = True
+        __score_train_test__ = score_train_test_sorted_v_pens
 
     if X_treat is not None:
 
@@ -257,24 +257,24 @@ def CV_score(X,Y,
             raise ValueError("X_treat.shape[1] == 0")
         if Y_treat.shape[1] == 0:
             raise ValueError("Y_treat.shape[1] == 0")
-        if X_treat.shape[0] != Y_treat.shape[0]: 
-            raise ValueError("X_treat and Y_treat have different number of rows (%s and %s)" % 
+        if X_treat.shape[0] != Y_treat.shape[0]:
+            raise ValueError("X_treat and Y_treat have different number of rows (%s and %s)" %
                              (X_treat.shape[0], Y_treat.shape[0],))
 
         try:
             iter(splits)
-        except TypeError: 
+        except TypeError:
             from sklearn.model_selection import KFold
             splits = KFold(splits,True).split(np.arange(X_treat.shape[0]))
         train_test_splits = list(splits)
         n_splits = len(train_test_splits)
 
         # MESSAGING
-        if not quiet: 
+        if not quiet:
             print("%s-fold validation with %s control and %s treated units %s predictors and %s outcomes, holding out one fold among Treated units; Assumes that `Y` and `Y_treat` are pre-intervention outcomes" % # pylint: disable=line-too-long
                   (n_splits, X.shape[0] , X_treat.shape[0],X.shape[1],Y.shape[1],))
 
-        if parallel: 
+        if parallel:
 
             if max_workers is None:
                 # CALCULATE A DEFAULT FOR MAX_WORKERS
@@ -293,14 +293,14 @@ def CV_score(X,Y,
                 promises = [ _worker_pool.submit(__score_train_test__,
                                                  X = X,
                                                  Y = Y,
-                                                 LAMBDA = LAMBDA,
-                                                 X_treat = X_treat, 
-                                                 Y_treat = Y_treat, 
+                                                 v_pen = v_pen,
+                                                 X_treat = X_treat,
+                                                 Y_treat = Y_treat,
                                                  train = train,
                                                  test = test,
                                                  FoldNumber = fold,
                                                  **kwargs)
-                             for fold, (train,test) in enumerate(train_test_splits) ] 
+                             for fold, (train,test) in enumerate(train_test_splits) ]
                 results = [ promise.result() for promise in futures.as_completed(promises)]
 
             finally:
@@ -311,32 +311,32 @@ def CV_score(X,Y,
 
             results = [ __score_train_test__(X = X,
                                              Y = Y,
-                                             X_treat = X_treat, 
-                                             Y_treat = Y_treat, 
-                                             LAMBDA = LAMBDA,
+                                             X_treat = X_treat,
+                                             Y_treat = Y_treat,
+                                             v_pen = v_pen,
                                              train = train,
                                              test = test,
                                              FoldNumber = fold,
                                              **kwargs)
-                        for fold, (train,test) in enumerate(train_test_splits) ] 
+                        for fold, (train,test) in enumerate(train_test_splits) ]
 
 
     else: # X_treat *is* None
 
         try:
             iter(splits)
-        except TypeError: 
+        except TypeError:
             from sklearn.model_selection import KFold
             splits = KFold(splits).split(np.arange(X.shape[0]))
         train_test_splits = [ x for x in splits ]
         n_splits = len(train_test_splits)
 
         # MESSAGING
-        if not quiet: 
+        if not quiet:
             print("%s-fold Cross Validation with %s control units, %s predictors and %s outcomes; Y may contain post-intervention outcomes" % # pylint: disable=line-too-long
                   (n_splits, X.shape[0],X.shape[1],Y.shape[1],) )
 
-        if parallel: 
+        if parallel:
 
             if max_workers is None:
                 # CALCULATE A DEFAULT FOR MAX_WORKERS
@@ -355,12 +355,12 @@ def CV_score(X,Y,
                 promises = [ _worker_pool.submit(__score_train_test__,
                                                  X = X,
                                                  Y = Y,
-                                                 LAMBDA = LAMBDA,
+                                                 v_pen = v_pen,
                                                  train = train,
                                                  test = test,
                                                  FoldNumber = fold,
                                                  **kwargs)
-                             for fold, (train,test) in enumerate(train_test_splits) ] 
+                             for fold, (train,test) in enumerate(train_test_splits) ]
 
                 results = [ promise.result() for promise in futures.as_completed(promises)]
 
@@ -371,17 +371,17 @@ def CV_score(X,Y,
         else:
             results = [ __score_train_test__(X = X,
                                              Y = Y,
-                                             LAMBDA = LAMBDA,
+                                             v_pen = v_pen,
                                              train = train,
                                              test = test,
                                              FoldNumber = fold,
                                              **kwargs)
-                        for fold, (train,test) in enumerate(train_test_splits) ] 
+                        for fold, (train,test) in enumerate(train_test_splits) ]
 
     # extract the score.
     _, _, scores = list(zip(* results))
 
-    if multi_lambda:
+    if multi_v_pen:
         total_score = [sum(s) for s in zip(*scores)]
     else:
         total_score = sum(scores)

@@ -1,10 +1,10 @@
 """ Optimizer for covariate weights restricted to the positive orthant.
 """
 import numpy as np
-from collections import namedtuple 
+from collections import namedtuple
 from scipy.optimize import line_search
 
-import locale 
+import locale
 locale.setlocale(locale.LC_ALL, '')
 
 cd_res = namedtuple("cd_res", ["x","fun",])
@@ -26,7 +26,7 @@ def cdl_step(score,
 
         guess: Initial parameter for the objective function
 
-        jac: Gradient function for the objective function 
+        jac: Gradient function for the objective function
 
         val: Initial value for the objective function. Optional; defalts to ``score(guess)``
 
@@ -52,7 +52,7 @@ def cdl_step(score,
     assert 0 < learning_rate < 1
     assert 0 < decrement < 1
 
-    if val is None: 
+    if val is None:
         val = score(guess)
     grad = jac(guess)
     # constrain to the positive orthant
@@ -66,16 +66,16 @@ def cdl_step(score,
         # return guess,val
 
     direction = - (learning_rate * val * grad) / grad.dot(grad.T)
-    # THE ABOVE IS EQUIVALENT TO : 
+    # THE ABOVE IS EQUIVALENT TO :
     # step_magnitude = learning_rate*val/np.linalg.norm(grad)
     # direction = -step_magnitude * (grad / np.linalg.norm(grad))
 
-    while True: 
+    while True:
         new_val = score( direction)
         if new_val < val:
             return direction, new_val
         direction *= decrement
-        if sum(direction) < zero_eps:  
+        if sum(direction) < zero_eps:
             raise RuntimeError("Failed to take a step")
 
 def cdl_search(score,
@@ -97,7 +97,7 @@ def cdl_search(score,
     and is *much* slower than that the super-fast 40 year old Fortran code
     wrapped by SciPy.
 
-    score function 
+    score function
     '''
     assert 0 < learning_rate < 1
     assert 0 < learning_rate_adjustment < 1
@@ -111,7 +111,7 @@ def cdl_search(score,
     val = score(x_curr)
     if (x_curr == np.zeros(x_curr.shape[0])).all():
         val0 = val
-    else: 
+    else:
         val0 = score(np.zeros(x_curr.shape[0]))
 
 #--     if (x_curr == 0).all():
@@ -137,7 +137,7 @@ def cdl_search(score,
         if (grad[np.logical_not(invalid_directions)] == 0).all():
             # this happens when we're stuck at the origin and the gradient is
             # pointing in the all-negative direction
-            if print_stop_iteration: 
+            if print_stop_iteration:
                 print("[STOP ITERATION: gradient is zero] i: %s" % (_i,))
             return cd_res(x_curr, val)
 
@@ -146,11 +146,11 @@ def cdl_search(score,
         grad[invalid_directions] = 0
 
         direction = - (learning_rate * val * grad) / grad.dot(grad.T)
-        # THE ABOVE IS EQUIVALENT TO : 
+        # THE ABOVE IS EQUIVALENT TO :
         # step_magnitude = learning_rate*val/np.linalg.norm(grad)
         # direction = -step_magnitude * (grad / np.linalg.norm(grad))
 
-        # adaptively adjust the step size: 
+        # adaptively adjust the step size:
         direction *= (learning_rate_adjustment ** alpha_t)
 
         # constrain the gradient to being non-negative on axis where the
@@ -158,7 +158,7 @@ def cdl_search(score,
         if (direction<0).any() and preserve_angle:
             constrained = True
             alpha_ratios = - direction[ direction <0 ] / x_curr[ direction <0 ]
-            if (alpha_ratios > 1).any(): 
+            if (alpha_ratios > 1).any():
                 max_alpha = alpha_ratios.max()
             else:
                 max_alpha = 1
@@ -166,7 +166,7 @@ def cdl_search(score,
             constrained = False
             max_alpha = 1
 
-        if print_path_verbose: 
+        if print_path_verbose:
             print("[STARTING LINE SEARCH]")
         res = line_search(f = zed_wrapper(score),
                           myfprime = zed_wrapper(jac),
@@ -174,10 +174,10 @@ def cdl_search(score,
                           pk = direction/max_alpha,
                           gfk = grad,
                           old_fval = val,
-                          old_old_fval = val_old) # 
-        if print_path_verbose: 
+                          old_old_fval = val_old) #
+        if print_path_verbose:
             print("[FINISHED LINE SEARCH]")
-        alpha, _, _, _, _, _ = res 
+        alpha, _, _, _, _, _ = res
         if alpha is not None:
             # adjust the future step size
             if alpha >= 1:
@@ -185,29 +185,29 @@ def cdl_search(score,
             else:
                 alpha_t += 1
         elif constrained:
-            for j in range(5): # formerly range(17), but that was excessive, 
+            for j in range(5): # formerly range(17), but that was excessive,
                 # in general, this succeeds happens when alpha >= 0.1 (super
                 # helpful) or alpha <= 1e-14 (super useless)
                 if score(x_curr - (.3**j)*grad/max_alpha) < val:
                     # This can occur when the strong wolf condition insists that the
                     # current step size is too small (i.e. the gradient is too
-                    # consistent with the function to think that a small step is 
+                    # consistent with the function to think that a small step is
                     # optimal for a global (unconstrained) optimization.
                     alpha = (.3**j)
 
                     # i secretly think this is stupid.
-                    if print_stop_iteration: 
+                    if print_stop_iteration:
                         print("[STOP ITERATION: simple line search worked :)] i: %s, alpha: 1e-%s" % (_i,j)) #pylint: disable=line-too-long
                     break
             else:
                 # moving in the direction of the gradient yielded no improvement: stop
-                if print_stop_iteration: 
+                if print_stop_iteration:
                     print("[STOP ITERATION: simple line search failed] i: %s" % (_i,))
                 return cd_res(x_curr, val)
         else:
             # moving in the direction of the gradient yielded no improvement: stop
-            if print_stop_iteration: 
-                print("[STOP ITERATION: alpha is None] i: %s, grad: %s, step: %s" % 
+            if print_stop_iteration:
+                print("[STOP ITERATION: alpha is None] i: %s, grad: %s, step: %s" %
                       (_i, grad, direction/max_alpha, ))
             return cd_res(x_curr, val)
 
@@ -229,13 +229,13 @@ def cdl_search(score,
 #--         x_curr[abs(x_curr) < zero_eps] = 0
 #--         x_curr[x_curr < zero_eps] = 0
 #--         if (xtmp != x_curr).any():
-#--             if print_path_verbose: 
+#--             if print_path_verbose:
 #--                 print('[CLEARING GRADIENT]')
 #--             grad = None
         # NOT SURE IF THIS IS NECESSARY NOW THAT THE GRAD IS WRAPPED IN ZED_WRAPPER
         # NOT SURE IF THIS IS NECESSARY NOW THAT THE GRAD IS WRAPPED IN ZED_WRAPPER
 
-        if print_path: 
+        if print_path:
             print("[Path] i: %s, In Sample R^2: %0.6f, incremental R^2:: %0.6f, learning rate: %0.5f,  alpha: %0.5f, zeros: %s"  %  #pylint: disable=line-too-long
                   (_i,  1- val / val0, (val_diff/ val0), learning_rate * (learning_rate_adjustment ** alpha_t), alpha, sum( x_curr == 0))) #pylint: disable=line-too-long
             if print_path_verbose:
@@ -245,13 +245,13 @@ def cdl_search(score,
         if (x_curr == 0).all() and (x_old == 0).all():
             # this happens when we were at the origin and the gradient didn't
             # take us out of the range of zero_eps
-            if _i == 0: 
+            if _i == 0:
                 x_curr, val = cdl_step (score, guess, jac, val, learning_rate, zero_eps, print_path)
                 if (x_curr == 0).all():
-                    if print_stop_iteration: 
+                    if print_stop_iteration:
                         print("[STOP ITERATION: Stuck at the origin] iteration: %s"% (_i,))
             if (x_curr == 0).all():
-                if print_stop_iteration: 
+                if print_stop_iteration:
                     print("[STOP ITERATION: Stuck at the origin] iteration: %s"% (_i,))
                 return cd_res(x_curr, score(x_curr)) # tricky tricky...
 
@@ -260,13 +260,13 @@ def cdl_search(score,
             raise RuntimeError("An internal Error Occured: (x_curr < 0).any()")
 
         if val_diff/val < tol:
-            # this a heuristic rule, to be sure, but seems to be useful. 
+            # this a heuristic rule, to be sure, but seems to be useful.
             # TODO: this is kinda stupid without a minimum on the learning rate
             # (i.e. `learning_rate`).
             if _i > min_iter:
                 if print_stop_iteration:
                     # this is kida stupid
-                    print("[STOP ITERATION: val_diff/val < tol] i: %s, val: %s, val_diff: %s" % 
+                    print("[STOP ITERATION: val_diff/val < tol] i: %s, val: %s, val_diff: %s" %
                           (_i, val, val_diff, ))
                 return cd_res(x_curr, val)
 
