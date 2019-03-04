@@ -9,10 +9,49 @@ def simulation_eval(effects, CI_lowers, CI_uppers, true_effect=0):
     ci_len = np.mean(CI_uppers-CI_lowers)
     return (te_mse, cov, ci_len)
 
-EstResultCI = namedtuple('EstResults', 'effect p ci placebos')
+class CI_int(object):
+    def __init__(self, ci_low, ci_high, level):
+        self.ci_low = ci_low
+        self.ci_high = ci_high
+        self.level = level
+
+    
+    def get_str(self, i=None):
+        if i is None:
+            return("[" + str(self.level) + " ci: " + str(self.ci_low) + ", " + str(self.ci_high) + "]")
+        else:
+            return("[" + str(self.level) + " ci: " + str(self.ci_low[i]) + ", " + str(self.ci_high) + "]")
+
+#EstResultCI = namedtuple('EstResults', 'effect p ci placebos')
+class EstResultCI(object):
+    def __init__(self, effect, p, ci=None, placebos=None):
+        self.effect = effect
+        self.p = p
+        self.ci = ci
+        self.placebos = placebos
+
+    def __str__(self):
+        def __ind_effect_str(effect, p):
+            return(str(effect) + " (p-value: " + str(p) + ")")
+
+        try:
+            iter(self.effect)
+        except:
+            ret_str = __ind_effect_str(self.effect, self.p)
+            if self.ci is not None:
+                ret_str = ret_str + " " + self.ci.get_str()
+            return(ret_str)
+        ret_str = ""
+        for i in range(len(self.effect)):
+             ret_str = ret_str + __ind_effect_str(self.effect[i], self.p[i]) 
+             if self.ci is not None:
+                 ret_str = ret_str + " " + self.ci.get_str(i)
+             ret_str = ret_str + "\n"
+        return(ret_str)
+
 PlaceboResults = namedtuple('PlaceboResults', 'effect_vec avg_joint_effect rms_joint_effect N_placebo')
 
-def gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs, 
+def gen_placebo_stats_from_diffs(control_effect_vecs, effect_vecs=None, 
                                  max_n_pl = 1000000, ret_pl = False, ret_CI=False, level=0.95):
     """Generates placebo distribution to compare effects against. 
     For a single treated unit  this is just the control effects.
@@ -89,14 +128,14 @@ def gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs,
         placebo_effect_vecs = None
         placebo_avg_joint_effects = None
         placebo_rms_joint_effects = None
-    vec_p = np.zeros((1,T1))
+    vec_p = np.zeros(T1)
     rms_joint_p = 0
     avg_joint_p = 0
 
     for idx, comb in enumerate(comb_iter):
         placebo_effect_vec = np.mean(control_effect_vecs[comb,:], 0)
-        placebo_rms_joint_effect = np.mean(control_rms_joint_effects[comb])
-        placebo_avg_joint_effect = np.mean(control_avg_joint_effects[comb])
+        placebo_rms_joint_effect = np.mean(control_rms_joint_effects.take(comb))
+        placebo_avg_joint_effect = np.mean(control_avg_joint_effects.take(comb))
             
         #p1s += (effect_vec_sgn*placebo_effect_vec >= effect_vec_sgn*effect_vec)
         #p1s_std += (effect_vec_sgn*placebo_std_effect_vec >= effect_vec_sgn*std_effect_vec)
@@ -144,9 +183,12 @@ def gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs,
         CI_vec = np.empty((2,T1))
         for t in range(T1):
             CI_vec[:,t] = _gen_CI(placebo_effect_vecs[:,t], alpha_ind, effect_vec[t])
+        CI_vec = CI_int(CI_vec[0,:], CI_vec[1,:], level)
 
         CI_avg = _gen_CI(placebo_avg_joint_effects, alpha_ind, avg_joint_effect)
+        CI_avg = CI_int(CI_avg[0], CI_avg[1], level)
         CI_rms = _gen_CI(placebo_rms_joint_effects, alpha_ind, rms_joint_effect)
+        CI_rms = CI_int(CI_rms[0], CI_rms[1], level)
 
     else:
         CI_vec = None

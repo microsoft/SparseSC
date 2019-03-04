@@ -3,6 +3,8 @@ import numpy as np
 import random
 import SparseSC as SC
 
+exec(open("../examples/example_graphs.py").read()) #if we don't want an __init.py__
+
 def ge_dgp(N0,N1,T0,T1,K,S,R,groups,group_scale,beta_scale,confounders_scale,model= "full"):
     """
     From example-code.py
@@ -134,28 +136,42 @@ class TestDGPs(unittest.TestCase):
         '''
         No X, just Y. half the donors are great, other half are bad
         '''
-        N1,N0_sim,N0_not = 1,50,50
+        N1,N0_sim,N0_not = 2,50,50
         N0 = N0_sim + N0_not
         N=N1+N0
-        treated_units = [0]
-        control_units = range(1,N)
+        treated_units = range(N1)
+        control_units = range(N1,N)
         T0,T1 = 5, 5
         T=T0+T1
         proto_sim = np.array(range(0,T,1),ndmin=2)
         proto_not = np.array(range(0,2*T,2),ndmin=2)
         te = np.hstack((np.zeros((1,T0)), np.full((1,T0), 2)))
-        Y1 = proto_sim + te
+        proto_tr = proto_sim + te
+        Y1 = np.matmul(np.ones((N1,1)), proto_tr)
         Y0_sim = np.matmul(np.ones((N0_sim,1)), proto_sim)
         Y0_not = np.matmul(np.ones((N0_not,1)), proto_not)
         Y = np.vstack((Y1,Y0_sim,Y0_not))
-
-        ret = SC.estimate_effects(Y[:,:T0], Y[:,T0:], treated_units, covariate_penalties=[15259436.3697], weight_penalty=0.00000000001, ret_CI=True)
+        ret_full = SC.estimate_effects(Y[:,:T0], Y[:,T0:], treated_units, ret_CI=True, max_n_pl=200) #just getting V_pen
+        V_penalty = ret_full.fit.V_penalty
+        ret = SC.estimate_effects(Y[:,:T0], Y[:,T0:], treated_units, covariate_penalties=[V_penalty], weight_penalty=0.00000000001, ret_CI=True)
         Y_sc = ret.fit.predict(Y[control_units, :])
         te = (Y-Y_sc)[0:T0:]
         weight_sums = np.sum(ret.fit.sc_weights, axis=1)
-        print(weight_sums[0])
-        print(np.mean(weight_sums[0]))
+        #print(weight_sums[0])
+        #print(np.mean(weight_sums[0]))
         print(ret)
+
+        [sc_raw, sc_diff] = ind_sc_plots(Y[0,:], Y_sc[0,:], T0, ind_ci=ret.ind_CI)
+        plt.figure("sc_raw")
+        plt.title("Unit 0")
+        sc_raw.show()
+        #plt.figure("sc_diff")
+        #plt.title("Unit 0")
+        #sc_diff.show()
+        [te] = te_plot(ret)
+        #plt.figure("te")
+        #plt.title("Average Treatment Effect")
+        #te.show()
 
 
 

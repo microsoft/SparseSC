@@ -536,12 +536,29 @@ def estimate_effects(Y_pre,
                      weight_penalty = None,
                      covariate_penalties=None,
                      **kwargs):
+    r"""
+        Determines statistical significance for average and individual effects
+        :param Y_pre: N x T0 matrix
+        :param Y_post: N x T1 matrix
+        :param treated_units:
+        :param X: N x K (or None)
+        :param max_n_pl: The full number of placebos is choose(N0,N1). If N1=1 then this is N0. This number grows
+            quickly with N1 so we can set a maximum that we compute and this is drawn at random.
+        :param ret_pl: Return the matrix of placebos (different from the SC of the controls when N1>1)
+        :param ret_CI:
+        :param level:
+        :param weight_penalty:
+        :param covariate_penalties:
+    
+        :Keyword Args: Passed on to fit()
+    """
     #TODO: Cleanup returning placebo distribution (incl pre?)
     N1 = len(treated_units)
     N = Y_pre.shape[0]
     N0 = N - N1
     T0 = Y_pre.shape[1]
     T1 = Y_post.shape[1]
+    T = T0 + T1
     Y = np.hstack((Y_pre, Y_post))
     control_units = list(set(range(N)) - set(treated_units)) 
 
@@ -559,30 +576,64 @@ def estimate_effects(Y_pre,
 
     #diagnostics
     diffs_pre = diffs[:,:T0]
-    pl_res_pre = gen_placebo_stats_from_diffs(diffs_pre[treated_units,:], diffs_pre[control_units,:], 
+    pl_res_pre = gen_placebo_stats_from_diffs(diffs_pre[control_units,:], diffs_pre[treated_units,:],  
                                           max_n_pl, ret_pl, ret_CI, level)
 
     #effects
     diffs_post = diffs[:,T0:]
-    pl_res_post = gen_placebo_stats_from_diffs(diffs_post[treated_units,:], diffs_post[control_units,:], 
+    pl_res_post = gen_placebo_stats_from_diffs(diffs_post[control_units,:], diffs_post[treated_units,:], 
                                           max_n_pl, ret_pl, ret_CI, level)
     
     rmspes_pre = np.sqrt(np.mean(np.square(diffs_pre), axis=1))
     diffs_post_scaled = np.diagflat(1/rmspes_pre).dot(diffs_post)
-    pl_res_post_scaled = gen_placebo_stats_from_diffs(diffs_post_scaled[treated_units,:], diffs_post_scaled[control_units,:], 
+    pl_res_post_scaled = gen_placebo_stats_from_diffs(diffs_post_scaled[control_units,:], diffs_post_scaled[treated_units,:], 
                                           max_n_pl, ret_pl, ret_CI, level)
+
+    if ret_CI:
+        if N1>1:
+            ind_CI = gen_placebo_stats_from_diffs(diffs[control_units,:], np.zeros((1,T)),  
+                                                  max_n_pl, False, True, level).effect_vec.ci
+        else:
+            base = np.concatenate((pl_res_pre.effect_vec.effect, pl_res_post.effect_vec.effect))
+            ci0 = np.concatenate((pl_res_pre.effect_vec.ci.ci_low, pl_res_post.effect_vec.ci.ci_low))
+            ci1 = np.concatenate((pl_res_pre.effect_vec.ci.ci_high, pl_res_post.effect_vec.ci.ci_high))
+            ind_CI = CI_ind(ci0 - base, ci1 - base, level)
+    else:
+        ind_CI = None
     
-    return SparseSCEstResults(fit_res, pl_res_pre, pl_res_post, pl_res_post_scaled)
+    return SparseSCEstResults(fit_res, pl_res_pre, pl_res_post, pl_res_post_scaled, ind_CI)
 
 class SparseSCEstResults(object):
     """
     Holds estimation info
     """
-    def __init__(self, fit, pl_res_pre, pl_res_post, pl_res_post_scaled):
+    def __init__(self, fit, pl_res_pre, pl_res_post, pl_res_post_scaled, ind_CI=None):
+        """
+            :param fit: The fit() return object
+            :param pl_res_pre: Statistics for the average fit of the treated units in the pre-period (used for diagnostics)
+            :param pl_res_post: Statistics for the average treatment effect in the post-period
+            :param pl_res_pre: Statistics for the average scaled treatment effect (difference divided by pre-treatment RMS fit) in the post-period.
+            :param ind_CI: Confidence intervals for SC predictions at the unit level (not averaged over N1). 
+                Used for graphing rather than treatment effect statistics
+        """
         self.fit = fit
         self.pl_res_pre = pl_res_pre
         self.pl_res_post = pl_res_post
         self.pl_res_post_scaled = pl_res_post_scaled
+        self.ind_CI = ind_CI
 
-    #__str__(self):
-    #    str_ret = "Diagnostics: "
+    def __str__(self):
+        """
+        Parts that are omitted:
+        * Diagnostics: joint_rms, effect_vec
+        * Effect: joint_rms
+        * Effect (Scaled): all
+        """
+        level_str = "< "  + str(1-self.pl_res_pre.avg_joint_effect.ci.level) if self.pl_res_pre.avg_joint_effect.ci is not None else "close to 0"
+        str_ret = "Pre-period fit diagnostic: Were we the treated harder to match in the pre-period than the controls were.\n" + \
+            "Average difference in outcome for pre-period between treated and SC unit (concerning if p-value " + level_str + " ): " + str(self.pl_res_pre.avg_joint_effect) + "\n" + \
+            "(Investigate per-period match quality more using self.pl_res_pre.effect_vec)\n\n" + \
+            "Average Effect Estimation: " + str(self.pl_res_post.avg_joint_effect) + "\n\n" + \
+            "Effect Path Estimation:\n" + str(self.pl_res_post.effect_vec)
+        return(str_ret)
+
