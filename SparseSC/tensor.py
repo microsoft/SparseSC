@@ -49,7 +49,7 @@ def tensor(X, Y, X_treat=None, Y_treat=None, grad_splits=None, **kwargs):
             raise ValueError("X_treat and Y_treat have different number of rows (%s and %s)" %
                              (X_treat.shape[0], Y_treat.shape[0],))
 
-        # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
+        # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE w_pen
         # note that the weights, score, and loss function value returned here
         # are for the in-sample predictions
         _, v_mat, _, _, _, _ = \

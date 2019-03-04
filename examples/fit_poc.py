@@ -73,13 +73,13 @@ def fit_poc(X,Y,
         Ytest = Y[test,:]
 
         # Get the L2 penalty guestimate:  very quick ( milliseconds )
-        L2_PEN_W  = SC.L2_pen_guestimate(Xtrain) 
+        w_pen  = SC.L2_pen_guestimate(Xtrain) 
 
-        # GET THE MAXIMUM LAMBDAS: quick ~ ( seconds to tens of seconds )
-        LAMBDA_max = SC.get_max_lambda(
+        # GET THE MAXIMUM v_penS: quick ~ ( seconds to tens of seconds )
+        v_pen_max = SC.get_max_lambda(
                     Xtrain,
                     Ytrain,
-                    L2_PEN_W = L2_PEN_W,
+                    w_pen = w_pen,
                     grad_splits=gradient_folds,
                     learning_rate = 0.2, # initial learning rate
                     verbose=1)
@@ -92,14 +92,14 @@ def fit_poc(X,Y,
         scores = SC.CV_score( X = Xtrain,
                               Y = Ytrain,
                               splits = cv_folds,
-                              LAMBDA = grid * LAMBDA_max,
+                              v_pen = grid * v_pen_max,
                               progress = True,
-                              L2_PEN_W = L2_PEN_W,
+                              w_pen = w_pen,
                               grad_splits = gradient_folds) 
 
         # GET THE INDEX OF THE BEST SCORE
         best_i = np.argmin(scores)
-        best_lambda = (grid * LAMBDA_max)[best_i]
+        best_lambda = (grid * v_pen_max)[best_i]
 
         # --------------------------------------------------
         # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -107,7 +107,7 @@ def fit_poc(X,Y,
 
         best_V = SC.tensor(X = Xtrain, 
                            Y = Ytrain,
-                           LAMBDA = best_lambda,
+                           v_pen = best_lambda,
                            grad_splits = gradient_folds,
                            learning_rate = 0.2) 
 
@@ -115,7 +115,7 @@ def fit_poc(X,Y,
         out_of_sample_weights = SC.weights(Xtrain,
                                            Xtest,
                                            V = best_V,
-                                           L2_PEN_W = L2_PEN_W)
+                                           w_pen = w_pen)
 
         Y_SC_test = out_of_sample_weights.dot(Ytrain)
 

@@ -18,7 +18,7 @@ def score_train_test(X,
                      grad_splits=None,
                      **kwargs):
     """ Presents a unified api for ct_v_matrix and loo_v_matrix
-        and returns the v_mat, l2_pen_w (possibly calculated, possibly a parameter), and the score
+        and returns the v_mat, w_pen (possibly calculated, possibly a parameter), and the score
 
         :param X: Matrix of covariates for untreated units
         :type X: coercible to :class:`numpy.matrix`
@@ -83,10 +83,10 @@ def score_train_test(X,
             raise ValueError("X_treat and Y_treat have different number of rows (%s and %s)" %
                              (X.shape[0], Y.shape[0],))
 
-        # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
+        # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE w_pen
         # note that the weights, score, and loss function value returned here
         # are for the in-sample predictions
-        _, v_mat, _, _, l2_pen_w, _ = \
+        _, v_mat, _, _, w_pen, _ = \
                     ct_v_matrix(X = np.vstack((X,X_treat[train, :])),
                                 Y = np.vstack((Y,Y_treat[train, :])),
                                 treated_units = [X.shape[0] + i for i in  range(len(train))],
@@ -97,7 +97,7 @@ def score_train_test(X,
                      Y = np.vstack((Y,Y_treat[test, :])),
                      treated_units = [X.shape[0] + i for i in  range(len(test))],
                      V = v_mat,
-                     L2_PEN_W = l2_pen_w)
+                     w_pen = w_pen)
 
     else: # X_treat *is* None
         # >> K-fold validation on the only control units; assuming that Y
@@ -118,10 +118,10 @@ def score_train_test(X,
 
                 grad_splits = [ (match(train,_X),match(train,_Y) ) for _X,_Y in grad_splits]
 
-            # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
+            # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE w_pen
             # note that the weights, score, and loss function value returned
             # here are for the in-sample predictions
-            _, v_mat, _, _, l2_pen_w, _ = \
+            _, v_mat, _, _, w_pen, _ = \
                     fold_v_matrix(X = X[train, :],
                                   Y = Y[train, :],
                                   # treated_units = [X.shape[0] + i for i in  range(len(train))],
@@ -132,15 +132,15 @@ def score_train_test(X,
             s = ct_score(X = X, Y = Y,  # formerly: fold_score
                          treated_units = test,
                          V = v_mat,
-                         L2_PEN_W = l2_pen_w)
+                         w_pen = w_pen)
 
         else:
 
-            # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
+            # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE w_pen
             # note that the weights, score, and loss function value returned
             # here are for the in-sample predictions
             try:
-                _, v_mat, _, _, l2_pen_w, _ = \
+                _, v_mat, _, _, w_pen, _ = \
                         loo_v_matrix(X = X[train, :],
                                      Y = Y[train, :],
                                      # treated_units = [X.shape[0] + i for i in  range(len(train))],
@@ -153,31 +153,31 @@ def score_train_test(X,
             s = ct_score(X = X, Y = Y,
                          treated_units = test,
                          V = v_mat,
-                         L2_PEN_W = l2_pen_w)
+                         w_pen = w_pen)
 
-    return v_mat, l2_pen_w, s
+    return v_mat, w_pen, s
 
 
-def score_train_test_sorted_lambdas(LAMBDA,
+def score_train_test_sorted_lambdas(v_pen,
                                     start=None,
                                     cache=False,
                                     progress=False,
                                     FoldNumber=None,
                                     **kwargs):
     """ a wrapper which calls  score_train_test() for each element of an
-        array of `LAMBDA`'s, optionally caching the optimized v_mat and using it
+        array of `v_pen`'s, optionally caching the optimized v_mat and using it
         as the start position for the next iteration.
     """
 
     # DEFAULTS
-    values = [None]*len(LAMBDA)
+    values = [None]*len(v_pen)
 
     if progress > 0:
         import time
         t0 = time.time()
 
-    for i,Lam in enumerate(LAMBDA):
-        v_mat, _, _ = values[i] = score_train_test( LAMBDA = Lam, start = start, **kwargs)
+    for i,Lam in enumerate(v_pen):
+        v_mat, _, _ = values[i] = score_train_test( v_pen = Lam, start = start, **kwargs)
 
         if cache:
             start = np.diag(v_mat)
@@ -185,21 +185,21 @@ def score_train_test_sorted_lambdas(LAMBDA,
             t1 = time.time()
             if FoldNumber is None:
                 print("lambda: %0.4f, value %s of %s, time elapsed: %0.4f sec." %
-                      (Lam, i+1, len(LAMBDA), t1 - t0, ))
+                      (Lam, i+1, len(v_pen), t1 - t0, ))
                 #print("iteration %s of %s time: %0.4f ,lambda: %0.4f, diags: %s" %
-                #      (i+1, len(LAMBDA), t1 - t0, Lam, np.diag(v_mat),))
+                #      (i+1, len(v_pen), t1 - t0, Lam, np.diag(v_mat),))
             else:
                 print("Fold %s,lambda: %0.4f, value %s of %s, time elapsed: %0.4f sec." %
-                      (FoldNumber, Lam, i+1, len(LAMBDA), t1 - t0, ))
+                      (FoldNumber, Lam, i+1, len(v_pen), t1 - t0, ))
                 #print("Fold %s, iteration %s of %s, time: %0.4f ,lambda: %0.4f, diags: %s" %
-                #      (FoldNumber, i+1, len(LAMBDA), t1 - t0, Lam, np.diag(v_mat),))
+                #      (FoldNumber, i+1, len(v_pen), t1 - t0, Lam, np.diag(v_mat),))
             t0 = time.time()
 
     return list(zip(*values))
 
 
 def CV_score(X,Y,
-             LAMBDA,
+             v_pen,
              X_treat=None,
              Y_treat=None,
              splits=5,
@@ -232,7 +232,7 @@ def CV_score(X,Y,
                          (X.shape[0], Y.shape[0],))
 
     try:
-        _LAMBDA = iter(LAMBDA)
+        _v_pen = iter(v_pen)
     except TypeError:
         # Lambda is a single value
         multi_lambda = False
@@ -293,7 +293,7 @@ def CV_score(X,Y,
                 promises = [ _worker_pool.submit(__score_train_test__,
                                                  X = X,
                                                  Y = Y,
-                                                 LAMBDA = LAMBDA,
+                                                 v_pen = v_pen,
                                                  X_treat = X_treat,
                                                  Y_treat = Y_treat,
                                                  train = train,
@@ -313,7 +313,7 @@ def CV_score(X,Y,
                                              Y = Y,
                                              X_treat = X_treat,
                                              Y_treat = Y_treat,
-                                             LAMBDA = LAMBDA,
+                                             v_pen = v_pen,
                                              train = train,
                                              test = test,
                                              FoldNumber = fold,
@@ -355,7 +355,7 @@ def CV_score(X,Y,
                 promises = [ _worker_pool.submit(__score_train_test__,
                                                  X = X,
                                                  Y = Y,
-                                                 LAMBDA = LAMBDA,
+                                                 v_pen = v_pen,
                                                  train = train,
                                                  test = test,
                                                  FoldNumber = fold,
@@ -371,7 +371,7 @@ def CV_score(X,Y,
         else:
             results = [ __score_train_test__(X = X,
                                              Y = Y,
-                                             LAMBDA = LAMBDA,
+                                             v_pen = v_pen,
                                              train = train,
                                              test = test,
                                              FoldNumber = fold,

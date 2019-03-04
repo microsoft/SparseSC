@@ -15,7 +15,7 @@ def L2_pen_guestimate(X):
     """
     return np.mean(np.var(X, axis = 0))
 
-def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
+def get_max_lambda(X,Y,w_pen=None,X_treat=None,Y_treat=None,**kwargs):
     """ returns the maximum value of the L1 penalty for which the elements of
         tensor matrix (V) are not all zero.
 
@@ -42,8 +42,8 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
     if X.shape[0] != Y.shape[0]:
         raise ValueError("X and Y have different number of rows (%s and %s)" %
                          (X.shape[0], Y.shape[0],))
-    if L2_PEN_W is None:
-        L2_PEN_W = np.mean(np.var(X, axis = 0))
+    if w_pen is None:
+        w_pen = np.mean(np.var(X, axis = 0))
 
     if X_treat is not None:
 
@@ -64,12 +64,12 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
         treated_units = np.arange(X.shape[0],X.shape[0] + X_treat.shape[0])
 
         try:
-            _LAMBDA = iter(L2_PEN_W)
+            _v_pen = iter(w_pen)
         except TypeError:
-            # L2_PEN_W is a single value
+            # w_pen is a single value
             return ct_v_matrix(X = np.vstack((X,X_treat)),
                                Y = np.vstack((Y,Y_treat)),
-                               L2_PEN_W = L2_PEN_W,
+                               w_pen = w_pen,
                                control_units = control_units,
                                treated_units = treated_units,
                                max_lambda = True,
@@ -77,35 +77,35 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
                                **kwargs)
 
         else:
-            # L2_PEN_W is an iterable of values
+            # w_pen is an iterable of values
             return [ ct_v_matrix(X = np.vstack((X,X_treat)),
                                  Y = np.vstack((Y,Y_treat)),
                                  control_units = control_units,
                                  treated_units = treated_units,
                                  max_lambda = True,
                                  gradient_message = _GRADIENT_MESSAGE,
-                                 L2_PEN_W = l2_pen,
+                                 w_pen = l2_pen,
                                  **kwargs)
-                     for l2_pen in L2_PEN_W ]
+                     for l2_pen in w_pen ]
 
     else:
 
         try:
-            _LAMBDA = iter(L2_PEN_W)
+            _v_pen = iter(w_pen)
         except TypeError:
             if "grad_splits" in kwargs:
-                # L2_PEN_W is a single value
+                # w_pen is a single value
                 return fold_v_matrix(X = X,
                                      Y = Y,
-                                     L2_PEN_W = L2_PEN_W,
+                                     w_pen = w_pen,
                                      max_lambda = True,
                                      gradient_message = _GRADIENT_MESSAGE,
                                      **kwargs)
-            # L2_PEN_W is a single value
+            # w_pen is a single value
             try:
                 return loo_v_matrix(X = X,
                                     Y = Y,
-                                    L2_PEN_W = L2_PEN_W,
+                                    w_pen = w_pen,
                                     max_lambda = True,
                                     gradient_message = _GRADIENT_MESSAGE,
                                     **kwargs)
@@ -114,23 +114,23 @@ def get_max_lambda(X,Y,L2_PEN_W=None,X_treat=None,Y_treat=None,**kwargs):
         else:
             if "grad_splits" in kwargs:
 
-                # L2_PEN_W is an iterable of values
+                # w_pen is an iterable of values
                 return [ fold_v_matrix(X = X,
                                        Y = Y,
-                                       L2_PEN_W = l2_pen,
+                                       w_pen = l2_pen,
                                        max_lambda = True,
                                        gradient_message = _GRADIENT_MESSAGE,
                                        **kwargs)
-                         for l2_pen in L2_PEN_W ]
+                         for l2_pen in w_pen ]
 
-            # L2_PEN_W is an iterable of values
+            # w_pen is an iterable of values
             try:
                 return [ loo_v_matrix(X = X,
                                       Y = Y,
-                                      L2_PEN_W = l2_pen,
+                                      w_pen = l2_pen,
                                       max_lambda = True,
                                       gradient_message = _GRADIENT_MESSAGE,
                                       **kwargs)
-                         for l2_pen in L2_PEN_W ]
+                         for l2_pen in w_pen ]
             except MemoryError:
                 raise RuntimeError("MemoryError encountered.  Try setting `grad_splits` parameter to reduce memory requirements.") #pylint: disable=line-too-long

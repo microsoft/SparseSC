@@ -199,13 +199,13 @@ def fit(X,Y,
         if covariate_penalties is None:
             if grid is None:
                 grid = np.exp(np.linspace(np.log(Lambda_min),np.log(Lambda_max),grid_points))
-            # GET THE MAXIMUM LAMBDAS: quick ~ ( seconds to tens of seconds )
-            LAMBDA_max = get_max_lambda(Xtrain,
+            # GET THE MAXIMUM v_penS: quick ~ ( seconds to tens of seconds )
+            v_pen_max = get_max_lambda(Xtrain,
                                         Ytrain,
-                                        L2_PEN_W = weight_penalty,
+                                        w_pen = weight_penalty,
                                         grad_splits = gradient_folds,
                                         verbose=verbose)
-            covariate_penalties = grid * LAMBDA_max
+            covariate_penalties = grid * v_pen_max
 
 
         if model_type == "retrospective":
@@ -219,9 +219,9 @@ def fit(X,Y,
             scores = CV_score( X = Xtrain,
                                Y = Ytrain,
                                splits = cv_folds,
-                               LAMBDA = covariate_penalties,
+                               v_pen = covariate_penalties,
                                progress = progress,
-                               L2_PEN_W = weight_penalty,
+                               w_pen = weight_penalty,
                                grad_splits = gradient_folds,
                                random_state = gradient_seed, # TODO: Cleanup Task 1
                                quiet = not progress,
@@ -236,7 +236,7 @@ def fit(X,Y,
 
             best_V = tensor(X = Xtrain,
                             Y = Ytrain,
-                            LAMBDA = best_V_lambda,
+                            v_pen = best_V_lambda,
                             grad_splits = gradient_folds,
                             random_state = gradient_seed, # TODO: Cleanup Task 1
                             **kwargs)
@@ -277,9 +277,9 @@ def fit(X,Y,
             scores = CV_score( X = X,
                                Y = Y,
                                splits = cv_folds,
-                               LAMBDA = covariate_penalties,
+                               v_pen = covariate_penalties,
                                progress = progress,
-                               L2_PEN_W = weight_penalty,
+                               w_pen = weight_penalty,
                                grad_splits = gradient_folds,
                                random_state = gradient_seed, # TODO: Cleanup Task 1
                                quiet = not progress,
@@ -294,7 +294,7 @@ def fit(X,Y,
 
             best_V = tensor(X = X,
                             Y = Y,
-                            LAMBDA = best_V_lambda,
+                            v_pen = best_V_lambda,
                             grad_splits = gradient_folds,
                             random_state = gradient_seed, # TODO: Cleanup Task 1
                             **kwargs)
@@ -315,9 +315,9 @@ def fit(X,Y,
                                X_treat = Xtest,
                                Y_treat = Ytest,
                                splits = cv_folds,
-                               LAMBDA = covariate_penalties,
+                               v_pen = covariate_penalties,
                                progress = progress,
-                               L2_PEN_W = weight_penalty,
+                               w_pen = weight_penalty,
                                quiet = not progress,
                                **kwargs)
 
@@ -332,7 +332,7 @@ def fit(X,Y,
                             Y = Ytrain,
                             X_treat = Xtest,
                             Y_treat = Ytest,
-                            LAMBDA = best_V_lambda,
+                            v_pen = best_V_lambda,
                             **kwargs)
 
 
@@ -350,11 +350,11 @@ def fit(X,Y,
         sc_weights[treated_units,:] = weights(Xtrain,
                                               Xtest,
                                               V = best_V,
-                                              L2_PEN_W = weight_penalty,
+                                              w_pen = weight_penalty,
                                               custom_donor_pool = custom_donor_pool_t)
         sc_weights[control_units,:] = weights(Xtrain,
                                               V = best_V,
-                                              L2_PEN_W = weight_penalty,
+                                              w_pen = weight_penalty,
                                               custom_donor_pool = custom_donor_pool_c)
     else:
 
@@ -369,13 +369,13 @@ def fit(X,Y,
         if covariate_penalties is None:
             if grid is None:
                 grid = np.exp(np.linspace(np.log(Lambda_min),np.log(Lambda_max),grid_points))
-            # GET THE MAXIMUM LAMBDAS: quick ~ ( seconds to tens of seconds )
-            LAMBDA_max = get_max_lambda(X,
+            # GET THE MAXIMUM v_penS: quick ~ ( seconds to tens of seconds )
+            v_pen_max = get_max_lambda(X,
                                         Y,
-                                        L2_PEN_W = weight_penalty,
+                                        w_pen = weight_penalty,
                                         grad_splits = gradient_folds,
                                         verbose=verbose)
-            covariate_penalties = grid * LAMBDA_max
+            covariate_penalties = grid * v_pen_max
 
         # Get the L2 penalty guestimate:  very quick ( milliseconds )
         if weight_penalty is None:
@@ -389,9 +389,9 @@ def fit(X,Y,
         scores = CV_score(X = X,
                           Y = Y,
                           splits = cv_folds,
-                          LAMBDA = covariate_penalties,
+                          v_pen = covariate_penalties,
                           progress = progress,
-                          L2_PEN_W = weight_penalty,
+                          w_pen = weight_penalty,
                           grad_splits = gradient_folds,
                           random_state = gradient_seed, # TODO: Cleanup Task 1
                           quiet = not progress,
@@ -406,7 +406,7 @@ def fit(X,Y,
 
         best_V = tensor(X = X,
                         Y = Y,
-                        LAMBDA = best_V_lambda,
+                        v_pen = best_V_lambda,
                         grad_splits = gradient_folds,
                         random_state = gradient_seed, # TODO: Cleanup Task 1
                         **kwargs)
@@ -414,7 +414,7 @@ def fit(X,Y,
         # GET THE BEST SET OF WEIGHTS
         sc_weights = weights(X,
                              V = best_V,
-                             L2_PEN_W = weight_penalty,
+                             w_pen = weight_penalty,
                              custom_donor_pool = custom_donor_pool)
 
     return SparseSCFit(X,

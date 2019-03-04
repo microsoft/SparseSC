@@ -30,12 +30,12 @@ def complete_treated_control_list(N, treated_units = None, control_units = None)
 
 def loo_v_matrix(X,
                  Y,
-                 LAMBDA = 0,
+                 v_pen = 0,
                  treated_units = None,
                  control_units = None,
                  non_neg_weights = False,
                  start = None,
-                 L2_PEN_W = None,
+                 w_pen = None,
                  method = cdl_search,
                  max_lambda = False,  # this is terrible at least without documentation...
                  solve_method = "standard",
@@ -52,8 +52,8 @@ def loo_v_matrix(X,
     :param Y: Matrix of Outcomes
     :type Y: coercible to :class:`numpy.matrix`
 
-    :param LAMBDA: penalty parameter used to shrink L1 norm of v/v.max() toward zero
-    :type LAMBDA: float
+    :param v_pen: penalty parameter used to shrink L1 norm of v/v.max() toward zero
+    :type v_pen: float
 
     :param treated_units: a list containing the position (rows) of the treated units within X and Y
     :type treated_units: int[] or numpy.ndarray
@@ -64,9 +64,9 @@ def loo_v_matrix(X,
     :param start: initial values for the diagonals of the tensor matrix
     :type start: float[] or numpy.ndarray
 
-    :param L2_PEN_W: L2 penalty on the magnitude of the deviance of the weight
+    :param w_pen: L2 penalty on the magnitude of the deviance of the weight
                      vector from null. Optional.
-    :type L2_PEN_W: float
+    :type w_pen: float
 
     :param method: The name of a method to be used by scipy.optimize.minimize,
                    or a callable with the same API as scipy.optimize.minimize
@@ -122,14 +122,14 @@ def loo_v_matrix(X,
     if X.shape[0] != Y.shape[0]:
         raise ValueError("X and Y have different number of rows (%s and %s)" %
                          (X.shape[0], Y.shape[0],))
-    if not isinstance(LAMBDA, (float, int)):
-        raise TypeError( "LAMBDA is not a number")
-    if L2_PEN_W is None:
-        L2_PEN_W = mean(var(X, axis = 0))
+    if not isinstance(v_pen, (float, int)):
+        raise TypeError( "v_pen is not a number")
+    if w_pen is None:
+        w_pen = mean(var(X, axis = 0))
     else:
-        L2_PEN_W = float(L2_PEN_W)
-    if not isinstance(L2_PEN_W, (float, int)):
-        raise TypeError( "L2_PEN_W is not a number")
+        w_pen = float(w_pen)
+    if not isinstance(w_pen, (float, int)):
+        raise TypeError( "w_pen is not a number")
     assert not non_neg_weights, "Bounds not implemented"
 
     # CONSTANTS
@@ -184,7 +184,7 @@ def loo_v_matrix(X,
 
         # (...).copy() assures that x.flags.writeable is True:
         # also einsum is faster than the equivalent (Ey **2).sum()
-        return (np.einsum('ij,ij->',Ey,Ey) + LAMBDA * absolute(V).sum()).copy()  #
+        return (np.einsum('ij,ij->',Ey,Ey) + v_pen * absolute(V).sum()).copy()  #
 
     def _grad(V):
         """ Calculates just the diagonal of dGamma0_dV
@@ -216,21 +216,21 @@ def loo_v_matrix(X,
                         b = linalg.solve(A[in_controls2[i]],dB - dA.dot(b_i[i]))
                     except linalg.LinAlgError as exc:
                         print("Unique weights not possible.")
-                        if L2_PEN_W==0:
-                            print("Try specifying a very small L2_PEN_W rather than 0.")
+                        if w_pen==0:
+                            print("Try specifying a very small w_pen rather than 0.")
                         raise exc
                 dPI_dV[index, i] = b.flatten() # TODO: is the Transpose  an error???
 
             # einsum is faster than the equivalent (Ey * Y_control.T.dot(dPI_dV).T.getA()).sum()
             dGamma0_dV_term2[k] = 2 * np.einsum("ij,kj,ki->",Ey, Y_control, dPI_dV)
-        return LAMBDA + dGamma0_dV_term2
+        return v_pen + dGamma0_dV_term2
 
     def _weights(V):
         weights = zeros((N0, N1))
         if solve_method == "step-down":
             raise NotImplementedError("The solve_method 'step-down' is currently not implemented")
             # A = (X_control.dot(V + V.T).dot(X_control.T)
-            #      + 2 * L2_PEN_W * diag(ones(X_control.shape[0]))) # 5
+            #      + 2 * w_pen * diag(ones(X_control.shape[0]))) # 5
             # B = X_treated.dot(V + V.T).dot(X_control.T) # 6
             # Ai = A.I
             # for i, trt_unit in enumerate(treated_units):
@@ -241,7 +241,7 @@ def loo_v_matrix(X,
             #     b_i[i] = b
             #     weights[out_controls[i], i] = b.flatten()
         elif solve_method == "standard":
-            A = X.dot(V + V.T).dot(X.T) + 2 * L2_PEN_W * diag(ones(X.shape[0])) # 5
+            A = X.dot(V + V.T).dot(X.T) + 2 * w_pen * diag(ones(X.shape[0])) # 5
             B = X.dot(V + V.T).dot(X.T).T # 6
             for i, trt_unit in enumerate(treated_units):
                 if verbose >= 2:  # for large sample sizes, linalg.solve is a huge bottle neck,
@@ -249,11 +249,11 @@ def loo_v_matrix(X,
                           (i,len(in_controls),))
                 try:
                     (b) = b_i[i] = linalg.solve(A[in_controls2[i]],
-                                                B[in_controls[i], trt_unit] + 2 * L2_PEN_W / len(in_controls[i])) #pylint: disable=line-too-long
+                                                B[in_controls[i], trt_unit] + 2 * w_pen / len(in_controls[i])) #pylint: disable=line-too-long
                 except linalg.LinAlgError as exc:
                     print("Unique weights not possible.")
-                    if L2_PEN_W==0:
-                        print("Try specifying a very small L2_PEN_W rather than 0.")
+                    if w_pen==0:
+                        print("Try specifying a very small w_pen rather than 0.")
                     raise exc
                 weights[out_controls[i], i] = b.flatten()
         else:
@@ -278,11 +278,11 @@ def loo_v_matrix(X,
     ts_loss = opt.fun
     ts_score = linalg.norm(errors) / sqrt(prod(errors.shape))
 
-    return weights, v_mat, ts_score, ts_loss, L2_PEN_W, opt
+    return weights, v_mat, ts_score, ts_loss, w_pen, opt
 
 def loo_weights(X,
                 V,
-                L2_PEN_W,
+                w_pen,
                 treated_units = None,
                 control_units = None,
                 solve_method = "standard",
@@ -315,7 +315,7 @@ def loo_weights(X,
     if solve_method == "step-down":
         raise NotImplementedError("The solve_method 'step-down' is currently not implemented")
         # A = (X_control.dot(V + V.T).dot(X_control.T)
-        #      + 2 * L2_PEN_W * diag(ones(X_control.shape[0]))) # 5
+        #      + 2 * w_pen * diag(ones(X_control.shape[0]))) # 5
         # B = X_treat.dot(  V + V.T).dot(X_control.T) # 6
         # Ai = A.I
         # for i, trt_unit in enumerate(treated_units):
@@ -326,32 +326,32 @@ def loo_weights(X,
         #     weights[out_controls[i], i] = b.flatten()
     elif solve_method == "standard":
         if custom_donor_pool is None:
-            A = X.dot(V + V.T).dot(X.T) + 2 * L2_PEN_W * diag(ones(X.shape[0])) # 5
+            A = X.dot(V + V.T).dot(X.T) + 2 * w_pen * diag(ones(X.shape[0])) # 5
             B = X.dot(V + V.T).dot(X.T).T # 6
             for i, trt_unit in enumerate(treated_units):
                 if verbose >= 2:  # for large sample sizes, linalg.solve is a huge bottle neck,
                     print("Calculating weights, linalg.solve() call %s of %s" % (i,len(treated_units),)) #pylint: disable=line-too-long
                 try:
                     (b) = linalg.solve(A[in_controls2[i]],
-                                       B[in_controls[i], trt_unit] + 2 * L2_PEN_W / len(in_controls[i]))
+                                       B[in_controls[i], trt_unit] + 2 * w_pen / len(in_controls[i]))
                 except linalg.LinAlgError as exc:
                     print("Unique weights not possible.")
-                    if L2_PEN_W==0:
-                        print("Try specifying a very small L2_PEN_W rather than 0.")
+                    if w_pen==0:
+                        print("Try specifying a very small w_pen rather than 0.")
                     raise exc
 
                 weights[out_controls[i], i] = b.flatten()
         else:
             for i, trt_unit in enumerate(treated_units):
                 donors = np.where(custom_donor_pool[trt_unit,:])
-                A = X[donors,:].dot(2*V).dot(X[donors,:].T)   + 2 * L2_PEN_W * diag(ones(X[donors,:].shape[0])) # 5
-                B = X[trt_unit,:].dot(2*V).dot(X[donors,:].T).T + 2 * L2_PEN_W / X[donors,:].shape[0]# 6
+                A = X[donors,:].dot(2*V).dot(X[donors,:].T)   + 2 * w_pen * diag(ones(X[donors,:].shape[0])) # 5
+                B = X[trt_unit,:].dot(2*V).dot(X[donors,:].T).T + 2 * w_pen / X[donors,:].shape[0]# 6
                 try:
                     weights[donors,i] = linalg.solve(A,B)
                 except linalg.LinAlgError as exc:
                     print("Unique weights not possible.")
-                    if L2_PEN_W==0:
-                        print("Try specifying a very small L2_PEN_W rather than 0.")
+                    if w_pen==0:
+                        print("Try specifying a very small w_pen rather than 0.")
                     raise exc
     else:
         raise ValueError("Unknown Solve Method: " + solve_method)
@@ -361,8 +361,8 @@ def loo_weights(X,
 def loo_score(Y,
               X,
               V,
-              L2_PEN_W,
-              LAMBDA = 0,
+              w_pen,
+              v_pen = 0,
               treated_units = None,
               control_units = None,
               **kwargs):
@@ -373,12 +373,12 @@ def loo_score(Y,
                                                                  control_units)
     weights = loo_weights(X = X,
                           V = V,
-                          L2_PEN_W = L2_PEN_W,
+                          w_pen = w_pen,
                           treated_units = treated_units,
                           control_units = control_units,
                           **kwargs)
     Y_tr = Y[treated_units, :]
     Y_c = Y[control_units, :]
     Ey = (Y_tr - weights.dot(Y_c)).getA()
-    return np.einsum('ij,ij->',Ey,Ey) + LAMBDA * V.sum() # (Ey **2).sum() -> einsum
+    return np.einsum('ij,ij->',Ey,Ey) + v_pen * V.sum() # (Ey **2).sum() -> einsum
 

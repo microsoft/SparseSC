@@ -82,12 +82,12 @@ if __name__ == "__main__":
 
         L1_max_loo_grid = SC.get_max_lambda(X_and_Y_pre,
                                            Y_post, 
-                                           L2_PEN_W = L2_pen_start_loo * L2_grid)
+                                           w_pen = L2_pen_start_loo * L2_grid)
         L1_max_ct_grid = SC.get_max_lambda(X_control,
                                            Y_pre_control,
                                            X_treat=X_treated,
                                            Y_treat=Y_pre_treated,
-                                           L2_PEN_W = L2_pen_start_ct * L2_grid)
+                                           w_pen = L2_pen_start_ct * L2_grid)
         assert ( L1_max_loo / L1_max_loo_grid  == 1/L2_grid).all()
         assert ( L1_max_ct  / L1_max_ct_grid   == 1/L2_grid).all()
 
@@ -132,11 +132,11 @@ if __name__ == "__main__":
             X_treat = X_treated,
             Y_treat = Y_pre_treated,
 
-            # if LAMBDA is a single value, we get a single score, If it's an array of values, we get an array of scores.
-            LAMBDA = grid * L1_max_ct,
-            L2_PEN_W = L2_pen_start_ct,
+            # if v_pen is a single value, we get a single score, If it's an array of values, we get an array of scores.
+            v_pen = grid * L1_max_ct,
+            w_pen = L2_pen_start_ct,
 
-            # CACHE THE V MATRIX BETWEEN LAMBDA PARAMETERS (generally faster, but path dependent)
+            # CACHE THE V MATRIX BETWEEN v_pen PARAMETERS (generally faster, but path dependent)
             cache = False, # False by Default
 
             # Run each of the Cross-validation folds in parallel? Often slower
@@ -160,13 +160,13 @@ if __name__ == "__main__":
             grad_splits = 5,
             random_state = 10101, # random_state for the splitting during k-fold gradient descent
 
-            # L1 Penalty. if LAMBDA is a single value (value), we get a single score, If it's an array of values, we get an array of scores.
-            LAMBDA = grid * L1_max_loo,
+            # L1 Penalty. if v_pen is a single value (value), we get a single score, If it's an array of values, we get an array of scores.
+            v_pen = grid * L1_max_loo,
 
             # L2 Penalty (float)
-            L2_PEN_W = L2_pen_start_loo,
+            w_pen = L2_pen_start_loo,
 
-            # CACHE THE V MATRIX BETWEEN LAMBDA PARAMETERS (generally faster, but path dependent)
+            # CACHE THE V MATRIX BETWEEN v_pen PARAMETERS (generally faster, but path dependent)
             #cache = True, # False by Default
 
             # Run each of the Cross-validation folds in parallel? Often slower
@@ -191,13 +191,13 @@ if __name__ == "__main__":
             # with `grad_splits = None` (the default behavior) we get leave-one-out gradient descent.
             grad_splits = None,
 
-            # L1 Penalty. if LAMBDA is a single value (value), we get a single score, If it's an array of values, we get an array of scores.
-            LAMBDA = grid * L1_max_loo,
+            # L1 Penalty. if v_pen is a single value (value), we get a single score, If it's an array of values, we get an array of scores.
+            v_pen = grid * L1_max_loo,
 
             # L2 Penalty (float)
-            L2_PEN_W = L2_pen_start_loo,
+            w_pen = L2_pen_start_loo,
 
-            # CACHE THE V MATRIX BETWEEN LAMBDA PARAMETERS (generally faster, but path dependent)
+            # CACHE THE V MATRIX BETWEEN v_pen PARAMETERS (generally faster, but path dependent)
             #cache = True, # False by Default
 
             # Run each of the Cross-validation folds in parallel? Often slower
@@ -229,13 +229,13 @@ if __name__ == "__main__":
                      Y = Y_pre_control,
                      X_treat = X_treated,
                      Y_treat = Y_pre_treated,
-                     LAMBDA = best_L1_penalty_ct,
-                     L2_PEN_W = L2_pen_start_ct)
+                     v_pen = best_L1_penalty_ct,
+                     w_pen = L2_pen_start_ct)
 
     SC_weights_ct = SC.weights(X = X_control,
                                X_treat = X_treated,
                                V = V_ct,
-                               L2_PEN_W = L2_pen_start_ct)
+                               w_pen = L2_pen_start_ct)
 
     Y_post_treated_synthetic_conrols_ct = SC_weights_ct.dot(Y_post_control)
     ct_prediction_error = Y_post_treated_synthetic_conrols_ct - Y_post_treated
@@ -254,12 +254,12 @@ if __name__ == "__main__":
         V_loo = SC.tensor(
                 X = X_and_Y_pre [np.arange(100)], # limit the amount of time...
                 Y = Y_post      [np.arange(100)], # limit the amount of time...
-                LAMBDA = best_L1_penalty_loo,
-                L2_PEN_W = L2_pen_start_loo)
+                v_pen = best_L1_penalty_loo,
+                w_pen = L2_pen_start_loo)
 
         SC_weights_loo = SC.weights(X = X_control,
                                     V = V_loo,
-                                    L2_PEN_W = L2_pen_start_loo)
+                                    w_pen = L2_pen_start_loo)
 
         # in progress...
         import pdb; pdb.set_trace()
@@ -304,9 +304,9 @@ if __name__ == "__main__":
                                 Y = Y_pre_control,
                                 X_treat = X_treated,
                                 Y_treat = Y_pre_treated,
-                                # if LAMBDA is a single value, we get a single score, If it's an array of values, we get an array of scores.
-                                LAMBDA = best_L1_penalty_ct * np.exp(x[0]),
-                                L2_PEN_W = L2_pen_start_ct / np.exp(x[0]),
+                                # if v_pen is a single value, we get a single score, If it's an array of values, we get an array of scores.
+                                v_pen = best_L1_penalty_ct * np.exp(x[0]),
+                                w_pen = L2_pen_start_ct / np.exp(x[0]),
                                 # suppress the analysis type message
                                 quiet = True)
             t2 = time.time(); 
@@ -351,9 +351,9 @@ if __name__ == "__main__":
                                 Y = Y_pre_control,
                                 X_treat = X_treated,
                                 Y_treat = Y_pre_treated,
-                                # if LAMBDA is a single value, we get a single score, If it's an array of values, we get an array of scores.
-                                LAMBDA = best_L1_penalty_ct,
-                                L2_PEN_W = L2_pen_start_ct * np.exp(x[0]),
+                                # if v_pen is a single value, we get a single score, If it's an array of values, we get an array of scores.
+                                v_pen = best_L1_penalty_ct,
+                                w_pen = L2_pen_start_ct * np.exp(x[0]),
                                 # suppress the analysis type message
                                 quiet = True)
         
