@@ -1,7 +1,9 @@
+""" Utility functions
+"""
+from collections import namedtuple
 import numpy as np
 import itertools
 import warnings
-from collections import namedtuple
 
 def simulation_eval(effects, CI_lowers, CI_uppers, true_effect=0):
     te_mse = np.mean(np.square((effects-true_effect)))
@@ -10,7 +12,8 @@ def simulation_eval(effects, CI_lowers, CI_uppers, true_effect=0):
     return (te_mse, cov, ci_len)
 
 EstResultCI = namedtuple('EstResults', 'effect p ci placebos')
-PlaceboResults = namedtuple('PlaceboResults', 'effect_vec avg_joint_effect rms_joint_effect N_placebo')
+PlaceboResults = namedtuple('PlaceboResults',
+                            'effect_vec avg_joint_effect rms_joint_effect N_placebo')
 
 def gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs, 
                                  max_n_pl = 1000000, ret_pl = False, ret_CI=False, level=0.95):
@@ -19,7 +22,7 @@ def gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs,
     If there are multiple treated units then the averaging process needs to be
     done to generate placebos also.
     Generates 2-sided p-values
-  
+
     :param effect_vecs:
     :param control_effect_vecs:
     :param max_n_pl:
@@ -46,7 +49,7 @@ def gen_placebo_stats_from_diffs(effect_vecs, control_effect_vecs,
     rms_joint_effect = np.mean(rms_joint_effects)
     avg_joint_effect = np.mean(avg_joint_effects)
 
-    
+
     def _ncr(n, r):
         #https://stackoverflow.com/questions/4941753/is-there-a-math-ncr-function-in-python
         import operator as op

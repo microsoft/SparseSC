@@ -11,21 +11,21 @@ def tensor(X, Y, X_treat=None, Y_treat=None, grad_splits=None, **kwargs):
     # PARAMETER QC
     try:
         X = np.asmatrix(X)
-    except ValueError:  
+    except ValueError:
         raise ValueError("X is not coercible to a matrix")
     try:
         Y = np.asmatrix(Y)
-    except ValueError:  
+    except ValueError:
         raise ValueError("Y is not coercible to a matrix")
     if X.shape[1] == 0:
         raise ValueError("X.shape[1] == 0")
     if Y.shape[1] == 0:
         raise ValueError("Y.shape[1] == 0")
     if X.shape[0] != Y.shape[0]:
-        raise ValueError("X and Y have different number of rows (%s and %s)" % 
+        raise ValueError("X and Y have different number of rows (%s and %s)" %
                          (X.shape[0], Y.shape[0],))
 
-    if (X_treat is None) != (Y_treat is None): 
+    if (X_treat is None) != (Y_treat is None):
         raise ValueError("parameters `X_treat` and `Y_treat` must both be Matrices or None")
 
     if X_treat is not None:
@@ -46,7 +46,7 @@ def tensor(X, Y, X_treat=None, Y_treat=None, grad_splits=None, **kwargs):
         if Y_treat.shape[1] == 0:
             raise ValueError("Y_treat.shape[1] == 0")
         if X_treat.shape[0] != Y_treat.shape[0]:
-            raise ValueError("X_treat and Y_treat have different number of rows (%s and %s)" % 
+            raise ValueError("X_treat and Y_treat have different number of rows (%s and %s)" %
                              (X_treat.shape[0], Y_treat.shape[0],))
 
         # FIT THE V-MATRIX AND POSSIBLY CALCULATE THE L2_PEN_W
@@ -59,13 +59,13 @@ def tensor(X, Y, X_treat=None, Y_treat=None, grad_splits=None, **kwargs):
                                 treated_units = np.arange(X_treat.shape[0]) + X.shape[0],
                                 **kwargs)
 
-    else: 
+    else:
         # Fit the control units to themselves; Y may contain post-intervention outcomes:
 
         if grad_splits is not None:
             _, v_mat, _, _, _, _ = \
                     fold_v_matrix(X = X,
-                                  Y = Y, 
+                                  Y = Y,
                                   control_units = np.arange(X.shape[0]),
                                   treated_units = np.arange(X.shape[0]),
                                   grad_splits = grad_splits,
@@ -75,7 +75,7 @@ def tensor(X, Y, X_treat=None, Y_treat=None, grad_splits=None, **kwargs):
         else:
             _, v_mat, _, _, _, _ = \
                     loo_v_matrix(X = X,
-                                 Y = Y, 
+                                 Y = Y,
                                  control_units = np.arange(X.shape[0]),
                                  treated_units = np.arange(X.shape[0]),
                                  # treated_units = [X.shape[0] + i for i in  range(len(train))],

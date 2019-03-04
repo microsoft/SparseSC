@@ -2,20 +2,20 @@
 # Programmer: Jason Thorpe
 # Date    1/11/2019 1:25:57 PM
 # Purpose:   Implement round-robin fitting of Sparse Synthetic Controls Model for DGP based analysis
-# Description:   
-# 
+# Description:
+#
 # This is intended for use in Proofs of concepts where the underlying data
 # model is known and the experiment is aimed at understing the extent to which
 # the SparseSC model correctly and efficiently estimates the underlying data
-# model. 
-# 
+# model
+#
 # This code therefor repeatedly splits the data into fitting and hold-out sets
 # in a round-robin fassion, fits the covariate coefficients in the fitting set,
 # applies the covariate weights estimsted in the fitting set to creat weights
 # for individual units in the held-out set, and returns the fitted weights and
 # synthetic controls for every unit.
-# 
-# Usage: 
+#
+# Usage:
 #
 #
 #    import sys
@@ -26,16 +26,15 @@
 #    sys.path.append(os.path.join(repo_path,'examples'))
 #    x = np.random.rand(100,20)
 #    y = np.random.rand(100,8)
-#    from fit_poc import fit_poc 
+#    from fit_poc import fit_poc
 #    weights, syntetic_y = fit_poc(x,y)
 #
-# 
+#
 # --------------------------------------------------------------------------------
 
-import pandas as pd
+from sklearn.model_selection import KFold
 import numpy as np
 import SparseSC as SC
-from sklearn.model_selection import KFold
 
 def fit_poc(X,Y,
             Lambda_min = 1e-6,
