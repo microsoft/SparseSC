@@ -14,7 +14,7 @@ from SparseSC.cross_validation import (
 )
 from SparseSC.tensor import tensor
 from SparseSC.weights import weights
-from SparseSC.lambda_utils import get_max_v_pen, w_pen_guestimate
+from SparseSC.utils.penalty_utils import get_max_v_pen, w_pen_guestimate
 
 # The version as used in the setup.py
 __version__ = "0.1.0"
