@@ -9,18 +9,18 @@ import numpy as np
 
 _GRADIENT_MESSAGE = "Calculating maximum covariate penalty (i.e. the gradient at zero)"
 
-def L2_pen_guestimate(X):
+def w_pen_guestimate(X):
     """ A rule of thumb based on pure intuition which happens to work well on
     the examples we've tested.
     """
     return np.mean(np.var(X, axis = 0))
 
-def get_max_lambda(X,Y,w_pen=None,X_treat=None,Y_treat=None,**kwargs):
+def get_max_v_pen(X,Y,w_pen=None,X_treat=None,Y_treat=None,**kwargs):
     """ returns the maximum value of the L1 penalty for which the elements of
         tensor matrix (V) are not all zero.
 
         Provides a unified wrapper to the various *_v_matrix functions, passing
-        the parameter ``max_lambda = True`` in order to obtain the gradient
+        the parameter ``return_max_v_pen = True`` in order to obtain the gradient
         instead of he matrix
     """
 
@@ -72,7 +72,7 @@ def get_max_lambda(X,Y,w_pen=None,X_treat=None,Y_treat=None,**kwargs):
                                w_pen = w_pen,
                                control_units = control_units,
                                treated_units = treated_units,
-                               max_lambda = True,
+                               return_max_v_pen = True,
                                gradient_message = _GRADIENT_MESSAGE,
                                **kwargs)
 
@@ -82,11 +82,11 @@ def get_max_lambda(X,Y,w_pen=None,X_treat=None,Y_treat=None,**kwargs):
                                  Y = np.vstack((Y,Y_treat)),
                                  control_units = control_units,
                                  treated_units = treated_units,
-                                 max_lambda = True,
+                                 return_max_v_pen = True,
                                  gradient_message = _GRADIENT_MESSAGE,
-                                 w_pen = l2_pen,
+                                 w_pen = _w_pen,
                                  **kwargs)
-                     for l2_pen in w_pen ]
+                     for _w_pen in w_pen ]
 
     else:
 
@@ -98,7 +98,7 @@ def get_max_lambda(X,Y,w_pen=None,X_treat=None,Y_treat=None,**kwargs):
                 return fold_v_matrix(X = X,
                                      Y = Y,
                                      w_pen = w_pen,
-                                     max_lambda = True,
+                                     return_max_v_pen = True,
                                      gradient_message = _GRADIENT_MESSAGE,
                                      **kwargs)
             # w_pen is a single value
@@ -106,7 +106,7 @@ def get_max_lambda(X,Y,w_pen=None,X_treat=None,Y_treat=None,**kwargs):
                 return loo_v_matrix(X = X,
                                     Y = Y,
                                     w_pen = w_pen,
-                                    max_lambda = True,
+                                    return_max_v_pen = True,
                                     gradient_message = _GRADIENT_MESSAGE,
                                     **kwargs)
             except MemoryError:
@@ -117,20 +117,20 @@ def get_max_lambda(X,Y,w_pen=None,X_treat=None,Y_treat=None,**kwargs):
                 # w_pen is an iterable of values
                 return [ fold_v_matrix(X = X,
                                        Y = Y,
-                                       w_pen = l2_pen,
-                                       max_lambda = True,
+                                       w_pen = _w_pen,
+                                       return_max_v_pen = True,
                                        gradient_message = _GRADIENT_MESSAGE,
                                        **kwargs)
-                         for l2_pen in w_pen ]
+                         for _w_pen in w_pen ]
 
             # w_pen is an iterable of values
             try:
                 return [ loo_v_matrix(X = X,
                                       Y = Y,
-                                      w_pen = l2_pen,
-                                      max_lambda = True,
+                                      w_pen = _w_pen,
+                                      return_max_v_pen = True,
                                       gradient_message = _GRADIENT_MESSAGE,
                                       **kwargs)
-                         for l2_pen in w_pen ]
+                         for _w_pen in w_pen ]
             except MemoryError:
                 raise RuntimeError("MemoryError encountered.  Try setting `grad_splits` parameter to reduce memory requirements.") #pylint: disable=line-too-long

@@ -63,13 +63,13 @@ if __name__ == "__main__":
     # ------------------------------------------------------------
 
     # get starting point for the L2 penalty 
-    L2_pen_start_ct  = SC.L2_pen_guestimate(X_control)
-    L2_pen_start_loo = SC.L2_pen_guestimate(X_and_Y_pre_control)
+    w_pen_start_ct  = SC.w_pen_guestimate(X_control)
+    w_pen_start_loo = SC.w_pen_guestimate(X_and_Y_pre_control)
 
     # get the maximum value for the L1 Penalty parameter conditional on the guestimate for the L2 penalty
-    L1_max_ct  = SC.get_max_lambda(X_control,Y_pre_control,X_treat=X_treated,Y_treat=Y_pre_treated)
+    L1_max_ct  = SC.get_max_v_pen(X_control,Y_pre_control,X_treat=X_treated,Y_treat=Y_pre_treated)
     if False:
-        L1_max_loo = SC.get_max_lambda(X_and_Y_pre_control[np.arange(100)],Y_post[np.arange(100)])
+        L1_max_loo = SC.get_max_v_pen(X_and_Y_pre_control[np.arange(100)],Y_post[np.arange(100)])
         print("Max L1 loo %s " % L1_max_loo)
     else:
         L1_max_loo = np.float(147975295.9121998)
@@ -80,14 +80,14 @@ if __name__ == "__main__":
         # get the maximum value for the L1 Penalty parameter conditional on several L2 penalty parameter values
         L2_grid = (2.** np.arange(-1,2))
 
-        L1_max_loo_grid = SC.get_max_lambda(X_and_Y_pre,
+        L1_max_loo_grid = SC.get_max_v_pen(X_and_Y_pre,
                                            Y_post, 
-                                           w_pen = L2_pen_start_loo * L2_grid)
-        L1_max_ct_grid = SC.get_max_lambda(X_control,
+                                           w_pen = w_pen_start_loo * L2_grid)
+        L1_max_ct_grid = SC.get_max_v_pen(X_control,
                                            Y_pre_control,
                                            X_treat=X_treated,
                                            Y_treat=Y_pre_treated,
-                                           w_pen = L2_pen_start_ct * L2_grid)
+                                           w_pen = w_pen_start_ct * L2_grid)
         assert ( L1_max_loo / L1_max_loo_grid  == 1/L2_grid).all()
         assert ( L1_max_ct  / L1_max_ct_grid   == 1/L2_grid).all()
 
@@ -134,7 +134,7 @@ if __name__ == "__main__":
 
             # if v_pen is a single value, we get a single score, If it's an array of values, we get an array of scores.
             v_pen = grid * L1_max_ct,
-            w_pen = L2_pen_start_ct,
+            w_pen = w_pen_start_ct,
 
             # CACHE THE V MATRIX BETWEEN v_pen PARAMETERS (generally faster, but path dependent)
             cache = False, # False by Default
@@ -164,7 +164,7 @@ if __name__ == "__main__":
             v_pen = grid * L1_max_loo,
 
             # L2 Penalty (float)
-            w_pen = L2_pen_start_loo,
+            w_pen = w_pen_start_loo,
 
             # CACHE THE V MATRIX BETWEEN v_pen PARAMETERS (generally faster, but path dependent)
             #cache = True, # False by Default
@@ -195,7 +195,7 @@ if __name__ == "__main__":
             v_pen = grid * L1_max_loo,
 
             # L2 Penalty (float)
-            w_pen = L2_pen_start_loo,
+            w_pen = w_pen_start_loo,
 
             # CACHE THE V MATRIX BETWEEN v_pen PARAMETERS (generally faster, but path dependent)
             #cache = True, # False by Default
@@ -230,12 +230,12 @@ if __name__ == "__main__":
                      X_treat = X_treated,
                      Y_treat = Y_pre_treated,
                      v_pen = best_L1_penalty_ct,
-                     w_pen = L2_pen_start_ct)
+                     w_pen = w_pen_start_ct)
 
     SC_weights_ct = SC.weights(X = X_control,
                                X_treat = X_treated,
                                V = V_ct,
-                               w_pen = L2_pen_start_ct)
+                               w_pen = w_pen_start_ct)
 
     Y_post_treated_synthetic_conrols_ct = SC_weights_ct.dot(Y_post_control)
     ct_prediction_error = Y_post_treated_synthetic_conrols_ct - Y_post_treated
@@ -255,11 +255,11 @@ if __name__ == "__main__":
                 X = X_and_Y_pre [np.arange(100)], # limit the amount of time...
                 Y = Y_post      [np.arange(100)], # limit the amount of time...
                 v_pen = best_L1_penalty_loo,
-                w_pen = L2_pen_start_loo)
+                w_pen = w_pen_start_loo)
 
         SC_weights_loo = SC.weights(X = X_control,
                                     V = V_loo,
-                                    w_pen = L2_pen_start_loo)
+                                    w_pen = w_pen_start_loo)
 
         # in progress...
         import pdb; pdb.set_trace()
@@ -306,7 +306,7 @@ if __name__ == "__main__":
                                 Y_treat = Y_pre_treated,
                                 # if v_pen is a single value, we get a single score, If it's an array of values, we get an array of scores.
                                 v_pen = best_L1_penalty_ct * np.exp(x[0]),
-                                w_pen = L2_pen_start_ct / np.exp(x[0]),
+                                w_pen = w_pen_start_ct / np.exp(x[0]),
                                 # suppress the analysis type message
                                 quiet = True)
             t2 = time.time(); 
@@ -323,7 +323,7 @@ if __name__ == "__main__":
 
         import pdb; pdb.set_trace()
         NEW_best_L1_penalty_ct = best_L1_penalty_ct * np.exp(results.x[0])
-        best_L2_penalty = L2_pen_start_ct * np.exp(results.x[1])
+        best_L2_penalty = w_pen_start_ct * np.exp(results.x[1])
 
         print("DE optimized L2 Penalty: %s, DE optimized  L1 penalty: %s"  % (NEW_best_L1_penalty_ct, best_L2_penalty,) )
 
@@ -353,7 +353,7 @@ if __name__ == "__main__":
                                 Y_treat = Y_pre_treated,
                                 # if v_pen is a single value, we get a single score, If it's an array of values, we get an array of scores.
                                 v_pen = best_L1_penalty_ct,
-                                w_pen = L2_pen_start_ct * np.exp(x[0]),
+                                w_pen = w_pen_start_ct * np.exp(x[0]),
                                 # suppress the analysis type message
                                 quiet = True)
         
@@ -367,7 +367,7 @@ if __name__ == "__main__":
         print("Starting L2 Penalty optimization")
 
         results = differential_evolution(L2_obj_func, bounds = ((-6,6,),))
-        NEW_L2_pen_start_ct = L2_pen_start_ct * np.exp(results.x[0])
+        NEW_L2_pen_start_ct = w_pen_start_ct * np.exp(results.x[0])
         print("DE optimized L2 Penalty: %s, using fixed L1 penalty: %s"  % (NEW_L2_pen_start_ct, best_L1_penalty_ct,) )
 
     # -----------------------------------------------------------------
@@ -378,7 +378,7 @@ if __name__ == "__main__":
     # the actual optimization
     print("Starting L1-L2 Joint Penalty optimization")
 
-    results = SC.joint_penalty_optimzation(X = X_control, Y = Y_pre_control, L1_pen_start = best_L1_penalty_ct, L2_pen_start = L2_pen_start_ct, bounds = ((-6,6,),)*2, X_treat = X_treated, Y_treat = Y_pre_treated)
+    results = SC.joint_penalty_optimzation(X = X_control, Y = Y_pre_control, L1_pen_start = best_L1_penalty_ct, L2_pen_start = w_pen_start_ct, bounds = ((-6,6,),)*2, X_treat = X_treated, Y_treat = Y_pre_treated)
 
     import pdb; pdb.set_trace()
     NEW_best_L1_penalty_ct = results.x[0]

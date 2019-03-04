@@ -158,7 +158,7 @@ def score_train_test(X,
     return v_mat, w_pen, s
 
 
-def score_train_test_sorted_lambdas(v_pen,
+def score_train_test_sorted_v_pens(v_pen,
                                     start=None,
                                     cache=False,
                                     progress=False,
@@ -184,14 +184,14 @@ def score_train_test_sorted_lambdas(v_pen,
         if progress > 0 and (i % progress) == 0:
             t1 = time.time()
             if FoldNumber is None:
-                print("lambda: %0.4f, value %s of %s, time elapsed: %0.4f sec." %
+                print("v_pen: %0.4f, value %s of %s, time elapsed: %0.4f sec." %
                       (Lam, i+1, len(v_pen), t1 - t0, ))
-                #print("iteration %s of %s time: %0.4f ,lambda: %0.4f, diags: %s" %
+                #print("iteration %s of %s time: %0.4f ,v_pen: %0.4f, diags: %s" %
                 #      (i+1, len(v_pen), t1 - t0, Lam, np.diag(v_mat),))
             else:
-                print("Fold %s,lambda: %0.4f, value %s of %s, time elapsed: %0.4f sec." %
+                print("Fold %s,v_pen: %0.4f, value %s of %s, time elapsed: %0.4f sec." %
                       (FoldNumber, Lam, i+1, len(v_pen), t1 - t0, ))
-                #print("Fold %s, iteration %s of %s, time: %0.4f ,lambda: %0.4f, diags: %s" %
+                #print("Fold %s, iteration %s of %s, time: %0.4f ,v_pen: %0.4f, diags: %s" %
                 #      (FoldNumber, i+1, len(v_pen), t1 - t0, Lam, np.diag(v_mat),))
             t0 = time.time()
 
@@ -209,7 +209,7 @@ def CV_score(X,Y,
              max_workers=None,
              progress=None,
              **kwargs):
-    """ Cross fold validation for 1 or more L1 Penalties, holding the L2 penalty fixed.
+    """ Cross fold validation for 1 or more v Penalties, holding the w penalty fixed.
     """
 
     # PARAMETER QC
@@ -234,13 +234,13 @@ def CV_score(X,Y,
     try:
         _v_pen = iter(v_pen)
     except TypeError:
-        # Lambda is a single value
-        multi_lambda = False
+        # v_pen is a single value
+        multi_v_pen = False
         __score_train_test__ = score_train_test
     else:
-        # Lambda is an iterable of values
-        multi_lambda = True
-        __score_train_test__ = score_train_test_sorted_lambdas
+        # v_pen is an iterable of values
+        multi_v_pen = True
+        __score_train_test__ = score_train_test_sorted_v_pens
 
     if X_treat is not None:
 
@@ -381,7 +381,7 @@ def CV_score(X,Y,
     # extract the score.
     _, _, scores = list(zip(* results))
 
-    if multi_lambda:
+    if multi_v_pen:
         total_score = [sum(s) for s in zip(*scores)]
     else:
         total_score = sum(scores)

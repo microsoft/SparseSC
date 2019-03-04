@@ -15,7 +15,7 @@ def ct_v_matrix(X,
                 start = None,
                 w_pen = None,
                 method = cdl_search,
-                max_lambda = False,  # this is terrible at least without documentation...
+                return_max_v_pen = False,  # this is terrible at least without documentation...
                 verbose = False,
                 gradient_message = "Calculating gradient",
                 **kwargs):
@@ -41,7 +41,7 @@ def ct_v_matrix(X,
     :param start: initial values for the diagonals of the tensor matrix
     :type start: float[] or numpy.ndarray
 
-    :param w_pen: L2 penalty on the magnitude of the deviance of the weight
+    :param w_pen: weight penalty on the magnitude of the deviance of the weight
                      vector from null. Optional.
     :type w_pen: float
 
@@ -49,10 +49,10 @@ def ct_v_matrix(X,
                    or a callable with the same API as scipy.optimize.minimize
     :type method: str or callable
 
-    :param max_lambda: (Internal API) If ``True``, the return value is the maximum L1 penalty for
+    :param return_max_v_pen: (Internal API) If ``True``, the return value is the maximum L1 penalty for
                        which at least one element of the tensor matrix is
                        non-zero.
-    :type max_lambda: boolean
+    :type return_max_v_pen: boolean
 
     :param verbose: If true, print progress to the console (default: false)
     :type verbose: boolean
@@ -168,7 +168,7 @@ def ct_v_matrix(X,
             raise exc
         return weights, A, B,b
 
-    if max_lambda:
+    if return_max_v_pen:
         grad0 = _grad(zeros(K))
         return -grad0[grad0 < 0].min()
 

@@ -37,8 +37,8 @@ import numpy as np
 import SparseSC as SC
 
 def fit_poc(X,Y,
-            Lambda_min = 1e-6,
-            Lambda_max = 1,
+            min_v_pen = 1e-6,
+            max_v_pen = 1,
             grid_points = 20,
             grid = None,
             # fold tuning parameters: either a integer or list of test/train subsets such as the result of calling Kfold().split()
@@ -49,7 +49,7 @@ def fit_poc(X,Y,
             ):
 
     if grid is None:
-        grid = np.exp(np.linspace(np.log(Lambda_min),np.log(Lambda_max),grid_points))
+        grid = np.exp(np.linspace(np.log(min_v_pen),np.log(max_v_pen),grid_points))
 
     assert X.shape[0] == Y.shape[0]
     out_weights = np.zeros( (Y.shape[0],X.shape[0] ))
@@ -72,11 +72,11 @@ def fit_poc(X,Y,
         Ytrain = Y[train,:]
         Ytest = Y[test,:]
 
-        # Get the L2 penalty guestimate:  very quick ( milliseconds )
-        w_pen  = SC.L2_pen_guestimate(Xtrain) 
+        # Get the weight penalty guestimate:  very quick ( milliseconds )
+        w_pen  = SC.w_pen_guestimate(Xtrain) 
 
         # GET THE MAXIMUM v_penS: quick ~ ( seconds to tens of seconds )
-        v_pen_max = SC.get_max_lambda(
+        v_pen_max = SC.get_max_v_pen(
                     Xtrain,
                     Ytrain,
                     w_pen = w_pen,
@@ -99,7 +99,7 @@ def fit_poc(X,Y,
 
         # GET THE INDEX OF THE BEST SCORE
         best_i = np.argmin(scores)
-        best_lambda = (grid * v_pen_max)[best_i]
+        best_v_pen = (grid * v_pen_max)[best_i]
 
         # --------------------------------------------------
         # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -107,7 +107,7 @@ def fit_poc(X,Y,
 
         best_V = SC.tensor(X = Xtrain, 
                            Y = Ytrain,
-                           v_pen = best_lambda,
+                           v_pen = best_v_pen,
                            grad_splits = gradient_folds,
                            learning_rate = 0.2) 
 
