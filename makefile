@@ -54,7 +54,7 @@ htmldocs:
 	-$(RMDIR_CMD) $(BUILDAPIDOCDIR)
 #	sphinx-apidoc -f -o $(BUILDAPIDOCDIR)/SparseSC SparseSC
 #	$(RM_CMD) $(BUILDAPIDOCDIR)$(DIR_SEP)SparseSC$(DIR_SEP)modules.rst
-	@python -msphinx -b html -q "$(SOURCEDIR)" "$(BUILDDIR)" $(O)
+	@python -msphinx -b html -T -E "$(SOURCEDIR)" "$(BUILDDIR)" $(O)
 
 examples:
 	python example-code.py
@@ -96,9 +96,11 @@ test/SparseSC_35.yml: .phony
 	echo Make sure to remove the last prefix line
 .phony:
 
-#TODO: Github compliains about requests<=2.19.1. Conda can't install 2.20 w/ Python <3.6.
+#Don't generate requirements-rtd.txt from conda environments (e.g. pip freeze > rtd-requirements.txt)
+# 1) Can be finicky to get working since using pip and docker images and don't need lots of packages (e.g. for Jupyter)
+# 2) Github compliains about requests<=2.19.1. Conda can't install 2.20 w/ Python <3.6. Our env is 3.5, but RTD uses Python3.7
+# Could switch to using conda 
 #doc/rtd-requirements.txt:
-#	activate SparseSC_35 && cd docs && pip freeze > rtd-requirements.txt
 
 conda_env_upate:
 	deactivate && conda env update -f test/SparseSC_27.yml

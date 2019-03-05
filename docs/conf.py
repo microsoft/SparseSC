@@ -108,20 +108,19 @@ def capture():
 #https://github.com/rtfd/readthedocs.org/issues/1139
 def run_apidoc(app):
     from sphinx.apidoc import main as apidoc_main
-    #buildapidocdir = os.path.join(os.path.abspath(os.path.dirname(__file__)),"build","apidoc","SparseSC")
     cur_dir = os.path.abspath(os.path.dirname(__file__))
-    buildapidocdir = os.path.join(cur_dir, "build", "apidoc","SparseSC")
     buildapidocdir = os.path.join(app.outdir, "apidoc","SparseSC")
-    print("buildapidocdir: " +buildapidocdir)
     module = os.path.join(cur_dir,"..","SparseSC")
-    #with capture() as out: #doesn't have quiet option
     to_excl = ["cross_validation","fit_ct","fit_fold", "fit_loo","optimizers","optimizers/cd_line_search","tensor","utils/ols_model","utils/penalty_utils","utils/print_progress","utils/sub_matrix_inverse","weights"]
     #Locally could wrap each to_excl with "*" "*" and put in the apidoc cmd and end and works as exclude patterns, but doesn't work on RTD
+    #with capture() as out: #doesn't have quiet option
     apidoc_main([None, '-f', '-e', '-o', buildapidocdir, module])
     #rm module file because we don't link to it directly and this silences the warning
     os.remove(os.path.join(buildapidocdir, "modules.rst"))
     for excl in to_excl:
-        os.remove(os.path.join(buildapidocdir, "SparseSC."+excl.replace("/",".")+".rst"))
+        path = os.path.join(buildapidocdir, "SparseSC."+excl.replace("/",".")+".rst")
+        print("removing: "+path)
+        os.remove(path)
 
 def skip(app, what, name, obj, skip, options):
     #force showing __init__()'s
