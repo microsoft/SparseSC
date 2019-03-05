@@ -34,6 +34,7 @@ snowballstemmer==1.2.1
 Sphinx==1.6.3
 sphinx-markdown-tables==0.0.9
 sphinxcontrib-websupport==1.1.0
+statsmodels>=0.8.0
 typing==3.6.6
 urllib3==1.23
 win-inet-pton==1.0.1
