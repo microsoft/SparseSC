@@ -40,11 +40,11 @@ def ind_sc_plots(Y, Y_sc, T0, ind_ci=None):
     plt.legend(loc=1)
     
     sc_diff = plt.figure("sc_diff")
+    diff = Y - Y_sc
     if ind_ci is not None:
-        plt.fill_between(range(T), diff + ind_ci.ci_low, diff + ind_ci.ci_high, facecolor='gray', label="CI")
+        plt.fill_between(range(len(ind_ci.ci_low)), diff + ind_ci.ci_low, diff + ind_ci.ci_high, facecolor='gray', label="CI")
     plt.axvline(x=T0, linestyle='--')
     plt.axhline(y=0, linestyle='--')
-    diff = Y - Y_sc
     plt.plot(diff, 'kx--', label='Unit Diff')
     plt.xlabel("Time")
     plt.ylabel("Real-SC Outcome Difference")
