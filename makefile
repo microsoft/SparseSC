@@ -98,7 +98,7 @@ test/SparseSC_35.yml: .phony
 
 #TODO: Github compliains about requests<=2.19.1. Conda can't install 2.20 w/ Python <3.6.
 #doc/rtd-requirements.txt:
-#	activate SparseSC_35 && cd doc && pip freeze > rtd-requirements.txt
+#	activate SparseSC_35 && cd docs && pip freeze > rtd-requirements.txt
 
 conda_env_upate:
 	deactivate && conda env update -f test/SparseSC_27.yml
