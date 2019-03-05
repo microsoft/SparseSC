@@ -11,7 +11,7 @@ Welcome to SparseSC's |version| documentation!
    :caption: Contents:
 
    fit
-   apidoc/SparseSC/SparseSC
+   _build/html/apidoc/SparseSC/SparseSC
 
 
 Indices and tables
