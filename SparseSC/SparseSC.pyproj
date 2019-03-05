@@ -25,7 +25,6 @@
     <Compile Include="fit_ct.py" />
     <Compile Include="fit_fold.py" />
     <Compile Include="fit_loo.py" />
-    <Compile Include="lambda_utils.py" />
     <Compile Include="optimizers\cd_line_search.py" />
     <Compile Include="optimizers\__init__.py" />
     <Compile Include="tensor.py" />
