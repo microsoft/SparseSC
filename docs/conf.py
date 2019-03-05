@@ -109,6 +109,8 @@ def capture():
 def run_apidoc(app):
     from sphinx.apidoc import main as apidoc_main
     #buildapidocdir = os.path.join(os.path.abspath(os.path.dirname(__file__)),"build","apidoc","SparseSC")
+    cur_dir = os.path.abspath(os.path.dirname(__file__))
+    buildapidocdir = os.path.join(cur_dir, "build", "apidoc","SparseSC")
     buildapidocdir = os.path.join(app.outdir, "apidoc","SparseSC")
     print("buildapidocdir: " +buildapidocdir)
     module = os.path.join(cur_dir,"..","SparseSC")
