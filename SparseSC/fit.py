@@ -11,7 +11,7 @@ from SparseSC.utils.penalty_utils import get_max_v_pen, w_pen_guestimate
 from SparseSC.cross_validation import CV_score
 from SparseSC.tensor import tensor
 from SparseSC.weights import weights
-from SparseSC.utils.metrics_utils import gen_placebo_stats_from_diffs
+from SparseSC.utils.metrics_utils import _gen_placebo_stats_from_diffs
 
 # TODO: Cleanup task 1:
 #  random_state = gradient_seed, in the calls to CV_score() and tensor() are
@@ -40,7 +40,7 @@ def fit(X,Y,
         :param X: Matrix of features
         :type X: matrix of floats
 
-        :param Y:: Matrix of targets
+        :param Y: Matrix of targets
         :type Y: matrix of floats
 
         :param model_type:  Type of model being
@@ -538,6 +538,7 @@ def estimate_effects(Y_pre,
                      **kwargs):
     r"""
         Determines statistical significance for average and individual effects
+
         :param Y_pre: N x T0 matrix
         :param Y_post: N x T1 matrix
         :param treated_units:
@@ -576,22 +577,22 @@ def estimate_effects(Y_pre,
 
     #diagnostics
     diffs_pre = diffs[:,:T0]
-    pl_res_pre = gen_placebo_stats_from_diffs(diffs_pre[control_units,:], diffs_pre[treated_units,:],  
+    pl_res_pre = _gen_placebo_stats_from_diffs(diffs_pre[control_units,:], diffs_pre[treated_units,:],  
                                           max_n_pl, ret_pl, ret_CI, level)
 
     #effects
     diffs_post = diffs[:,T0:]
-    pl_res_post = gen_placebo_stats_from_diffs(diffs_post[control_units,:], diffs_post[treated_units,:], 
+    pl_res_post = _gen_placebo_stats_from_diffs(diffs_post[control_units,:], diffs_post[treated_units,:], 
                                           max_n_pl, ret_pl, ret_CI, level)
 
     rmspes_pre = np.sqrt(np.mean(np.square(diffs_pre), axis=1))
     diffs_post_scaled = np.diagflat(1/rmspes_pre).dot(diffs_post)
-    pl_res_post_scaled = gen_placebo_stats_from_diffs(diffs_post_scaled[control_units,:], diffs_post_scaled[treated_units,:], 
+    pl_res_post_scaled = _gen_placebo_stats_from_diffs(diffs_post_scaled[control_units,:], diffs_post_scaled[treated_units,:], 
                                           max_n_pl, ret_pl, ret_CI, level)
 
     if ret_CI:
         if N1>1:
-            ind_CI = gen_placebo_stats_from_diffs(diffs[control_units,:], np.zeros((1,T)),  
+            ind_CI = _gen_placebo_stats_from_diffs(diffs[control_units,:], np.zeros((1,T)),  
                                                   max_n_pl, False, True, level).effect_vec.ci
         else:
             base = np.concatenate((pl_res_pre.effect_vec.effect, pl_res_post.effect_vec.effect))
@@ -610,11 +611,16 @@ class SparseSCEstResults(object):
     def __init__(self, fit, pl_res_pre, pl_res_post, pl_res_post_scaled, ind_CI=None):
         """
             :param fit: The fit() return object
+            :type fit: SparseSCFit
             :param pl_res_pre: Statistics for the average fit of the treated units in the pre-period (used for diagnostics)
+            :type pl_res_pre: PlaceboResults
             :param pl_res_post: Statistics for the average treatment effect in the post-period
-            :param pl_res_pre: Statistics for the average scaled treatment effect (difference divided by pre-treatment RMS fit) in the post-period.
+            :type pl_res_post: PlaceboResults
+            :param pl_res_post_scaled: Statistics for the average scaled treatment effect (difference divided by pre-treatment RMS fit) in the post-period.
+            :type pl_res_post_scaled: PlaceboResults
             :param ind_CI: Confidence intervals for SC predictions at the unit level (not averaged over N1). 
                 Used for graphing rather than treatment effect statistics
+            :type ind_CI: CI_int
         """
         self.fit = fit
         self.pl_res_pre = pl_res_pre

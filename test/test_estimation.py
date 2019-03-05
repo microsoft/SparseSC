@@ -164,14 +164,16 @@ class TestDGPs(unittest.TestCase):
         [sc_raw, sc_diff] = ind_sc_plots(Y[0,:], Y_sc[0,:], T0, ind_ci=ret.ind_CI)
         plt.figure("sc_raw")
         plt.title("Unit 0")
-        sc_raw.show()
-        #plt.figure("sc_diff")
-        #plt.title("Unit 0")
-        #sc_diff.show()
+        ### SHOW() blocks!!!!
+        #plt.show()
+        plt.figure("sc_diff")
+        plt.title("Unit 0")
+        #plt.show()
         [te] = te_plot(ret)
-        #plt.figure("te")
-        #plt.title("Average Treatment Effect")
-        #te.show()
+        plt.figure("te")
+        plt.title("Average Treatment Effect")
+        #plt.show()
+
 
 
 

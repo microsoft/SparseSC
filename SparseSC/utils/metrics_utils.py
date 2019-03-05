@@ -12,7 +12,17 @@ def simulation_eval(effects, CI_lowers, CI_uppers, true_effect=0):
     return (te_mse, cov, ci_len)
 
 class CI_int(object):
+    """
+    Class to hold informatino for a confidence interval (for single point or for a vector)
+    """
     def __init__(self, ci_low, ci_high, level):
+        """
+        :param ci_low: Low-bound
+        :type ci_low: scalar or vector
+        :param ci_high: High-bound
+        :type ci_high: scalar or vector
+        :param level: Level (1-alpha) for the CI interval
+        """
         self.ci_low = ci_low
         self.ci_high = ci_high
         self.level = level
@@ -27,6 +37,15 @@ class CI_int(object):
 #EstResultCI = namedtuple('EstResults', 'effect p ci placebos')
 class EstResultCI(object):
     def __init__(self, effect, p, ci=None, placebos=None):
+        """
+        :param effect: Effect
+        :type effect: Scalar or vector
+        :param p: p-value 
+        :type p: Scalar or vector
+        :param ci: Confidence interval
+        :type ci: CI_int
+        :param placebos: Full matrix of placebos
+        """
         self.effect = effect
         self.p = p
         self.ci = ci
@@ -51,9 +70,26 @@ class EstResultCI(object):
              ret_str = ret_str + "\n"
         return(ret_str)
 
-PlaceboResults = namedtuple('PlaceboResults', 'effect_vec avg_joint_effect rms_joint_effect N_placebo')
+class PlaceboResults(object):
+    def __init__(self, effect_vec, avg_joint_effect, rms_joint_effect, N_placebo):
+        """
+        Holds statistics for a vector of effects, include the full vector and two choices of aggregates (average and RMS)
 
-def gen_placebo_stats_from_diffs(control_effect_vecs, effect_vecs=None, 
+        :param effect_vec: Statistics for a vector of time-specific effects.
+        :type effect_vec: EstResultCI
+        :param avg_joint_effect: Statistics for the average effect.
+        :type avg_joint_effect: EstResultCI
+        :param rms_joint_effect: Statistics for the RMS effect
+        :type rms_joint_effect: EstResultCI
+        :param N_placebo: Number of placebos used for the statistis
+        :type N_placebo: EstResultCI
+        """
+        self.effect_vec = effect_vec
+        self.avg_joint_effect = avg_joint_effect
+        self.rms_joint_effect = rms_joint_effect
+        self.N_placebo = N_placebo
+
+def _gen_placebo_stats_from_diffs(control_effect_vecs, effect_vecs=None, 
                                  max_n_pl = 1000000, ret_pl = False, ret_CI=False, level=0.95):
     """Generates placebo distribution to compare effects against. 
     For a single treated unit  this is just the control effects.

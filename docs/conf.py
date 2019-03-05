@@ -107,15 +107,41 @@ def capture():
 #Run apidoc from here rather than separate process (so that we can do Read the Docs easily)
 #https://github.com/rtfd/readthedocs.org/issues/1139
 def run_apidoc(_):
-    from sphinx.apidoc import main
+    from sphinx.apidoc import main as apidoc_main
     cur_dir = os.path.abspath(os.path.dirname(__file__))
     buildapidocdir = os.path.join(cur_dir, "build", "apidoc","SparseSC")
     module = os.path.join(cur_dir,"..","SparseSC")
     with capture() as out: #doesn't have quiet option
-        main([None, '-f', '-o', buildapidocdir, module])
+        apidoc_main([None, '-f', '-e', '-o', buildapidocdir, module, "*cross*","*fit_ct*", "*fit_loo*","*fit_fold*","*tensor*","*weights*","*optimizers*","*utils/ols*","*utils/penalty_utils*","*utils/print_progress*","*utils/sub_matrix_inverse*"])
+    #rm module file because we don't link to it directly and this silences the warning
+    os.remove(os.path.join(buildapidocdir, "modules.rst"))
+
+def skip(app, what, name, obj, skip, options):
+    #force showing __init__()'s
+    if name == "__init__":
+        return False
+    
+    skip_fns = []
+    if what=="class" and '__qualname__' in dir(obj) and obj.__qualname__ in skip_fns:
+        return True
+    
+    # Can't figure out how to get the properties class to skip more targettedly
+    skip_prs = []
+    if what=="class" and name in skip_prs:
+        return True
+    
+    skip_mds = []
+    if what=="module" and name in skip_mds:
+        return True
+    #helpful debugging line
+    #print what, name, obj, dir(obj)
+    
+    return skip
 
 def setup(app):
     app.connect('builder-inited', run_apidoc)
+    
+    app.connect("autodoc-skip-member", skip)
     #Allow MarkDown
     app.add_config_value('recommonmark_config', {
             'url_resolver': lambda url: "build/apidoc/" + url,
