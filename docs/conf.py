@@ -106,13 +106,14 @@ def capture():
 
 #Run apidoc from here rather than separate process (so that we can do Read the Docs easily)
 #https://github.com/rtfd/readthedocs.org/issues/1139
-def run_apidoc(_):
+def run_apidoc(app):
     from sphinx.apidoc import main as apidoc_main
-    cur_dir = os.path.abspath(os.path.dirname(__file__))
-    buildapidocdir = os.path.join(cur_dir, "build", "apidoc","SparseSC")
+    #buildapidocdir = os.path.join(os.path.abspath(os.path.dirname(__file__)),"build","apidoc","SparseSC")
+    buildapidocdir = os.path.join(app.outdir, "apidoc","SparseSC")
+    print("buildapidocdir: " +buildapidocdir)
     module = os.path.join(cur_dir,"..","SparseSC")
-    with capture() as out: #doesn't have quiet option
-        apidoc_main([None, '-f', '-e', '-o', buildapidocdir, module, "*cross*","*fit_ct*", "*fit_loo*","*fit_fold*","*tensor*","*weights*","*optimizers*","*utils/ols*","*utils/penalty_utils*","*utils/print_progress*","*utils/sub_matrix_inverse*"])
+    #with capture() as out: #doesn't have quiet option
+    apidoc_main([None, '-f', '-e', '-o', buildapidocdir, module, "*cross*","*fit_ct*", "*fit_loo*","*fit_fold*","*tensor*","*weights*","*optimizers*","*utils/ols*","*utils/penalty_utils*","*utils/print_progress*","*utils/sub_matrix_inverse*"])
     #rm module file because we don't link to it directly and this silences the warning
     os.remove(os.path.join(buildapidocdir, "modules.rst"))
 
