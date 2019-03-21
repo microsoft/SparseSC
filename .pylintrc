@@ -55,6 +55,8 @@ confidence=
 # no Warning level messages displayed, use"--disable=all --enable=classes
 # --disable=W"
 disable=print-statement,
+        bad-continuation, # handing this over to black
+		useless-object-inheritance, # trying to keep compatibility with python 2.7
         parameter-unpacking,
         unpacking-in-except,
         old-raise-syntax,

@@ -14,18 +14,20 @@
 #
 # --------------------------------------------------------------------------------
 
-from __future__ import print_function # for compatibility with python 2.7
+from __future__ import print_function  # for compatibility with python 2.7
 import numpy as np
 import sys, os, random
 import unittest
 
 # Bootstrapping the system path
-sys.path.insert(0,os.path.abspath('.'))
-#try:
+sys.path.insert(0, os.path.abspath("."))
+# try:
 from SparseSC.fit import fit
-#except Exception as exc:
+
+# except Exception as exc:
 #    print("Importing fit module failed with %s: %s" % (exc.__class__.__name__,exc.message,) )
 #    exit()
+
 
 class TestFit(unittest.TestCase):
     def setUp(self):
@@ -37,32 +39,30 @@ class TestFit(unittest.TestCase):
         features = 10
         targets = 5
 
-        self.X = np.random.rand(control_units + treated_units,features)
-        self.Y = np.random.rand(control_units + treated_units,targets)
+        self.X = np.random.rand(control_units + treated_units, features)
+        self.Y = np.random.rand(control_units + treated_units, targets)
         self.treated_units = np.arange(treated_units)
 
     @classmethod
     def run_test(cls, obj, model_type, verbose=False):
-        if(verbose):
-            print("Calling fit with `model_type  = '%s'`..." % (model_type, ),end="")
+        if verbose:
+            print("Calling fit with `model_type  = '%s'`..." % (model_type,), end="")
         sys.stdout.flush()
-#--     try:
-        fit(X = obj.X,
-            Y = obj.Y,
-            model_type = model_type,
-            treated_units = obj.treated_units if model_type in ("retrospective", "prospective", "prospective-restricted") else None,
+        fit(
+            X=obj.X,
+            Y=obj.Y,
+            model_type=model_type,
+            treated_units=obj.treated_units
+            if model_type in ("retrospective", "prospective", "prospective-restricted")
+            else None,
             # KWARGS:
-            print_path = False,
-            progress = False,
-            min_iter = -1,
-            tol = 1,
+            print_path=False,
+            progress=False,
+            min_iter=-1,
+            tol=1,
             verbose=0,
-            )
-#--     except Exception as exc:
-#--         print("Failed with %s: %s" % (exc.__class__.__name__,exc.message,) )
-#--         exit()
-#--     else:
-        if(verbose):
+        )
+        if verbose:
             print("DONE")
 
     def test_retrospective(self):
@@ -72,30 +72,26 @@ class TestFit(unittest.TestCase):
         TestFit.run_test(self, "prospective")
 
     def test_prospective_restrictive(self):
-        #Catch the LineSearchWarning silently, but allow others
+        # Catch the LineSearchWarning silently, but allow others
         import warnings
+
         with warnings.catch_warnings():
-            warnings.filterwarnings('error')
+            warnings.filterwarnings("error")
             from scipy.optimize.linesearch import LineSearchWarning
+
             try:
                 TestFit.run_test(self, "prospective-restricted")
             except LineSearchWarning:
                 pass
             except Exception as exc:
-                print("Failed with %s: %s" % (exc.__class__.__name__,exc.message,) )
+                print("Failed with %s: %s" % (exc.__class__.__name__, exc.message))
 
     def test_full(self):
         TestFit.run_test(self, "full")
 
 
-
-if __name__ == '__main__':
-    #t = TestFit()
-    #t.setUp()
-    #t.test_retrospective()
+if __name__ == "__main__":
+    # t = TestFit()
+    # t.setUp()
+    # t.test_retrospective()
     unittest.main()
-
-
-
-
-
