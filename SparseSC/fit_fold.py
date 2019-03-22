@@ -5,11 +5,8 @@ Implements k-fold gradient descent methods
 from numpy import ones, diag, zeros, mean, var, linalg, prod, sqrt, absolute
 import numpy as np
 import itertools
-import warnings
 from .utils.print_progress import print_progress
 from SparseSC.optimizers.cd_line_search import cdl_search
-
-warnings.filterwarnings("ignore")
 
 
 def fold_v_matrix(
@@ -59,9 +56,9 @@ def fold_v_matrix(
                    or a callable with the same API as scipy.optimize.minimize
     :type method: str or callable
 
-    :param return_max_v_pen: (Internal API) If ``True``, the return value is the maximum L1 penalty for
-                       which at least one element of the tensor matrix is
-                       non-zero.
+    :param return_max_v_pen: (Internal API) If ``True``, the return value is
+                    the maximum L1 penalty for which at least one element of
+                    the tensor matrix is non-zero.
     :type return_max_v_pen: boolean
 
     :param grad_splits: Splits for Fitted v.s. Control units in each gradient
@@ -150,7 +147,7 @@ def fold_v_matrix(
     for i, split in enumerate(splits):
         assert len(split[0]) + len(split[1]) == len(treated_units), (
             "Splits for fold %s do not match the number of treated units.  Expected %s; got %s + %s"
-            % (  # pylint: disable=line-too-long
+            % (  
                 i,
                 len(treated_units),
                 len(split[0]),
@@ -175,10 +172,11 @@ def fold_v_matrix(
     out_controls = [
         ctrl_rng[np.logical_not(np.isin(control_units, treated_units[test]))]
         for _, test in splits
-    ]  # pylint: disable=line-too-long
+    ]  
 
     # this is non-trivial when there control units are also being predicted:
-    # out_treated = [ctrl_rng[np.isin(control_units, treated_units[test]) ] for train,test in splits]
+    # out_treated = [ctrl_rng[np.isin(control_units, treated_units[test]) ] 
+    #                for train,test in splits]
 
     # handy constants (for speed purposes):
     Y_treated = Y[treated_units, :]
@@ -287,7 +285,7 @@ def fold_v_matrix(
     else:
         assert callable(
             method
-        ), "Method must be a valid method name for scipy.optimize.minimize or a minimizer"  # pylint: disable=line-too-long
+        ), "Method must be a valid method name for scipy.optimize.minimize or a minimizer"  
         opt = method(_score, start.copy(), jac=_grad, **kwargs)
     v_mat = diag(opt.x)
     # CALCULATE weights AND ts_score
@@ -352,7 +350,7 @@ def fold_weights(
     out_controls = [
         ctrl_rng[np.logical_not(np.isin(control_units, treated_units[test]))]
         for _, test in splits
-    ]  # pylint: disable=line-too-long
+    ]  
 
     weights = zeros((N0, N1))
     A = X.dot(V + V.T).dot(X.T) + 2 * w_pen * diag(ones(X.shape[0]))  # 5
@@ -362,13 +360,13 @@ def fold_weights(
         if verbose >= 2:  # for large sample sizes, linalg.solve is a huge bottle neck,
             print(
                 "Calculating weights, linalg.solve() call %s of %s" % (i, len(splits))
-            )  # pylint: disable=line-too-long
+            )  
         try:
             b = linalg.solve(
                 A[in_controls2[i]],
                 B[np.ix_(in_controls[i], treated_units[test])]
                 + 2 * w_pen / len(in_controls[i]),
-            )  # pylint: disable=line-too-long
+            )  
         except linalg.LinAlgError as exc:
             print("Unique weights not possible.")
             if w_pen == 0:

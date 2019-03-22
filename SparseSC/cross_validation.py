@@ -2,13 +2,13 @@
 Implements the cross-fold Validation and parallelization methods
 """
 
-from SparseSC.fit_fold import fold_v_matrix
-from SparseSC.fit_loo import loo_v_matrix
-from SparseSC.fit_ct import ct_v_matrix, ct_score
 import atexit
 import numpy as np
 from concurrent import futures
 
+from SparseSC.fit_fold import fold_v_matrix
+from SparseSC.fit_loo import loo_v_matrix
+from SparseSC.fit_ct import ct_v_matrix, ct_score
 
 def score_train_test(
     X,
@@ -19,6 +19,7 @@ def score_train_test(
     Y_treat=None,
     FoldNumber=None,  # pylint: disable=unused-argument
     grad_splits=None,
+    progress=None,  # pylint: disable=unused-argument
     **kwargs
 ):
     """ 
@@ -50,6 +51,9 @@ def score_train_test(
                        descent step. An integer, or a list/generator of train
                        and test units in each fold of the gradient descent.
     :type grad_splits: int or int[][], optional
+
+    :param progress: Should progress messages be printed to the console?
+    :type progress: boolean
 
     :param kwargs: additional arguments passed to the underlying matrix method
 
@@ -174,6 +178,45 @@ def score_train_test(
 
     return v_mat, w_pen, s
 
+def score_train_test_sorted_w_pens(w_pen,
+                                   start=None,
+                                   cache=False,
+                                   progress=False,
+                                   FoldNumber=None,
+                                   **kwargs):
+    """ a wrapper which calls  score_train_test() for each element of an
+        array of `w_pen`'s, optionally caching the optimized v_mat and using it
+        as the start position for the next iteration.
+    """
+
+    # DEFAULTS
+    values = [None]*len(w_pen)
+
+    if progress > 0:
+        import time
+        t0 = time.time()
+
+    for i,_w_pen in enumerate(w_pen):
+        v_mat, _, _ = values[i] = score_train_test( w_pen = _w_pen, start = start, **kwargs)
+
+        if cache:
+            start = np.diag(v_mat)
+        if progress > 0 and (i % progress) == 0:
+            t1 = time.time()
+            if FoldNumber is None:
+                print("w_pen: %0.4f, value %s of %s, time elapsed: %0.4f sec." %
+                      (_w_pen, i+1, len(w_pen), t1 - t0, ))
+                #print("iteration %s of %s time: %0.4f ,w_pen: %0.4f, diags: %s" %
+                #      (i+1, len(w_pen), t1 - t0, _w_pen, np.diag(v_mat),))
+            else:
+                print("Fold %s,w_pen: %0.4f, value %s of %s, time elapsed: %0.4f sec." %
+                      (FoldNumber, _w_pen, i+1, len(w_pen), t1 - t0, ))
+                #print("Fold %s, iteration %s of %s, time: %0.4f ,w_pen: %0.4f, diags: %s" %
+                #      (FoldNumber, i+1, len(w_pen), t1 - t0, _w_pen, np.diag(v_mat),))
+            t0 = time.time()
+
+    return list(zip(*values))
+
 
 def score_train_test_sorted_v_pens(
     v_pen, start=None, cache=False, progress=False, FoldNumber=None, **kwargs
@@ -191,8 +234,8 @@ def score_train_test_sorted_v_pens(
 
         t0 = time.time()
 
-    for i, Lam in enumerate(v_pen):
-        v_mat, _, _ = values[i] = score_train_test(v_pen=Lam, start=start, **kwargs)
+    for i, _v_pen in enumerate(v_pen):
+        v_mat, _, _ = values[i] = score_train_test(v_pen=_v_pen, start=start, **kwargs)
 
         if cache:
             start = np.diag(v_mat)
@@ -201,17 +244,17 @@ def score_train_test_sorted_v_pens(
             if FoldNumber is None:
                 print(
                     "v_pen: %0.4f, value %s of %s, time elapsed: %0.4f sec."
-                    % (Lam, i + 1, len(v_pen), t1 - t0)
+                    % (_v_pen, i + 1, len(v_pen), t1 - t0)
                 )
                 # print("iteration %s of %s time: %0.4f ,v_pen: %0.4f, diags: %s" %
-                #      (i+1, len(v_pen), t1 - t0, Lam, np.diag(v_mat),))
+                #      (i+1, len(v_pen), t1 - t0, _v_pen, np.diag(v_mat),))
             else:
                 print(
                     "Fold %s,v_pen: %0.4f, value %s of %s, time elapsed: %0.4f sec."
-                    % (FoldNumber, Lam, i + 1, len(v_pen), t1 - t0)
+                    % (FoldNumber, _v_pen, i + 1, len(v_pen), t1 - t0)
                 )
                 # print("Fold %s, iteration %s of %s, time: %0.4f ,v_pen: %0.4f, diags: %s" %
-                #      (FoldNumber, i+1, len(v_pen), t1 - t0, Lam, np.diag(v_mat),))
+                #      (FoldNumber, i+1, len(v_pen), t1 - t0, _v_pen, np.diag(v_mat),))
             t0 = time.time()
 
     return list(zip(*values))
@@ -221,14 +264,16 @@ def CV_score(
     X,
     Y,
     v_pen,
+    w_pen,
     X_treat=None,
     Y_treat=None,
     splits=5,
-    # sub_splits=None, # ignore pylint -- this is here for consistency...
+    # sub_splits=None, 
     quiet=False,
     parallel=False,
     max_workers=None,
-    progress=None,
+    # this is here for API consistency:
+    progress=None, # pylint: disable=unused-argument
     **kwargs
 ):
     """ 
@@ -258,16 +303,25 @@ def CV_score(
             % (X.shape[0], Y.shape[0])
         )
 
+    __score_train_test__ = score_train_test
     try:
-        _v_pen = iter(v_pen)
+        iter(w_pen)
     except TypeError:
-        # v_pen is a single value
-        multi_v_pen = False
-        __score_train_test__ = score_train_test
-    else:
-        # v_pen is an iterable of values
-        multi_v_pen = True
+        w_pen_is_iterable = False
+    else :
+        w_pen_is_iterable = True
+        __score_train_test__ = score_train_test_sorted_w_pens
+
+    try:
+        iter(v_pen)
+    except TypeError:
+        v_pen_is_iterable = False
+    else :
+        v_pen_is_iterable = True
         __score_train_test__ = score_train_test_sorted_v_pens
+
+    if v_pen_is_iterable and w_pen_is_iterable:
+        raise ValueError("v_pen and w_pen must not both be iterable")
 
     if X_treat is not None:
 
@@ -344,6 +398,7 @@ def CV_score(
                         X=X,
                         Y=Y,
                         v_pen=v_pen,
+                        w_pen=w_pen,
                         X_treat=X_treat,
                         Y_treat=Y_treat,
                         train=train,
@@ -370,6 +425,7 @@ def CV_score(
                     X_treat=X_treat,
                     Y_treat=Y_treat,
                     v_pen=v_pen,
+                    w_pen=w_pen,
                     train=train,
                     test=test,
                     FoldNumber=fold,
@@ -428,6 +484,7 @@ def CV_score(
                         X=X,
                         Y=Y,
                         v_pen=v_pen,
+                        w_pen=w_pen,
                         train=train,
                         test=test,
                         FoldNumber=fold,
@@ -450,6 +507,7 @@ def CV_score(
                     X=X,
                     Y=Y,
                     v_pen=v_pen,
+                    w_pen=w_pen,
                     train=train,
                     test=test,
                     FoldNumber=fold,
@@ -461,7 +519,7 @@ def CV_score(
     # extract the score.
     _, _, scores = list(zip(*results))
 
-    if multi_v_pen:
+    if v_pen_is_iterable or w_pen_is_iterable:
         total_score = [sum(s) for s in zip(*scores)]
     else:
         total_score = sum(scores)

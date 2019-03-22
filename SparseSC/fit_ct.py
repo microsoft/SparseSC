@@ -4,11 +4,8 @@ Implements cross-train gradient descent methods
 
 from numpy import ones, diag, zeros, absolute, mean, var, linalg, prod, sqrt
 import numpy as np
-import warnings
 from .utils.print_progress import print_progress
 from SparseSC.optimizers.cd_line_search import cdl_search
-
-warnings.filterwarnings("ignore")
 
 
 def ct_v_matrix(
@@ -55,9 +52,9 @@ def ct_v_matrix(
                    or a callable with the same API as scipy.optimize.minimize
     :type method: str or callable
 
-    :param return_max_v_pen: (Internal API) If ``True``, the return value is the maximum L1 penalty for
-                       which at least one element of the tensor matrix is
-                       non-zero.
+    :param return_max_v_pen: (Internal API) If ``True``, the return value is
+                    the maximum L1 penalty for which at least one element of
+                    the tensor matrix is non-zero.
     :type return_max_v_pen: boolean
 
     :param verbose: If true, print progress to the console (default: false)

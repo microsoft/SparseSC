@@ -20,10 +20,20 @@ def w_pen_guestimate(X):
     return np.mean(np.var(X, axis=0))
 
 
+def get_max_w_pen(X,Y,v_pen,**kwargs):
+    """ 
+    Calculates maximum value of w_pen for which the elements of tensor
+    matrix (V) are not all zero conditional on the provided v_pen
+
+    Relies on the fact that conditional on the data `v_pen * w_pen` is constant
+    """
+    return get_max_v_pen(X,Y,w_pen=1,**kwargs) / v_pen
+
 def get_max_v_pen(X, Y, w_pen=None, X_treat=None, Y_treat=None, **kwargs):
     """ 
-    returns the maximum value of the L1 penalty for which the elements of
-    tensor matrix (V) are not all zero.
+    Calculates maximum value of v_pen for which the elements of tensor
+    matrix (V) are not all zero conditional on the provided w_pen.  If w_pen is
+    not provided, a guestimate is used.
 
     Provides a unified wrapper to the various *_v_matrix functions, passing the
     parameter ``return_max_v_pen = True`` in order to obtain the gradient

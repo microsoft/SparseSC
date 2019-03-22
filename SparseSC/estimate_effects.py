@@ -2,7 +2,7 @@
 Effect estimation routines
 """
 import numpy as np
-from .utils.metrics_utils import _gen_placebo_stats_from_diffs
+from .utils.metrics_utils import _gen_placebo_stats_from_diffs, CI_int
 from .fit import fit
 
 
@@ -15,8 +15,8 @@ def estimate_effects(
     ret_pl=False,
     ret_CI=False,
     level=0.95,
-    weight_penalty=None,
-    covariate_penalties=None,
+    w_pen=None,
+    v_pen=None,
     **kwargs
 ):
     r"""
@@ -33,8 +33,8 @@ def estimate_effects(
             the controls when N1>1)
     :param ret_CI:
     :param level:
-    :param weight_penalty:
-    :param covariate_penalties:
+    :param w_pen:
+    :param v_pen:
 
     :Keyword Args: Passed on to fit()
     """
@@ -62,8 +62,8 @@ def estimate_effects(
         verbose=0,
         min_iter=-1,
         tol=1,
-        weight_penalty=weight_penalty,
-        covariate_penalties=covariate_penalties,
+        w_pen=w_pen,
+        v_pen=v_pen,
     )
     Y_sc = fit_res.predict(Y[control_units, :])
     diffs = Y - Y_sc
@@ -116,7 +116,7 @@ def estimate_effects(
             ci1 = np.concatenate(
                 (pl_res_pre.effect_vec.ci.ci_high, pl_res_post.effect_vec.ci.ci_high)
             )
-            ind_CI = CI_ind(ci0 - base, ci1 - base, level)
+            ind_CI = CI_int(ci0 - base, ci1 - base, level)
     else:
         ind_CI = None
 

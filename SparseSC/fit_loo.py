@@ -5,14 +5,11 @@ Implements leave-one-out gradient descent methods
 from numpy import ones, diag, zeros, absolute, mean, var, linalg, prod, sqrt
 import numpy as np
 import itertools
-import warnings
 
 # only used by the step-down method (currently not implemented):
 # from SparseSC.utils.sub_matrix_inverse import subinv_k, all_subinverses
 from .utils.print_progress import print_progress
 from SparseSC.optimizers.cd_line_search import cdl_search
-
-warnings.filterwarnings("ignore")
 
 
 def complete_treated_control_list(N, treated_units=None, control_units=None):
@@ -220,7 +217,7 @@ def loo_v_matrix(
             for i, index in enumerate(in_controls):
                 dA = dA_dV_ki[k][i]
                 dB = dB_dV_ki[k][i]
-                if solve_method == "step-down":
+                if solve_method == "step-down":# pylint: disable=no-else-raise
                     raise NotImplementedError(
                         "The solve_method 'step-down' is currently not implemented"
                     )  # pylint: disable=line-too-long
@@ -248,7 +245,7 @@ def loo_v_matrix(
 
     def _weights(V):
         weights = zeros((N0, N1))
-        if solve_method == "step-down":
+        if solve_method == "step-down":# pylint: disable=no-else-raise
             raise NotImplementedError(
                 "The solve_method 'step-down' is currently not implemented"
             )
@@ -350,7 +347,7 @@ def loo_weights(
     # > only used by the step-down method (currently not implemented) X_treat = X[treated_units,:]
     weights = zeros((N0, N1))
 
-    if solve_method == "step-down":
+    if solve_method == "step-down": # pylint: disable=no-else-raise
         raise NotImplementedError(
             "The solve_method 'step-down' is currently not implemented"
         )

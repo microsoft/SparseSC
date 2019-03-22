@@ -26,6 +26,7 @@ class CI_int(object):
         :param ci_high: High-bound
         :type ci_high: scalar or vector
         :param level: Level (1-alpha) for the CI interval
+        :type level: float
         """
         self.ci_low = ci_low
         self.ci_high = ci_high
@@ -33,33 +34,19 @@ class CI_int(object):
 
     def __str__(self, i=None):
         if i is None:
-            return (
-                "["
-                + str(self.level)
-                + " ci: "
-                + str(self.ci_low)
-                + ", "
-                + str(self.ci_high)
-                + "]"
-            )
-        else:
-            return (
-                "["
-                + str(self.level)
-                + " ci: "
-                + str(self.ci_low[i])
-                + ", "
-                + str(self.ci_high)
-                + "]"
-            )
+            return "[%s ci: %s, %s]" % (self.level, self.ci_low, self.ci_high)
+        return "[%s ci: %s, %s]" % (self.level, self.ci_low[i], self.ci_high[i])
 
     def __contains__(self, x):
         """
         test if a value is inside the confidence interval
         """
         if self.ci_low.size > 1:
-            return RuntimeError("`in` is not defined for more than one Confidence Interval")
+            return RuntimeError(
+                "`in` is not defined for more than one Confidence Interval"
+            )
         return self.ci_low < x < self.ci_high
+
 
 class EstResultCI(object):
     def __init__(self, effect, p, ci=None, placebos=None):
@@ -71,6 +58,7 @@ class EstResultCI(object):
         :param ci: Confidence interval
         :type ci: CI_int
         :param placebos: Full matrix of placebos
+        :type placebos: matrix
         """
         self.effect = effect
         self.p = p
@@ -107,11 +95,12 @@ class EstResultCI(object):
 
 
 class PlaceboResults(object):
+    """
+    Holds statistics for a vector of effects, include the full vector and
+    two choices of aggregates (average and RMS)
+    """
     def __init__(self, effect_vec, avg_joint_effect, rms_joint_effect, N_placebo):
         """
-        Holds statistics for a vector of effects, include the full vector and
-        two choices of aggregates (average and RMS)
-
         :param effect_vec: Statistics for a vector of time-specific effects.
         :type effect_vec: EstResultCI
         :param avg_joint_effect: Statistics for the average effect.
@@ -129,7 +118,7 @@ class PlaceboResults(object):
 
 def _gen_placebo_stats_from_diffs(
     control_effect_vecs,
-    effect_vecs=None,
+    effect_vecs,
     max_n_pl=1000000,
     ret_pl=False,
     ret_CI=False,
@@ -147,6 +136,9 @@ def _gen_placebo_stats_from_diffs(
     :param ret_pl:
     :param ret_CI:
     :param level:
+
+    Returns: 
+        PlaceboResults: The Placebo test results
     """
     N1 = effect_vecs.shape[0]
     N0 = control_effect_vecs.shape[0]
@@ -177,29 +169,12 @@ def _gen_placebo_stats_from_diffs(
         denom = functools.reduce(op.mul, range(1, r + 1), 1)  # from py2 xrange()
         return numer // denom
 
-    def _random_combination(iterable, r):
-        "Random selection from itertools.combinations(iterable, r)"
-        # https://stackoverflow.com/questions/22229796/choose-at-random-from-combinations
-        import random
-
-        pool = tuple(iterable)
-        n = len(pool)
-        indices = sorted(random.sample(range(n), r))
-        return tuple(pool[i] for i in indices)
-
-    def _repeatfunc(func, times=None, *args):
-        # Repeat calls to func with specified arguments.
-        # Example:  _repeatfunc(random.random)
-        if times is None:
-            return itertools.starmap(func, itertools.repeat(args))
-        return itertools.starmap(func, itertools.repeat(args, times))
-
     n_pl = _ncr(N0, N1)
     if max_n_pl > 0 & n_pl > max_n_pl:  # randomize
         comb_iter = itertools.combinations(range(N0), N1)
         comb_len = max_n_pl
     else:
-        comb_iter = _repeatfunc(_random_combination, n_pl, range(N0), N1)
+        comb_iter = _random_combinations(n_pl, N0, N1)
         comb_len = n_pl
 
     if keep_pl:
@@ -229,39 +204,36 @@ def _gen_placebo_stats_from_diffs(
             placebo_avg_joint_effects[idx] = placebo_avg_joint_effect
             placebo_rms_joint_effects[idx] = placebo_rms_joint_effect
 
-    def _pval_cal(npl_at_least_as_large, npl, incl_actual_in_set=True):
-        """ADH10 incl_actual_in_set=True, CGNP13, ADH15 do not
-        It depends on whether you (do|do not) you think the actual test is one of 
-        the possible randomizations.
-        p2s = 2*p1s #Ficher 2-sided p-vals (less common)
-        """
-        addition = int(incl_actual_in_set)
-        return (npl_at_least_as_large + addition) / (npl + addition)
-
-    vec_p = _pval_cal(vec_p, comb_len)
-    rms_joint_p = _pval_cal(rms_joint_p, comb_len)
-    avg_joint_p = _pval_cal(avg_joint_p, comb_len)
+    vec_p = _calculate_p_value(vec_p, comb_len)
+    rms_joint_p = _calculate_p_value(rms_joint_p, comb_len)
+    avg_joint_p = _calculate_p_value(avg_joint_p, comb_len)
 
     if ret_CI:
-        # CI - All hypothetical true effects (beta0) that would not be reject at the certain level
-        # To test non-zero beta0, apply beta0 to get unexpected deviation beta_hat-beta0 and compare to permutation distribution
-        # This means that we take the level-bounds of the permutation distribution then "flip it around beta_hat"
-        # To make the math a bit nicer, I will reject a hypothesis if pval<=(1-level)
-        assert level < 1 and level > 0
-        "Use a level in [0,1]"
+        # CI - All hypothetical true effects (beta0) that would not be reject
+        # at the certain level To test non-zero beta0, apply beta0 to get
+        # unexpected deviation beta_hat-beta0 and compare to permutation
+        # distribution This means that we take the level-bounds of the
+        # permutation distribution then "flip it around beta_hat" To make the
+        # math a bit nicer, I will reject a hypothesis if pval<=(1-level)
+        assert 0 < level < 1 and level > 0, "Use a level in [0,1]"
         alpha = 1 - level
         p2min = 2 / n_pl
         alpha_ind = max((1, round(alpha / p2min)))
         alpha = alpha_ind * p2min
 
-        def _gen_CI(placebo_effects, alpha_ind, effect):
+        def _gen_CI(placebo_effects, alpha_ind, effect, null_is_zero=True):
             npl = placebo_effects.shape[0]
             sorted_eff = np.sort(placebo_effects)
             low_avg_effect = sorted_eff[alpha_ind]
             high_avg_effect = sorted_eff[(npl + 1) - alpha_ind]
-            if np.sign(low_avg_effect) == np.sign(high_avg_effect):
+            if (
+                null_is_zero
+                and np.sign(low_avg_effect) == np.sign(high_avg_effect)
+                and low_avg_effect != 0
+                and high_avg_effect != 0
+            ):
                 warnings.warn(
-                    "CI doesn't containt effect. You might not have enough placebo effects."
+                    "CI doesn't contain 0. You might not have enough placebo effects."
                 )
             return (effect - high_avg_effect, effect - low_avg_effect)
 
@@ -272,7 +244,9 @@ def _gen_placebo_stats_from_diffs(
 
         CI_avg = _gen_CI(placebo_avg_joint_effects, alpha_ind, avg_joint_effect)
         CI_avg = CI_int(CI_avg[0], CI_avg[1], level)
-        CI_rms = _gen_CI(placebo_rms_joint_effects, alpha_ind, rms_joint_effect)
+        CI_rms = _gen_CI(
+            placebo_rms_joint_effects, alpha_ind, rms_joint_effect, null_is_zero=False
+        )
         CI_rms = CI_int(CI_rms[0], CI_rms[1], level)
 
     else:
@@ -288,3 +262,26 @@ def _gen_placebo_stats_from_diffs(
     )
 
     return ret_struct
+
+
+def _random_combinations(num, n, c):
+    """
+    https://stackoverflow.com/a/55307388/1519199
+
+    Yields:
+       Sequence[int]: a tuple ``c`` ints from ``range(n)``
+    """
+    i = 0
+    while i < num:
+        i += 1
+        yield np.random.choice(n, c, replace=False)
+
+
+def _calculate_p_value(npl_at_least_as_large, npl, incl_actual_in_set=True):
+    """ADH10 incl_actual_in_set=True, CGNP13, ADH15 do not
+    It depends on whether you (do|do not) you think the actual test is one of 
+    the possible randomizations.
+    p2s = 2*p1s #Ficher 2-sided p-vals (less common)
+    """
+    addition = int(incl_actual_in_set)
+    return (npl_at_least_as_large + addition) / (npl + addition)

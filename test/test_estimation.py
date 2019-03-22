@@ -45,8 +45,8 @@ class TestDGPs(unittest.TestCase):
             Y[:, :T0],
             Y[:, T0:],
             treated_units,
-            covariate_penalties=[V_penalty],
-            weight_penalty=0.00000000001,
+            v_pen=[V_penalty],
+            w_pen=0.00000000001,
             ret_CI=True,
         )
         Y_sc = ret.fit.predict(Y[control_units, :])

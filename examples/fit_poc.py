@@ -37,8 +37,8 @@ import numpy as np
 import SparseSC as SC
 
 def fit_poc(X,Y,
-            min_v_pen = 1e-6,
-            max_v_pen = 1,
+            grid_min = 1e-6,
+            grid_max = 1,
             grid_points = 20,
             grid = None,
             # fold tuning parameters: either a integer or list of test/train subsets such as the result of calling Kfold().split()
@@ -49,7 +49,7 @@ def fit_poc(X,Y,
             ):
 
     if grid is None:
-        grid = np.exp(np.linspace(np.log(min_v_pen),np.log(max_v_pen),grid_points))
+        grid = np.exp(np.linspace(np.log(grid_min),np.log(grid_max),grid_points))
 
     assert X.shape[0] == Y.shape[0]
     out_weights = np.zeros( (Y.shape[0],X.shape[0] ))
