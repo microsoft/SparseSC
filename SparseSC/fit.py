@@ -4,9 +4,8 @@ Implements round-robin fitting of Sparse Synthetic Controls Model for DGP based 
 """
 import numpy as np
 from warnings import warn
+from inspect import signature
 from sklearn.model_selection import KFold
-
-# From the Public API
 from .utils.penalty_utils import get_max_w_pen, get_max_v_pen, w_pen_guestimate
 from .cross_validation import CV_score
 from .tensor import tensor
@@ -17,7 +16,7 @@ from .weights import weights
 #  only used when grad splits is not None... need to better control this...
 
 
-def fit(
+def fit(  # pylint: disable=differing-type-doc, differing-param-doc
     X,
     Y,
     treated_units=None,
@@ -28,7 +27,7 @@ def fit(
     grid_min=1e-6,
     grid_max=1,
     grid_length=20,
-    grid_iterations=2,
+    stopping_rule=2,
     gradient_folds=10,
     **kwargs
 ):
@@ -78,8 +77,17 @@ def fit(
         ``v_pen`` and ``grid`` are not provided
     :type grid_length: int, default = 20
 
-    :param grid_iterations: number of times the grid should be alternated between ``v_pen`` and ``w_pen``
-    :type grid_iterations: int, default = 20
+    :param stopping_rule: A stopping rule less than one is interpreted as the
+        percent improvement in the out-of-sample squared prediction error required
+        between the current and previous iteration in order to continue with the
+        coordinate descent. A stopping rule of one or greater is interpreted as
+        the number of iterations of the coordinate descent (rounded down to the
+        nearest Int).  Alternatively, ``stopping_rule`` may be a function which
+        will be passed the current model fit, the previous model fit, and the
+        iteration number (depending on it's signature), and should return a
+        truthy value if the coordinate descent should stop and a falsey value
+        if the coordinate descent should stop.
+    :type stopping_rule: int, float, or function
 
     :param choice: Method for choosing from among the
         v_pen.  Only used when v_pen is an
@@ -161,7 +169,9 @@ def fit(
     :raises ValueError: when ``treated_units`` is not None and not an
             ``iterable``, or when model_type is not one of the allowed values
     """
-
+    # --------------------------------------------------
+    # PARAMETER VALIDATION
+    # --------------------------------------------------
     w_pen_is_iterable = False
     try:
         iter(w_pen)
@@ -191,10 +201,11 @@ def fit(
     if v_pen is not None and w_pen is not None:
         return _fit(X, Y, treated_units, w_pen, v_pen, **kwargs)
 
-    # Here, either v_pen or w_pen is None (possibly both)
+    # Herein, either v_pen or w_pen is None (possibly both)
 
-    verbose = kwargs.get("verbose", 1)
-
+    # --------------------------------------------------
+    # BUILD THE COORDINATE DESCENT PARAMETERS
+    # --------------------------------------------------
     if grid is None:
         grid = np.exp(np.linspace(np.log(grid_min), np.log(grid_max), grid_length))
 
@@ -204,19 +215,50 @@ def fit(
     else:
         _X, _Y = X, Y
 
+    # --------------------------------------------------
+    #  BUILD THE STOPPING RULE
+    # --------------------------------------------------
+    if callable(stopping_rule):
+        stopping_rule = stopping_rule
+        parameters = len(signature(stopping_rule).parameters)
+    else:
+        assert stopping_rule > 0, "stopping_rule must be positive number or a function"
+        if stopping_rule > 1:
+            iterations = [stopping_rule]
+            parameters = 0
+
+            def iterations_rule():
+                iterations[0] -= 1
+                return iterations[0] <= 0
+
+            stopping_rule = iterations_rule
+        else:
+            parameters = 2
+
+            def percent_reduction_rule(current, previous):
+                if previous is None:
+                    return False
+                oss_error_reduction = 1 - current.score / previous.score
+                return oss_error_reduction < stopping_rule
+
+            stopping_rule = percent_reduction_rule
+
+    # --------------------------------------------------
+    # ACTUAL WORK
+    # --------------------------------------------------
+    _iteration = 0
     model_fits = []
     last_axis = None
-    while grid_iterations > 0:
-        grid_iterations -= 1
+    previous_model_fit = None
+    while True:
 
         v_pen, w_pen, axis = _build_penalties(
-            _X, _Y, v_pen, w_pen, grid, gradient_folds, verbose
+            _X, _Y, v_pen, w_pen, grid, gradient_folds, verbose=kwargs.get("verbose", 1)
         )
         if last_axis:
             assert axis != last_axis
 
         model_fit = _fit(X, Y, treated_units, w_pen, v_pen, **kwargs)
-        model_fits.append(model_fit)
 
         if axis == "v_pen":
             v_pen, w_pen = model_fit.fitted_v_pen, None
@@ -224,11 +266,16 @@ def fit(
             v_pen, w_pen = None, model_fit.fitted_w_pen
         last_axis = axis
 
-    # RETURN THE FINAL MODEL AND ATTACH PREVIOUS MODEL FITS TO THE RESULT
-    out = model_fits.pop()
-    out.model_fits = model_fits
+        _params = [model_fit, previous_model_fit, _iteration][:parameters]
+        if stopping_rule(*_params):
+            break
 
-    return out
+        model_fits.append(model_fit)
+        previous_model_fit = model_fit
+        _iteration += 1
+
+    model_fit.model_fits = model_fits
+    return model_fit
 
 
 def _build_penalties(X, Y, v_pen, w_pen, grid, gradient_folds, verbose):
@@ -263,6 +310,20 @@ def _build_penalties(X, Y, v_pen, w_pen, grid, gradient_folds, verbose):
     return v_pen, w_pen, axis
 
 
+def _which(x, f):
+    """
+    adsf
+    """
+    # GET THE INDEX OF THE BEST SCORE
+    if callable(f):
+        return f(x)
+    if f == "min":
+        return np.argmin(x)
+    if f == "1se":
+        raise ValueError("option '1se' is not yet implemented")
+    raise ValueError("Unexpected value for choice parameter: %s" % f)
+
+
 def _fit(
     X,
     Y,
@@ -281,7 +342,6 @@ def _fit(
     **kwargs
 ):
     assert X.shape[0] == Y.shape[0]
-    # --     verbose = kwargs.get("verbose", 1)
 
     if (not callable(choice)) and (choice not in ("min",)):
         raise ValueError("Unexpected value for choice parameter: %s" % choice)
@@ -308,6 +368,21 @@ def _fit(
 
     if v_pen_is_iterable and w_pen_is_iterable:
         raise ValueError("Features and Weights penalties are both iterables")
+
+    def _choose(scores):
+        """ helper function which implements the choice of covariate weights penalty parameter
+
+        Nested here for access to  v_pen, w_pe,n w_pen_is_iterable and
+        v_pen_is_iterable, and choice, via Lexical Scoping
+        """
+        # GET THE INDEX OF THE BEST SCORE
+        if w_pen_is_iterable:
+            indx = _which(scores, choice)
+            return w_pen[indx], v_pen, scores[indx], indx
+        if v_pen_is_iterable:
+            indx = _which(scores, choice)
+            return w_pen, v_pen[indx], scores[indx], indx
+        return v_pen, w_pen, scores, None
 
     if treated_units is not None:
 
@@ -360,16 +435,7 @@ def _fit(
                 **kwargs
             )
 
-            # GET THE INDEX OF THE BEST SCORE
-            if w_pen_is_iterable:
-                best_v_pen = v_pen
-                best_w_pen = __choose(scores, w_pen, choice)
-            elif v_pen_is_iterable:
-                best_w_pen = w_pen
-                best_v_pen = __choose(scores, v_pen, choice)
-            else:
-                best_v_pen = v_pen
-                best_w_pen = w_pen
+            best_v_pen, best_w_pen, score, which = _choose(scores)
 
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -451,15 +517,7 @@ def _fit(
             )
 
             # GET THE INDEX OF THE BEST SCORE
-            if w_pen_is_iterable:
-                best_v_pen = v_pen
-                best_w_pen = __choose(scores, w_pen, choice)
-            elif v_pen_is_iterable:
-                best_w_pen = w_pen
-                best_v_pen = __choose(scores, v_pen, choice)
-            else:
-                best_v_pen = v_pen
-                best_w_pen = w_pen
+            best_v_pen, best_w_pen, score, which = _choose(scores)
 
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -500,15 +558,7 @@ def _fit(
             )
 
             # GET THE INDEX OF THE BEST SCORE
-            if w_pen_is_iterable:
-                best_v_pen = v_pen
-                best_w_pen = __choose(scores, w_pen, choice)
-            elif v_pen_is_iterable:
-                best_w_pen = w_pen
-                best_v_pen = __choose(scores, v_pen, choice)
-            else:
-                best_v_pen = v_pen
-                best_w_pen = w_pen
+            best_v_pen, best_w_pen, score, which = _choose(scores)
 
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -538,7 +588,11 @@ def _fit(
             custom_donor_pool_t = custom_donor_pool[treated_units, :]
             custom_donor_pool_c = custom_donor_pool[control_units, :]
         sc_weights[treated_units, :] = weights(
-            Xtrain, Xtest, V=best_V, w_pen=best_w_pen, custom_donor_pool=custom_donor_pool_t
+            Xtrain,
+            Xtest,
+            V=best_V,
+            w_pen=best_w_pen,
+            custom_donor_pool=custom_donor_pool_t,
         )
         sc_weights[control_units, :] = weights(
             Xtrain, V=best_V, w_pen=best_w_pen, custom_donor_pool=custom_donor_pool_c
@@ -571,15 +625,7 @@ def _fit(
         )
 
         # GET THE INDEX OF THE BEST SCORE
-        if w_pen_is_iterable:
-            best_v_pen = v_pen
-            best_w_pen = __choose(scores, w_pen, choice)
-        elif v_pen_is_iterable:
-            best_w_pen = w_pen
-            best_v_pen = __choose(scores, v_pen, choice)
-        else:
-            best_v_pen = v_pen
-            best_w_pen = w_pen
+        best_v_pen, best_w_pen, score, which = _choose(scores)
 
         # --------------------------------------------------
         # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -614,32 +660,17 @@ def _fit(
         V=best_V,
         # Fitted Synthetic Controls
         sc_weights=sc_weights,
+        score=score,
         scores=scores,
+        selected_score=which,
     )
-
-
-def __choose(scores, penalties, choice):
-    """ helper function which implements the choice of covariate weights penalty parameter
-    """
-    # GET THE INDEX OF THE BEST SCORE
-    try:
-        iter(penalties)
-    except TypeError:
-        return penalties
-    else:
-        if choice == "min":
-            return penalties[np.argmin(scores)]
-
-        if callable(choice):
-            return choice(scores)
-
-        raise ValueError("Unexpected value for choice parameter: %s" % choice)
 
 
 class SparseSCFit(object):
     """ 
     A class representing the results of a Synthetic Control model instance.
     """
+    model_fits = None
 
     def __init__(
         self,
@@ -657,7 +688,9 @@ class SparseSCFit(object):
         V,
         # Fitted Synthetic Controls:
         sc_weights,
+        score,
         scores,
+        selected_score,
     ):
 
         # DATA
@@ -673,7 +706,9 @@ class SparseSCFit(object):
         self.initial_w_pen = initial_w_pen
         self.initial_v_pen = initial_v_pen
         self.V = V
+        self.score = score
         self.scores = scores
+        self.selected_score = selected_score
 
         # FITTED SYNTHETIC CONTROLS
         self.sc_weights = sc_weights
