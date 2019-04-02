@@ -10,6 +10,7 @@ from SparseSC.fit_fold import fold_v_matrix
 from SparseSC.fit_loo import loo_v_matrix
 from SparseSC.fit_ct import ct_v_matrix, ct_score
 
+
 def score_train_test(
     X,
     Y,
@@ -67,7 +68,6 @@ def score_train_test(
         weights penalty, and the out-of-sample score
     :rtype: tuple
     """
-    # to use `pdb.set_trace()` here, set `parallel = False` above
     if (X_treat is None) != (Y_treat is None):
         raise ValueError(
             "parameters `X_treat` and `Y_treat` must both be Matrices or None"
@@ -178,40 +178,43 @@ def score_train_test(
 
     return v_mat, w_pen, s
 
-def score_train_test_sorted_w_pens(w_pen,
-                                   start=None,
-                                   cache=False,
-                                   progress=False,
-                                   FoldNumber=None,
-                                   **kwargs):
+
+def score_train_test_sorted_w_pens(
+    w_pen, start=None, cache=False, progress=False, FoldNumber=None, **kwargs
+):
     """ a wrapper which calls  score_train_test() for each element of an
         array of `w_pen`'s, optionally caching the optimized v_mat and using it
         as the start position for the next iteration.
     """
 
     # DEFAULTS
-    values = [None]*len(w_pen)
+    values = [None] * len(w_pen)
 
     if progress > 0:
         import time
+
         t0 = time.time()
 
-    for i,_w_pen in enumerate(w_pen):
-        v_mat, _, _ = values[i] = score_train_test( w_pen = _w_pen, start = start, **kwargs)
+    for i, _w_pen in enumerate(w_pen):
+        v_mat, _, _ = values[i] = score_train_test(w_pen=_w_pen, start=start, **kwargs)
 
         if cache:
             start = np.diag(v_mat)
         if progress > 0 and (i % progress) == 0:
             t1 = time.time()
             if FoldNumber is None:
-                print("w_pen: %0.4f, value %s of %s, time elapsed: %0.4f sec." %
-                      (_w_pen, i+1, len(w_pen), t1 - t0, ))
-                #print("iteration %s of %s time: %0.4f ,w_pen: %0.4f, diags: %s" %
+                print(
+                    "w_pen: %0.4f, value %s of %s, time elapsed: %0.4f sec."
+                    % (_w_pen, i + 1, len(w_pen), t1 - t0)
+                )
+                # print("iteration %s of %s time: %0.4f ,w_pen: %0.4f, diags: %s" %
                 #      (i+1, len(w_pen), t1 - t0, _w_pen, np.diag(v_mat),))
             else:
-                print("Fold %s,w_pen: %0.4f, value %s of %s, time elapsed: %0.4f sec." %
-                      (FoldNumber, _w_pen, i+1, len(w_pen), t1 - t0, ))
-                #print("Fold %s, iteration %s of %s, time: %0.4f ,w_pen: %0.4f, diags: %s" %
+                print(
+                    "Fold %s,w_pen: %0.4f, value %s of %s, time elapsed: %0.4f sec."
+                    % (FoldNumber, _w_pen, i + 1, len(w_pen), t1 - t0)
+                )
+                # print("Fold %s, iteration %s of %s, time: %0.4f ,w_pen: %0.4f, diags: %s" %
                 #      (FoldNumber, i+1, len(w_pen), t1 - t0, _w_pen, np.diag(v_mat),))
             t0 = time.time()
 
@@ -268,12 +271,12 @@ def CV_score(
     X_treat=None,
     Y_treat=None,
     splits=5,
-    # sub_splits=None, 
+    # sub_splits=None,
     quiet=False,
     parallel=False,
     max_workers=None,
     # this is here for API consistency:
-    progress=None, # pylint: disable=unused-argument
+    progress=None,  # pylint: disable=unused-argument
     **kwargs
 ):
     """ 
@@ -308,7 +311,7 @@ def CV_score(
         iter(w_pen)
     except TypeError:
         w_pen_is_iterable = False
-    else :
+    else:
         w_pen_is_iterable = True
         __score_train_test__ = score_train_test_sorted_w_pens
 
@@ -316,7 +319,7 @@ def CV_score(
         iter(v_pen)
     except TypeError:
         v_pen_is_iterable = False
-    else :
+    else:
         v_pen_is_iterable = True
         __score_train_test__ = score_train_test_sorted_v_pens
 
@@ -349,7 +352,7 @@ def CV_score(
         except TypeError:
             from sklearn.model_selection import KFold
 
-            splits = KFold(splits, True).split(np.arange(X_treat.shape[0]))
+            splits = KFold(splits, shuffle=True).split(np.arange(X_treat.shape[0]))
         train_test_splits = list(splits)
         n_splits = len(train_test_splits)
 
@@ -441,7 +444,7 @@ def CV_score(
         except TypeError:
             from sklearn.model_selection import KFold
 
-            splits = KFold(splits).split(np.arange(X.shape[0]))
+            splits = KFold(splits, shuffle=True).split(np.arange(X.shape[0]))
         train_test_splits = [x for x in splits]
         n_splits = len(train_test_splits)
 
@@ -472,7 +475,7 @@ def CV_score(
                 if max_workers == 1 and n_splits > 1:
                     print(
                         "WARNING: Default for max_workers is 1 on a machine with %s cores is 1."
-                    )  # pylint: disable=line-too-long
+                    )
 
             _initialize_Global_worker_pool(max_workers)
 

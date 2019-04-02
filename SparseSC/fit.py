@@ -3,6 +3,7 @@
 Implements round-robin fitting of Sparse Synthetic Controls Model for DGP based analysis
 """
 import numpy as np
+from warnings import warn
 from sklearn.model_selection import KFold
 
 # From the Public API
@@ -26,15 +27,9 @@ def fit(
     grid=None,  # USER SUPPLIED GRID OF COVARIATE PENALTIES
     grid_min=1e-6,
     grid_max=1,
-    grid_points=20,
-    choice="min",
-    cv_folds=10,
+    grid_length=20,
+    grid_iterations=2,
     gradient_folds=10,
-    gradient_seed=10101,
-    model_type="retrospective",
-    custom_donor_pool=None,
-    # VERBOSITY
-    progress=True,
     **kwargs
 ):
     r"""
@@ -57,7 +52,7 @@ def fit(
     :param w_pen: Penalty applied to the difference
         between the current weights and the null weights (1/n). default
         provided by :func:``w_pen_guestimate``.
-    :type w_pen: float, Optional
+    :type w_pen: float | float[], optional
 
     :param v_pen: penalty
         (penalties) applied to the magnitude of the covariate weights.
@@ -66,7 +61,7 @@ def fit(
     :type v_pen: float | float[], optional
 
     :param grid: only used when `v_pen` is not provided.
-        Defaults to ``np.exp(np.linspace(np.log(grid_min),np.log(grid_max),grid_points))``
+        Defaults to ``np.exp(np.linspace(np.log(grid_min),np.log(grid_max),grid_length))``
     :type grid: float | float[], optional
 
     :param grid_min: Lower bound for ``grid`` when
@@ -79,9 +74,12 @@ def fit(
         range ``(0,1]``
     :type grid_max: float, default = 1
 
-    :param grid_points: number of points in the ``grid`` parameter when
+    :param grid_length: number of points in the ``grid`` parameter when
         ``v_pen`` and ``grid`` are not provided
-    :type grid_points: int, default = 20
+    :type grid_length: int, default = 20
+
+    :param grid_iterations: number of times the grid should be alternated between ``v_pen`` and ``w_pen``
+    :type grid_iterations: int, default = 20
 
     :param choice: Method for choosing from among the
         v_pen.  Only used when v_pen is an
@@ -164,8 +162,152 @@ def fit(
             ``iterable``, or when model_type is not one of the allowed values
     """
 
-    assert X.shape[0] == Y.shape[0]
+    w_pen_is_iterable = False
+    try:
+        iter(w_pen)
+    except TypeError:
+        pass
+    else:
+        if v_pen is None:
+            raise ValueError("When v_pen is an iterable, v_pen must be provided")
+        w_pen_is_iterable = True
+
+    v_pen_is_iterable = False
+    try:
+        iter(v_pen)
+    except TypeError:
+        pass
+    else:
+        v_pen_is_iterable = True
+        if w_pen is None:
+            raise ValueError("When v_pen is an iterable, w_pen must be provided")
+
+    if v_pen_is_iterable and w_pen_is_iterable:
+        raise ValueError("Features and Weights penalties are both iterables")
+
+    if v_pen_is_iterable or w_pen_is_iterable:
+        return _fit(X, Y, treated_units, w_pen, v_pen, **kwargs)
+
+    if v_pen is not None and w_pen is not None:
+        return _fit(X, Y, treated_units, w_pen, v_pen, **kwargs)
+
+    # Here, either v_pen or w_pen is None (possibly both)
+
     verbose = kwargs.get("verbose", 1)
+
+    if grid is None:
+        grid = np.exp(np.linspace(np.log(grid_min), np.log(grid_max), grid_length))
+
+    if treated_units is not None:
+        control_units = [u for u in range(Y.shape[0]) if u not in treated_units]
+        _X, _Y = X[control_units, :], Y[control_units, :]
+    else:
+        _X, _Y = X, Y
+
+    model_fits = []
+    last_axis = None
+    while grid_iterations > 0:
+        grid_iterations -= 1
+
+        v_pen, w_pen, axis = _build_penalties(
+            _X, _Y, v_pen, w_pen, grid, gradient_folds, verbose
+        )
+        if last_axis:
+            assert axis != last_axis
+
+        model_fit = _fit(X, Y, treated_units, w_pen, v_pen, **kwargs)
+        model_fits.append(model_fit)
+
+        if axis == "v_pen":
+            v_pen, w_pen = model_fit.fitted_v_pen, None
+        else:
+            v_pen, w_pen = None, model_fit.fitted_w_pen
+        last_axis = axis
+
+    # RETURN THE FINAL MODEL AND ATTACH PREVIOUS MODEL FITS TO THE RESULT
+    out = model_fits.pop()
+    out.model_fits = model_fits
+
+    return out
+
+
+def _build_penalties(X, Y, v_pen, w_pen, grid, gradient_folds, verbose):
+    """ Build (sensible?) defaults for the v_pen and w_pen
+    """
+
+    if w_pen is None:
+        if v_pen is None:
+            # use the guestimate for w_pen and generate a grid based sequence for v_pen
+            w_pen = w_pen_guestimate(X)
+            v_pen_max = get_max_v_pen(
+                X, Y, w_pen=w_pen, grad_splits=gradient_folds, verbose=verbose
+            )
+            axis = "v_pen"
+            v_pen = grid * v_pen_max
+
+        else:
+            w_pen_max = get_max_w_pen(
+                X, Y, v_pen=v_pen, grad_splits=gradient_folds, verbose=verbose
+            )
+            axis = "w_pen"
+            w_pen = grid * w_pen_max
+
+    else:  # w_pen is not None:
+
+        v_pen_max = get_max_v_pen(
+            X, Y, w_pen=w_pen, grad_splits=gradient_folds, verbose=verbose
+        )
+        axis = "v_pen"
+        v_pen = grid * v_pen_max
+
+    return v_pen, w_pen, axis
+
+
+def _fit(
+    X,
+    Y,
+    treated_units=None,
+    w_pen=None,  # Float
+    v_pen=None,  # Float or an array of floats
+    # PARAMETERS USED TO CONSTRUCT DEFAULT GRID COVARIATE_PENALTIES
+    choice="min",
+    cv_folds=10,
+    gradient_folds=10,
+    gradient_seed=10101,
+    model_type="retrospective",
+    custom_donor_pool=None,
+    # VERBOSITY
+    progress=True,
+    **kwargs
+):
+    assert X.shape[0] == Y.shape[0]
+    # --     verbose = kwargs.get("verbose", 1)
+
+    if (not callable(choice)) and (choice not in ("min",)):
+        raise ValueError("Unexpected value for choice parameter: %s" % choice)
+
+    w_pen_is_iterable = False
+    try:
+        iter(w_pen)
+    except TypeError:
+        pass
+    else:
+        if v_pen is None:
+            raise ValueError("When v_pen is an iterable, v_pen must be provided")
+        w_pen_is_iterable = True
+
+    v_pen_is_iterable = False
+    try:
+        iter(v_pen)
+    except TypeError:
+        pass
+    else:
+        v_pen_is_iterable = True
+        if w_pen is None:
+            raise ValueError("When v_pen is an iterable, w_pen must be provided")
+
+    if v_pen_is_iterable and w_pen_is_iterable:
+        raise ValueError("Features and Weights penalties are both iterables")
 
     if treated_units is not None:
 
@@ -194,21 +336,8 @@ def fit(
         Ytest = Y[treated_units, :]
 
         # --------------------------------------------------
-        # (sensible?) defaults
+        # Actual work
         # --------------------------------------------------
-        # Get the weight penalty guestimate:  very quick ( milliseconds )
-        if w_pen is None:
-            w_pen = w_pen_guestimate(Xtrain)
-        if v_pen is None:
-            if grid is None:
-                grid = np.exp(
-                    np.linspace(np.log(grid_min), np.log(grid_max), grid_points)
-                )
-            # GET THE MAXIMUM v_penS: quick ~ ( seconds to tens of seconds )
-            v_pen_max = get_max_v_pen(
-                Xtrain, Ytrain, w_pen=w_pen, grad_splits=gradient_folds, verbose=verbose
-            )
-            v_pen = grid * v_pen_max
 
         if model_type == "retrospective":
             # Retrospective Treatment Effects:  ( *model_type = "prospective"*)
@@ -223,8 +352,8 @@ def fit(
                 Y=Ytrain,
                 splits=cv_folds,
                 v_pen=v_pen,
-                progress=progress,
                 w_pen=w_pen,
+                progress=progress,
                 grad_splits=gradient_folds,
                 random_state=gradient_seed,  # TODO: Cleanup Task 1
                 quiet=not progress,
@@ -232,7 +361,15 @@ def fit(
             )
 
             # GET THE INDEX OF THE BEST SCORE
-            best_v_pen = __choose(scores, v_pen, choice)
+            if w_pen_is_iterable:
+                best_v_pen = v_pen
+                best_w_pen = __choose(scores, w_pen, choice)
+            elif v_pen_is_iterable:
+                best_w_pen = w_pen
+                best_v_pen = __choose(scores, v_pen, choice)
+            else:
+                best_v_pen = v_pen
+                best_w_pen = w_pen
 
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -241,6 +378,7 @@ def fit(
             best_V = tensor(
                 X=Xtrain,
                 Y=Ytrain,
+                w_pen=best_w_pen,
                 v_pen=best_v_pen,
                 grad_splits=gradient_folds,
                 random_state=gradient_seed,  # TODO: Cleanup Task 1
@@ -304,8 +442,8 @@ def fit(
                 Y=Y,
                 splits=cv_folds,
                 v_pen=v_pen,
-                progress=progress,
                 w_pen=w_pen,
+                progress=progress,
                 grad_splits=gradient_folds,
                 random_state=gradient_seed,  # TODO: Cleanup Task 1
                 quiet=not progress,
@@ -313,7 +451,15 @@ def fit(
             )
 
             # GET THE INDEX OF THE BEST SCORE
-            best_v_pen = __choose(scores, v_pen, choice)
+            if w_pen_is_iterable:
+                best_v_pen = v_pen
+                best_w_pen = __choose(scores, w_pen, choice)
+            elif v_pen_is_iterable:
+                best_w_pen = w_pen
+                best_v_pen = __choose(scores, v_pen, choice)
+            else:
+                best_v_pen = v_pen
+                best_w_pen = w_pen
 
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -322,6 +468,7 @@ def fit(
             best_V = tensor(
                 X=X,
                 Y=Y,
+                w_pen=best_w_pen,
                 v_pen=best_v_pen,
                 grad_splits=gradient_folds,
                 random_state=gradient_seed,  # TODO: Cleanup Task 1
@@ -353,7 +500,15 @@ def fit(
             )
 
             # GET THE INDEX OF THE BEST SCORE
-            best_v_pen = __choose(scores, v_pen, choice)
+            if w_pen_is_iterable:
+                best_v_pen = v_pen
+                best_w_pen = __choose(scores, w_pen, choice)
+            elif v_pen_is_iterable:
+                best_w_pen = w_pen
+                best_v_pen = __choose(scores, v_pen, choice)
+            else:
+                best_v_pen = v_pen
+                best_w_pen = w_pen
 
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -364,6 +519,7 @@ def fit(
                 Y=Ytrain,
                 X_treat=Xtest,
                 Y_treat=Ytest,
+                w_pen=best_w_pen,
                 v_pen=best_v_pen,
                 **kwargs
             )
@@ -382,10 +538,10 @@ def fit(
             custom_donor_pool_t = custom_donor_pool[treated_units, :]
             custom_donor_pool_c = custom_donor_pool[control_units, :]
         sc_weights[treated_units, :] = weights(
-            Xtrain, Xtest, V=best_V, w_pen=w_pen, custom_donor_pool=custom_donor_pool_t
+            Xtrain, Xtest, V=best_V, w_pen=best_w_pen, custom_donor_pool=custom_donor_pool_t
         )
         sc_weights[control_units, :] = weights(
-            Xtrain, V=best_V, w_pen=w_pen, custom_donor_pool=custom_donor_pool_c
+            Xtrain, V=best_V, w_pen=best_w_pen, custom_donor_pool=custom_donor_pool_c
         )
     else:
 
@@ -395,24 +551,6 @@ def fit(
             )  # pylint: disable=line-too-long
 
         control_units = None
-
-        # --------------------------------------------------
-        # (sensible?) defaults
-        # --------------------------------------------------
-        if v_pen is None:
-            if grid is None:
-                grid = np.exp(
-                    np.linspace(np.log(grid_min), np.log(grid_max), grid_points)
-                )
-            # GET THE MAXIMUM v_penS: quick ~ ( seconds to tens of seconds )
-            v_pen_max = get_max_v_pen(
-                X, Y, w_pen=w_pen, grad_splits=gradient_folds, verbose=verbose
-            )
-            v_pen = grid * v_pen_max
-
-        # Get the weight penalty guestimate:  very quick ( milliseconds )
-        if w_pen is None:
-            w_pen = w_pen_guestimate(X)
 
         # --------------------------------------------------
         # Phase 1: extract cross fold residual errors for each v_pen
@@ -433,7 +571,15 @@ def fit(
         )
 
         # GET THE INDEX OF THE BEST SCORE
-        best_v_pen = __choose(scores, v_pen, choice)
+        if w_pen_is_iterable:
+            best_v_pen = v_pen
+            best_w_pen = __choose(scores, w_pen, choice)
+        elif v_pen_is_iterable:
+            best_w_pen = w_pen
+            best_v_pen = __choose(scores, v_pen, choice)
+        else:
+            best_v_pen = v_pen
+            best_w_pen = w_pen
 
         # --------------------------------------------------
         # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -442,6 +588,7 @@ def fit(
         best_V = tensor(
             X=X,
             Y=Y,
+            w_pen=best_w_pen,
             v_pen=best_v_pen,
             grad_splits=gradient_folds,
             random_state=gradient_seed,  # TODO: Cleanup Task 1
@@ -450,22 +597,24 @@ def fit(
 
         # GET THE BEST SET OF WEIGHTS
         sc_weights = weights(
-            X, V=best_V, w_pen=w_pen, custom_donor_pool=custom_donor_pool
+            X, V=best_V, w_pen=best_w_pen, custom_donor_pool=custom_donor_pool
         )
 
     return SparseSCFit(
-        X,
-        Y,
-        control_units,
-        treated_units,
-        model_type,
+        X=X,
+        Y=Y,
+        control_units=control_units,
+        treated_units=treated_units,
+        model_type=model_type,
         # fitting parameters
-        best_v_pen,
-        w_pen,
-        v_pen,
-        best_V,
+        fitted_v_pen=best_v_pen,
+        fitted_w_pen=best_w_pen,
+        initial_w_pen=w_pen,
+        initial_v_pen=v_pen,
+        V=best_V,
         # Fitted Synthetic Controls
-        sc_weights,
+        sc_weights=sc_weights,
+        scores=scores,
     )
 
 
@@ -476,18 +625,15 @@ def __choose(scores, penalties, choice):
     try:
         iter(penalties)
     except TypeError:
-        best_penalty_parameter = penalties
+        return penalties
     else:
         if choice == "min":
-            best_i = np.argmin(scores)
-            best_penalty_parameter = penalties[best_i]
-        elif callable(choice):
-            best_penalty_parameter = choice(scores)
-        else:
-            # TODO: this is a terrible place to throw this error
-            raise ValueError("Unexpected value for choice parameter: %s" % choice)
+            return penalties[np.argmin(scores)]
 
-    return best_penalty_parameter
+        if callable(choice):
+            return choice(scores)
+
+        raise ValueError("Unexpected value for choice parameter: %s" % choice)
 
 
 class SparseSCFit(object):
@@ -504,12 +650,14 @@ class SparseSCFit(object):
         treated_units,
         model_type,
         # fitting parameters:
-        V_penalty,
-        w_pen,
-        v_pen,
+        fitted_v_pen,
+        fitted_w_pen,
+        initial_v_pen,
+        initial_w_pen,
         V,
         # Fitted Synthetic Controls:
         sc_weights,
+        scores,
     ):
 
         # DATA
@@ -520,16 +668,19 @@ class SparseSCFit(object):
         self.model_type = model_type
 
         # FITTING PARAMETERS
-        self.V_penalty = V_penalty
-        self.w_pen = w_pen
-        self.v_pen = v_pen
+        self.fitted_w_pen = fitted_w_pen
+        self.fitted_v_pen = fitted_v_pen
+        self.initial_w_pen = initial_w_pen
+        self.initial_v_pen = initial_v_pen
         self.V = V
+        self.scores = scores
 
         # FITTED SYNTHETIC CONTROLS
         self.sc_weights = sc_weights
 
     def predict(self, Ydonor=None):
-        """ predict method
+        """ 
+        predict method
         """
         if Ydonor is None:
             if self.model_type != "full":
@@ -544,21 +695,10 @@ class SparseSCFit(object):
         """
         return _SparseFit_string_template % (
             self.model_type,
-            self.V_penalty,
-            self.w_pen,
+            self.fitted_v_pen,
+            self.fitted_w_pen,
             np.diag(self.V),
         )
-
-        # TODO: CALCULATE ERRORS AND R-SQUARED'S
-        # ct_prediction_error = Y_SC_test - Ytest
-        # null_model_error = Ytest - np.mean(Xtest)
-        # betternull_model_error = (Ytest.T - np.mean(Xtest,1)).T
-        # print("#--------------------------------------------------")
-        # print("OUTER FOLD %s OF %s: Group Mean R-squared: %0.3f%%; Individual Mean R-squared: %0.3f%%" % (
-        #        i + 1,
-        #        100*(1 - np.power(ct_prediction_error,2).sum()  / np.power(null_model_error,2).sum()) ,
-        #        100*(1 - np.power(ct_prediction_error,2).sum()  /np.power(betternull_model_error,2).sum() )))
-        # print("#--------------------------------------------------")
 
     def show(self):
         """ display goodness of figures illustrating goodness of fit
@@ -571,3 +711,15 @@ V penalty: %s
 W penalty: %s
 V: %s
 """
+
+
+# TODO: CALCULATE ERRORS AND R-SQUARED'S
+# ct_prediction_error = Y_SC_test - Ytest
+# null_model_error = Ytest - np.mean(Xtest)
+# betternull_model_error = (Ytest.T - np.mean(Xtest,1)).T
+# print("#--------------------------------------------------")
+# print("OUTER FOLD %s OF %s: Group Mean R-squared: %0.3f%%; Individual Mean R-squared: %0.3f%%" % (
+#        i + 1,
+#        100*(1 - np.power(ct_prediction_error,2).sum()  / np.power(null_model_error,2).sum()) ,
+#        100*(1 - np.power(ct_prediction_error,2).sum()  /np.power(betternull_model_error,2).sum() )))
+# print("#--------------------------------------------------")

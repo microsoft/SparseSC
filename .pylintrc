@@ -55,8 +55,11 @@ confidence=
 # no Warning level messages displayed, use"--disable=all --enable=classes
 # --disable=W"
 disable=print-statement,
+        line-too-long, # handing this over to black
         bad-continuation, # handing this over to black
 		useless-object-inheritance, # trying to keep compatibility with python 2.7
+        missing-type-doc,
+        missing-return-type-doc,
         parameter-unpacking,
         unpacking-in-except,
         old-raise-syntax,

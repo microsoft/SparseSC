@@ -71,6 +71,13 @@ def tensor(X, Y, X_treat=None, Y_treat=None, grad_splits=None, **kwargs):
     else:
         # Fit the control units to themselves; Y may contain post-intervention outcomes:
 
+        adjusted=False
+        if kwargs["w_pen"] < 1:
+            adjusted=True
+#--             new_pen = 1.5
+#--             print("w_pen: %s -> %s"% (kwargs["w_pen"], new_pen))
+#--             kwargs["w_pen"] = new_pen
+
         if grad_splits is not None:
             _, v_mat, _, _, _, _ = fold_v_matrix(
                 X=X,
@@ -81,6 +88,9 @@ def tensor(X, Y, X_treat=None, Y_treat=None, grad_splits=None, **kwargs):
                 # treated_units = [X.shape[0] + i for i in  range(len(train))],
                 **kwargs
             )
+
+            if adjusted:
+                print("vmat: %s" % (np.diag(v_mat)))
 
         else:
             _, v_mat, _, _, _, _ = loo_v_matrix(

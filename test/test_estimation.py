@@ -4,19 +4,25 @@ Tests for model fitness
 
 import unittest
 import numpy as np
-import random
 import SparseSC as SC
 from os.path import join, abspath, dirname
 from dgp.factor_model import factor_dgp
 
 # import matplotlib.pyplot as plt
 
-exec(
+exec(# pylint: disable=exec-used
     open(join(dirname(abspath(__file__)), "..", "examples", "example_graphs.py")).read()
 )  # if we don't want an __init__.py
 
 
+# pylint: disable=no-self-use
+
+
 class TestDGPs(unittest.TestCase):
+    """
+    testing fixture
+    """
+
     def testSimpleTrendDGP(self):
         """
         No X, just Y; half the donors are great, other half are bad
@@ -30,23 +36,35 @@ class TestDGPs(unittest.TestCase):
         T = T0 + T1
         proto_sim = np.array(range(0, T, 1), ndmin=2)
         proto_not = np.array(range(0, 2 * T, 2), ndmin=2)
+        proto_not[0,2] += 1
         te = np.hstack((np.zeros((1, T0)), np.full((1, T0), 2)))
         proto_tr = proto_sim + te
         Y1 = np.matmul(np.ones((N1, 1)), proto_tr)
         Y0_sim = np.matmul(np.ones((N0_sim, 1)), proto_sim)
         Y0_not = np.matmul(np.ones((N0_not, 1)), proto_not)
         Y = np.vstack((Y1, Y0_sim, Y0_not))
-        ret_full = SC.estimate_effects(
-            Y[:, :T0], Y[:, T0:], treated_units, ret_CI=True, max_n_pl=200
-        )  # just getting V_pen
-        V_penalty = ret_full.fit.V_penalty
 
+        #Y += np.random.normal(0, 0.01, Y.shape)
+
+        # OPTIMIZE OVER THE V_PEN'S
+        ret_full = SC.estimate_effects(
+            Y[:, :T0],
+            Y[:, T0:],
+            treated_units,
+            ret_CI=True,
+            max_n_pl=200,
+            grid_min=1e-2,
+            w_pen=1e6,  # 1e-11,
+        )  # just getting V_pen
+        V_penalty = ret_full.fit.fitted_v_pen
+
+        # OPTIMIZE OVER THE W_PEN'S
         ret = SC.estimate_effects(
             Y[:, :T0],
             Y[:, T0:],
             treated_units,
-            v_pen=[V_penalty],
-            w_pen=0.00000000001,
+            v_pen=V_penalty,
+            w_pen=1e-6,  # 1e-11,
             ret_CI=True,
         )
         Y_sc = ret.fit.predict(Y[control_units, :])
@@ -55,10 +73,15 @@ class TestDGPs(unittest.TestCase):
         # print(weight_sums[0])
         # print(np.mean(weight_sums[0]))
 
+        print(ret_full.fit.scores)
+        p_value = ret.p_value
+        print("p-value: %s" % p_value)
+        print( ret.CI)
+        import pdb; pdb.set_trace()
         # print(ret)
         assert 2 in ret.CI, "Confidence interval does not include the true effect"
-        p_value = ret.p_value
         assert p_value is not None
+        # import pdb; pdb.set_trace()
         assert p_value < 0.001, "P-value is larger than expected"
 
         # [sc_raw, sc_diff] = ind_sc_plots(Y[0, :], Y_sc[0, :], T0, ind_ci=ret.ind_CI)
@@ -75,6 +98,9 @@ class TestDGPs(unittest.TestCase):
         # # plt.show()
 
     def testFactorDGP(self):
+        """
+        factor dbp based test
+        """
         N1, N0 = 2, 100
         treated_units = [0, 1]
         T0, T1 = 20, 10
@@ -109,6 +135,8 @@ class TestDGPs(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    import random
+
     random.seed(12345)
     np.random.seed(10101)
 

@@ -15,8 +15,6 @@ def estimate_effects(
     ret_pl=False,
     ret_CI=False,
     level=0.95,
-    w_pen=None,
-    v_pen=None,
     **kwargs
 ):
     r"""
@@ -33,8 +31,9 @@ def estimate_effects(
             the controls when N1>1)
     :param ret_CI:
     :param level:
-    :param w_pen:
-    :param v_pen:
+    :param kwargs: Additional parameters passed to fit()
+
+    :returns: An instance of SparseSCEstResults with the fitted results
 
     :Keyword Args: Passed on to fit()
     """
@@ -62,8 +61,7 @@ def estimate_effects(
         verbose=0,
         min_iter=-1,
         tol=1,
-        w_pen=w_pen,
-        v_pen=v_pen,
+        **kwargs
     )
     Y_sc = fit_res.predict(Y[control_units, :])
     diffs = Y - Y_sc
@@ -130,6 +128,7 @@ class SparseSCEstResults(object):
     Holds estimation info
     """
 
+    # pylint: disable=redefined-outer-name
     def __init__(self, fit, pl_res_pre, pl_res_post, pl_res_post_scaled, ind_CI=None):
         """
         :param fit: The fit() return object

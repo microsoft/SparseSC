@@ -130,15 +130,15 @@ def cdl_search(
     else:
         val0 = score(np.zeros(x_curr.shape[0]))
 
-    # --     if (x_curr == 0).all():
-    # --         # Force a single step away form the origin if it is at least a little
-    # --         # useful. Intuition: the curvature at the origin is typically
-    # --         # exceedingly sharp (becasue we're going from a state with "no
-    # --         # information" to "some information" in the covariate space, and as
-    # --         # result the strong wolf conditions will have a strong tendency to
-    # --         # fail. However, the origin is rarely optimal so forcing a step away
-    # --         # form the origin will be necessary in most cases.
-    # --         x_curr, val = cdl_step (score, guess, jac, val, learning_rate, zero_eps, print_path)
+    # if (x_curr == 0).all():
+    #     # Force a single step away form the origin if it is at least a little
+    #     # useful. Intuition: the curvature at the origin is typically
+    #     # exceedingly sharp (becasue we're going from a state with "no
+    #     # information" to "some information" in the covariate space, and as
+    #     # result the strong wolf conditions will have a strong tendency to
+    #     # fail. However, the origin is rarely optimal so forcing a step away
+    #     # form the origin will be necessary in most cases.
+    #     x_curr, val = cdl_step (score, guess, jac, val, learning_rate, zero_eps, print_path)
 
     for _i in range(max_iter):
 
