@@ -522,12 +522,21 @@ def CV_score(
     # extract the score.
     _, _, scores = list(zip(*results))
 
+    # TODO: np.sqrt(len(scores)) * np.std(scores) is a quick and dirty hack for
+    # calculating the standard error of the sum from the partial sums.  It's
+    # assumes the samples are equal size and randomly allocated (which is true
+    # in the default settings).  However, it could be made more formal with a
+    # fixed effects framework, and leveraging the individual errors.
+    # https://stats.stackexchange.com/a/271223/67839
+
     if v_pen_is_iterable or w_pen_is_iterable:
         total_score = [sum(s) for s in zip(*scores)]
+        se = [np.sqrt(len(s)) * np.std(s) for s in zip(*scores)]
     else:
         total_score = sum(scores)
+        se = np.sqrt(len(scores)) * np.std(scores)
 
-    return total_score
+    return total_score, se
 
 
 # ------------------------------------------------------------

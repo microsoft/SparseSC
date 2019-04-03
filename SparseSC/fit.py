@@ -310,19 +310,6 @@ def _build_penalties(X, Y, v_pen, w_pen, grid, gradient_folds, verbose):
     return v_pen, w_pen, axis
 
 
-def _which(x, f):
-    """
-    adsf
-    """
-    # GET THE INDEX OF THE BEST SCORE
-    if callable(f):
-        return f(x)
-    if f == "min":
-        return np.argmin(x)
-    if f == "1se":
-        raise ValueError("option '1se' is not yet implemented")
-    raise ValueError("Unexpected value for choice parameter: %s" % f)
-
 
 def _fit(
     X,
@@ -331,7 +318,7 @@ def _fit(
     w_pen=None,  # Float
     v_pen=None,  # Float or an array of floats
     # PARAMETERS USED TO CONSTRUCT DEFAULT GRID COVARIATE_PENALTIES
-    choice="min",
+    choice="1se",
     cv_folds=10,
     gradient_folds=10,
     gradient_seed=10101,
@@ -343,7 +330,8 @@ def _fit(
 ):
     assert X.shape[0] == Y.shape[0]
 
-    if (not callable(choice)) and (choice not in ("min",)):
+    if (not callable(choice)) and (choice not in ("min","1se",)):
+        # Fail Faster (tm) 
         raise ValueError("Unexpected value for choice parameter: %s" % choice)
 
     w_pen_is_iterable = False
@@ -369,7 +357,7 @@ def _fit(
     if v_pen_is_iterable and w_pen_is_iterable:
         raise ValueError("Features and Weights penalties are both iterables")
 
-    def _choose(scores):
+    def _choose(scores,scores_se):
         """ helper function which implements the choice of covariate weights penalty parameter
 
         Nested here for access to  v_pen, w_pe,n w_pen_is_iterable and
@@ -377,10 +365,10 @@ def _fit(
         """
         # GET THE INDEX OF THE BEST SCORE
         if w_pen_is_iterable:
-            indx = _which(scores, choice)
+            indx = _which(scores,scores_se, choice)
             return w_pen[indx], v_pen, scores[indx], indx
         if v_pen_is_iterable:
-            indx = _which(scores, choice)
+            indx = _which(scores,scores_se, choice)
             return w_pen, v_pen[indx], scores[indx], indx
         return v_pen, w_pen, scores, None
 
@@ -422,7 +410,7 @@ def _fit(
             # --------------------------------------------------
 
             # SCORES FOR EACH VALUE OF THE GRID: very slow ( minutes to hours )
-            scores = CV_score(
+            scores, scores_se = CV_score(
                 X=Xtrain,
                 Y=Ytrain,
                 splits=cv_folds,
@@ -435,7 +423,7 @@ def _fit(
                 **kwargs
             )
 
-            best_v_pen, best_w_pen, score, which = _choose(scores)
+            best_v_pen, best_w_pen, score, which = _choose(scores,scores_se)
 
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -503,7 +491,7 @@ def _fit(
             # --------------------------------------------------
 
             # SCORES FOR EACH VALUE OF THE GRID: very slow ( minutes to hours )
-            scores = CV_score(
+            scores, scores_se = CV_score(
                 X=X,
                 Y=Y,
                 splits=cv_folds,
@@ -517,7 +505,7 @@ def _fit(
             )
 
             # GET THE INDEX OF THE BEST SCORE
-            best_v_pen, best_w_pen, score, which = _choose(scores)
+            best_v_pen, best_w_pen, score, which = _choose(scores,scores_se)
 
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -544,7 +532,7 @@ def _fit(
             # --------------------------------------------------
 
             # SCORES FOR EACH VALUE OF THE GRID: very slow ( minutes to hours )
-            scores = CV_score(
+            scores, scores_se = CV_score(
                 X=Xtrain,
                 Y=Ytrain,
                 X_treat=Xtest,
@@ -558,7 +546,7 @@ def _fit(
             )
 
             # GET THE INDEX OF THE BEST SCORE
-            best_v_pen, best_w_pen, score, which = _choose(scores)
+            best_v_pen, best_w_pen, score, which = _choose(scores,scores_se)
 
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -611,7 +599,7 @@ def _fit(
         # --------------------------------------------------
 
         # SCORES FOR EACH VALUE OF THE GRID: very slow ( minutes to hours )
-        scores = CV_score(
+        scores, scores_se = CV_score(
             X=X,
             Y=Y,
             splits=cv_folds,
@@ -625,7 +613,7 @@ def _fit(
         )
 
         # GET THE INDEX OF THE BEST SCORE
-        best_v_pen, best_w_pen, score, which = _choose(scores)
+        best_v_pen, best_w_pen, score, which = _choose(scores,scores_se)
 
         # --------------------------------------------------
         # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -746,6 +734,27 @@ V penalty: %s
 W penalty: %s
 V: %s
 """
+
+def _which(x,se, f):
+    """
+    Return the index of the value which meets the selection rule
+    """
+    # GET THE INDEX OF THE BEST SCORE
+    if callable(f):
+        return f(x)
+    if f == "min":
+        return np.argmin(x)
+    if f == "1se":
+        """
+        Return the first score which exceeds the remaining (higher penalized)
+        scores by at least 1 standard error. If none of the values exceed the
+        most penalized value, return the most penalized value.
+        """
+        x_1se  = (np.array(x) + np.array(se))[:-1]
+        # reversed cumulative minimum (excluding the first value)
+        cum_min = np.minimum.accumulate(x[::-1])[-2::-1] # type: ignore
+        return np.where(np.append(x_1se < cum_min, np.array((True,))))[0][0]
+    raise ValueError("Unexpected value for choice parameter: %s" % f)
 
 
 # TODO: CALCULATE ERRORS AND R-SQUARED'S
