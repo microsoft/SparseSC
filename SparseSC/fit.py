@@ -366,10 +366,10 @@ def _fit(
         # GET THE INDEX OF THE BEST SCORE
         if w_pen_is_iterable:
             indx = _which(scores,scores_se, choice)
-            return w_pen[indx], v_pen, scores[indx], indx
+            return v_pen, w_pen[indx], scores[indx], indx
         if v_pen_is_iterable:
             indx = _which(scores,scores_se, choice)
-            return w_pen, v_pen[indx], scores[indx], indx
+            return v_pen[indx], w_pen, scores[indx], indx
         return v_pen, w_pen, scores, None
 
     if treated_units is not None:
