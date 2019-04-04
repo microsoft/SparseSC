@@ -21,6 +21,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="cross_validation.py" />
+    <Compile Include="estimate_effects.py" />
     <Compile Include="fit.py" />
     <Compile Include="fit_ct.py" />
     <Compile Include="fit_fold.py" />
