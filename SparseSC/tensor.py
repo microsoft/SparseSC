@@ -89,8 +89,8 @@ def tensor(X, Y, X_treat=None, Y_treat=None, grad_splits=None, **kwargs):
                 **kwargs
             )
 
-            if adjusted:
-                print("vmat: %s" % (np.diag(v_mat)))
+            #if adjusted:
+            #    print("vmat: %s" % (np.diag(v_mat)))
 
         else:
             _, v_mat, _, _, _, _ = loo_v_matrix(
