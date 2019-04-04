@@ -63,6 +63,8 @@ def estimate_effects(
         kwargs['min_iter'] = -1
     if 'tol' not in kwargs:
         kwargs['tol'] = 1
+    if 'choice' not in kwargs:
+        kwargs['choice'] = "min"
 
     fit_res = fit(
         X=X_and_Y_pre,
