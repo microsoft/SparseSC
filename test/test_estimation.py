@@ -45,45 +45,48 @@ class TestDGPs(unittest.TestCase):
         Y0_not = np.matmul(np.ones((N0_not, 1)), proto_not)
         Y = np.vstack((Y1, Y0_sim, Y0_not))
 
+        def simple_summ(fit, Y):
+            print("V_pen=%s, W_pen=%s" % (fit.fitted_v_pen, fit.fitted_w_pen))
+            print("V=%s" % np.diag(fit.V))
+            print("Treated weights: sim=%s, uns=%s, sum=%s" % (fit.sc_weights[0,49], fit.sc_weights[0,99], sum(fit.sc_weights[0,:])))
+            print("Sim Con weights: sim=%s, uns=%s, sum=%s" % (fit.sc_weights[1,49], fit.sc_weights[1,99], sum(fit.sc_weights[1,:])))
+            print("Uns Con weights: sim=%s, uns=%s, sum=%s" % (fit.sc_weights[51,49], fit.sc_weights[51,99], sum(fit.sc_weights[51,:])))
+            Y_sc = fit.predict(Y[fit.control_units, :])
+            print("Treated diff: %s" % (Y - Y_sc)[0,:])
+
         #Y += np.random.normal(0, 0.01, Y.shape)
 
         # OPTIMIZE OVER THE V_PEN'S
-        ret_full = SC.estimate_effects(
+        #for v_pen, w_pen in [(1,1), (1,1e-10), (1e-10,1e-10), (1e-10,1), (None, None)]: #
+        #print("\nv_pen=%s, w_pen=%s" % (v_pen, w_pen))
+        ret = SC.estimate_effects(
             Y[:, :T0],
             Y[:, T0:],
             treated_units,
             ret_CI=True,
             max_n_pl=200,
-            grid_min=1e-2,
-            w_pen=1e6,  # 1e-11,
-        )  # just getting V_pen
-        V_penalty = ret_full.fit.fitted_v_pen
+            progress = False,
+            stopping_rule=4,
+            #v_pen = v_pen, w_pen=w_pen
+        ) 
+        simple_summ(ret.fit, Y)
+        V_penalty = ret.fit.fitted_v_pen
 
-        # OPTIMIZE OVER THE W_PEN'S
-        ret = SC.estimate_effects(
-            Y[:, :T0],
-            Y[:, T0:],
-            treated_units,
-            v_pen=V_penalty,
-            w_pen=1e-6,  # 1e-11,
-            ret_CI=True,
-        )
         Y_sc = ret.fit.predict(Y[control_units, :])
-        te = (Y - Y_sc)[0:T0:]
+        te_vec_est = (Y - Y_sc)[0:T0:]
         # weight_sums = np.sum(ret.fit.sc_weights, axis=1)
-        # print(weight_sums[0])
-        # print(np.mean(weight_sums[0]))
 
-        print(ret_full.fit.scores)
-        p_value = ret.p_value
-        print("p-value: %s" % p_value)
-        print( ret.CI)
-        import pdb; pdb.set_trace()
+        #print(ret.fit.scores)
+        #p_value = ret.p_value
+        #print("p-value: %s" % p_value)
+        #print( ret.CI)
+        #print(np.diag(ret.fit.V))
+        #import pdb; pdb.set_trace()
         # print(ret)
-        assert 2 in ret.CI, "Confidence interval does not include the true effect"
+        assert te in ret.CI, "Confidence interval does not include the true effect"
         assert p_value is not None
         # import pdb; pdb.set_trace()
-        assert p_value < 0.001, "P-value is larger than expected"
+        assert p_value < 0.1, "P-value is larger than expected"
 
         # [sc_raw, sc_diff] = ind_sc_plots(Y[0, :], Y_sc[0, :], T0, ind_ci=ret.ind_CI)
         # plt.figure("sc_raw")
