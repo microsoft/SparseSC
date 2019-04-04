@@ -27,18 +27,19 @@ class TestDGPs(unittest.TestCase):
         """
         No X, just Y; half the donors are great, other half are bad
         """
-        N1, N0_sim, N0_not = 2, 50, 50
+        N1, N0_sim, N0_not = 1, 50, 50
         N0 = N0_sim + N0_not
         N = N1 + N0
         treated_units = range(N1)
         control_units = range(N1, N)
-        T0, T1 = 5, 5
+        T0, T1 = 2, 1
         T = T0 + T1
-        proto_sim = np.array(range(0, T, 1), ndmin=2)
-        proto_not = np.array(range(0, 2 * T, 2), ndmin=2)
-        proto_not[0,2] += 1
-        te = np.hstack((np.zeros((1, T0)), np.full((1, T0), 2)))
-        proto_tr = proto_sim + te
+        proto_sim = np.array([1,0]+[0], ndmin=2)
+        proto_not = np.array([0,1]+[1], ndmin=2)
+        #proto_not[0,2] += 1
+        te = 2
+        te_vec = np.hstack((np.zeros((1, T0)), np.full((1, T1), te)))
+        proto_tr = proto_sim + te_vec
         Y1 = np.matmul(np.ones((N1, 1)), proto_tr)
         Y0_sim = np.matmul(np.ones((N0_sim, 1)), proto_sim)
         Y0_not = np.matmul(np.ones((N0_not, 1)), proto_not)
