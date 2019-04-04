@@ -251,7 +251,7 @@ def ct_weights(
 
 def ct_score(Y, X, V, w_pen, v_pen=0, treated_units=None, control_units=None, **kwargs):
     """ 
-    In-sample residual error using the cross-train approach
+    Out-of-sample residual error using the cross-train approach
     """
     if treated_units is None:
         if control_units is None:
@@ -273,4 +273,4 @@ def ct_score(Y, X, V, w_pen, v_pen=0, treated_units=None, control_units=None, **
     Y_tr = Y[treated_units, :]
     Y_c = Y[control_units, :]
     Ey = (Y_tr - weights.dot(Y_c)).getA()
-    return np.einsum("ij,ij->", Ey, Ey) + v_pen * V.sum()  # (Ey **2).sum() -> einsum
+    return np.einsum("ij,ij->", Ey, Ey) # (Ey **2).sum() -> einsum
