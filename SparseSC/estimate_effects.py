@@ -51,16 +51,24 @@ def estimate_effects(
         X_and_Y_pre = Y_pre
     else:
         X_and_Y_pre = np.hstack((X, Y_pre))
+
+    #Set default parameters for fit()
+    if 'print_path' not in kwargs:
+        kwargs['print_path'] = False
+    if 'progress' not in kwargs:
+        kwargs['progress'] = False
+    if 'verbose' not in kwargs:
+        kwargs['verbose'] = 0
+    if 'min_iter' not in kwargs:
+        kwargs['min_iter'] = -1
+    if 'tol' not in kwargs:
+        kwargs['tol'] = 1
+
     fit_res = fit(
         X=X_and_Y_pre,
         Y=Y_post,
         model_type="retrospective",
         treated_units=treated_units,
-        print_path=False,
-        progress=False,
-        verbose=0,
-        min_iter=-1,
-        tol=1,
         **kwargs
     )
     Y_sc = fit_res.predict(Y[control_units, :])
