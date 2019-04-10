@@ -4,6 +4,7 @@ import numpy as np
 from collections import namedtuple
 from scipy.optimize import line_search
 from scipy.optimize.linesearch import LineSearchWarning
+from .simplex_step import simplex_step
 
 import warnings
 import locale
@@ -58,6 +59,7 @@ def cdl_step(
         ``1/learning_rate_adjustment``. Must be between 0 and 1,
     """
 
+    print_path=True
     if print_path:
         print("[FORCING FIRST STEP]")
     assert 0 < learning_rate < 1
@@ -103,7 +105,7 @@ def cdl_search(
     zero_eps=1e2 * np.finfo(float).eps,
     print_path=True,
     print_path_verbose=False,
-    preserve_angle=False,
+    constrain="orthant",
 ):
     """
     Implements coordinate descent with line search with the strong wolf
@@ -119,16 +121,27 @@ def cdl_search(
         guess >= 0
     ).all(), "Initial guess (`guess`) should be in the closed positive orthant"
 
+    if callable(constrain):
+        constrain_factory = constrain
+    elif constrain == "simplex":
+        constrain_factory = simplex_restraint
+    elif constrain == "orthant":
+        constrain_factory = orthant_restraint
+    else:
+        raise ValueError("unknown option for `constrain` parameter")
+
     print_stop_iteration = print_path  # change to `1` for development purposes
     val_old = None
     grad = None
     x_curr = guess
     alpha_t = 0
     val = score(x_curr)
-    if (x_curr == np.zeros(x_curr.shape[0])).all():
-        val0 = val
-    else:
-        val0 = score(np.zeros(x_curr.shape[0]))
+    if print_path:
+        # this is only used for debugging...
+        if (x_curr == np.zeros(x_curr.shape[0])).all():
+            val0 = val
+        else:
+            val0 = score(np.zeros(x_curr.shape[0]))
 
     # if (x_curr == 0).all():
     #     # Force a single step away form the origin if it is at least a little
@@ -148,6 +161,8 @@ def cdl_search(
             if print_path_verbose:
                 print("[INITIALIZING GRADIENT]")
             grad = jac(x_curr)
+
+
         invalid_directions = np.logical_and(grad > 0, x_curr == 0)
 
         if (grad[np.logical_not(invalid_directions)] == 0).all():
@@ -157,8 +172,17 @@ def cdl_search(
                 print("[STOP ITERATION: gradient is zero] i: %s" % (_i,))
             return cd_res(x_curr, val)
 
-        # constrain to the positive orthant
-        grad[invalid_directions] = 0
+
+
+        if _i == 0 and (x_curr == np.zeros(x_curr.shape[0])).all():
+            if print_path_verbose:
+                print("[INITILALIZING V ON THE SIMPLEX]")
+            # this *is* necessary to put x_curr on the constrained simplex:
+            grad[invalid_directions] = 0
+            x_curr = grad / grad.sum()
+            grad = None
+            continue
+
 
         direction = -(learning_rate * val * grad) / grad.dot(grad.T)
         # THE ABOVE IS EQUIVALENT TO :
@@ -168,26 +192,14 @@ def cdl_search(
         # adaptively adjust the step size:
         direction *= learning_rate_adjustment ** alpha_t
 
-        # constrain the gradient to being non-negative on axis where the
-        # current guess is already zero
-        if (direction < 0).any() and preserve_angle:
-            constrained = True
-            alpha_ratios = -direction[direction < 0] / x_curr[direction < 0]
-            if (alpha_ratios > 1).any():
-                max_alpha = alpha_ratios.max()
-            else:
-                max_alpha = 1
-        else:
-            constrained = False
-            max_alpha = 1
-
         if print_path_verbose:
             print("[STARTING LINE SEARCH]")
+        _constraint = constrain_factory(x_curr)
         res = line_search(
-            f=zed_wrapper(score),
-            myfprime=zed_wrapper(jac),
+            f=constraint_wrapper(score, _constraint),
+            myfprime=constraint_wrapper(jac, _constraint),
             xk=x_curr,
-            pk=direction / max_alpha,
+            pk=direction,
             gfk=grad,
             old_fval=val,
             old_old_fval=val_old,
@@ -201,60 +213,31 @@ def cdl_search(
                 alpha_t -= 1
             else:
                 alpha_t += 1
-        elif constrained:
-            for j in range(5):  # formerly range(17), but that was excessive,
-                # in general, this succeeds happens when alpha >= 0.1 (super
-                # helpful) or alpha <= 1e-14 (super useless)
-                if score(x_curr - (0.3 ** j) * grad / max_alpha) < val:
-                    # This can occur when the strong wolf condition insists that the
-                    # current step size is too small (i.e. the gradient is too
-                    # consistent with the function to think that a small step is
-                    # optimal for a global (unconstrained) optimization.
-                    alpha = 0.3 ** j
-
-                    # i secretly think this is stupid.
-                    if print_stop_iteration:
-                        print(
-                            "[STOP ITERATION: simple line search worked :)] i: %s, alpha: 1e-%s"
-                            % (_i, j)
-                        )  # pylint: disable=line-too-long
-                    break
-            else:
-                # moving in the direction of the gradient yielded no improvement: stop
-                if print_stop_iteration:
-                    print("[STOP ITERATION: simple line search failed] i: %s" % (_i,))
-                return cd_res(x_curr, val)
         else:
             # moving in the direction of the gradient yielded no improvement: stop
             if print_stop_iteration:
                 print(
                     "[STOP ITERATION: alpha is None] i: %s, grad: %s, step: %s"
-                    % (_i, grad, direction / max_alpha)
+                    % (_i, grad, direction)
                 )
             return cd_res(x_curr, val)
 
-        # iterate
-        if constrained:
-            x_next = x_curr + min(1, alpha) * direction / max_alpha
-            x_old, x_curr, val_old, val, grad, old_grad = (
-                x_curr,
-                x_next,
-                val,
-                score(x_next),
-                None,
-                grad,
-            )  # pylint: disable=line-too-long
-        else:
-            # x_next = x_curr +        alpha *direction/max_alpha
-            x_next = np.maximum(x_curr + alpha * direction / max_alpha, 0)
-            x_old, x_curr, val_old, val, grad, old_grad = (
-                x_curr,
-                x_next,
-                val,
-                res[3],
-                res[5],
-                grad,
-            )  # pylint: disable=line-too-long
+        # ITERATE
+        # x_next = x_curr +        alpha *direction
+        x_next = _constraint(x_curr + alpha * direction)
+
+        # rounding error can get us to within rounding error of zero or even
+        # across the coordinate plane:
+        x_next[x_curr < zero_eps] = 0
+
+        x_old, x_curr, val_old, val, grad, old_grad = (
+            x_curr,
+            x_next,
+            val,
+            res[3],
+            res[5],
+            grad,
+        )  # pylint: disable=line-too-long
 
         val_diff = val_old - val
 
@@ -323,6 +306,47 @@ def cdl_search(
 
     # returns solution in for loop if successfully converges
     raise RuntimeError("Solution did not converge to default tolerance")
+
+
+def orthant_restraint(x_curr):  # pylint: disable=unused-argument
+    """
+    Factory Function which builds a function which constrains the gradient step
+    to the First Orthant
+    """
+
+    def inner(x):
+        """
+        Project x to the nearest point in the first orthant
+        """
+        return np.maximum(0, x)
+
+    return inner
+
+
+def simplex_restraint(x_curr):
+    """
+    Factory Function which builds a function which constrains the gradient step
+    to the (constrained) simplex
+    """
+
+    def inner(x):
+        """
+        Project x to the nearest point in the first orthant
+        """
+        return simplex_step(x_curr, x_curr - x)
+
+    return inner
+
+
+def constraint_wrapper(fun, constraint):
+    """
+    Wrap a function such that it's first argument is constrained 
+    """
+    def inner(x, *args, **kwargs):
+        """the wrapped function"""
+        return fun(constraint(x), *args, **kwargs)
+
+    return inner
 
 
 def zed_wrapper(fun):

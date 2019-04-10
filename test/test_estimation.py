@@ -4,7 +4,10 @@ Tests for model fitness
 
 import unittest
 import numpy as np
-import SparseSC as SC
+try:
+    import SparseSC as SC
+except ImportError:
+    raise RuntimeError("SparseSC is not installed. use 'pip install -e .' to install")
 from os.path import join, abspath, dirname
 from dgp.factor_model import factor_dgp
 
@@ -67,6 +70,7 @@ class TestDGPs(unittest.TestCase):
             max_n_pl=200,
             progress = False,
             stopping_rule=4,
+            constrain="simplex",
             #v_pen = v_pen, w_pen=w_pen
         ) 
         simple_summ(ret.fit, Y)
@@ -77,7 +81,7 @@ class TestDGPs(unittest.TestCase):
         # weight_sums = np.sum(ret.fit.sc_weights, axis=1)
 
         #print(ret.fit.scores)
-        #p_value = ret.p_value
+        p_value = ret.p_value
         #print("p-value: %s" % p_value)
         #print( ret.CI)
         #print(np.diag(ret.fit.V))
@@ -85,7 +89,7 @@ class TestDGPs(unittest.TestCase):
         # print(ret)
         assert te in ret.CI, "Confidence interval does not include the true effect"
         assert p_value is not None
-        # import pdb; pdb.set_trace()
+        import pdb; pdb.set_trace()
         assert p_value < 0.1, "P-value is larger than expected"
 
         # [sc_raw, sc_diff] = ind_sc_plots(Y[0, :], Y_sc[0, :], T0, ind_ci=ret.ind_CI)
@@ -122,7 +126,7 @@ class TestDGPs(unittest.TestCase):
         Out_pre = np.vstack((Out_pre_treated, Out_pre_control))
         Out_post = np.vstack((Out_post_treated, Out_post_control))
 
-        SC.estimate_effects(Out_pre, Out_post, treated_units, Cov)
+        SC.estimate_effects(Out_pre, Out_post, treated_units, Cov,constrain="simplex" )
         # print(fit_res)
         # est_res = SC.estimate_effects(
         #   Cov, Out_pre, Out_post, treated_units, V_penalty=0, W_penalty=0.001
