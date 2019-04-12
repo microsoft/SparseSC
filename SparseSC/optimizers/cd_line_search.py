@@ -88,6 +88,7 @@ def cdl_step(
         if new_val < val:
             return direction, new_val
         direction *= decrement
+        print("val: %s, new_val: %s, dir: %s",( val, new_val, sum(direction)))
         if sum(direction) < zero_eps:
             raise RuntimeError("Failed to take a step")
 
@@ -174,7 +175,7 @@ def cdl_search(
 
 
 
-        if _i == 0 and (x_curr == np.zeros(x_curr.shape[0])).all():
+        if constrain == "simplex" and _i == 0 and (x_curr == np.zeros(x_curr.shape[0])).all():
             if print_path_verbose:
                 print("[INITILALIZING V ON THE SIMPLEX]")
             # this *is* necessary to put x_curr on the constrained simplex:
@@ -228,7 +229,7 @@ def cdl_search(
 
         # rounding error can get us to within rounding error of zero or even
         # across the coordinate plane:
-        x_next[x_curr < zero_eps] = 0
+        x_next[x_next < zero_eps] = 0
 
         x_old, x_curr, val_old, val, grad, old_grad = (
             x_curr,

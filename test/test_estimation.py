@@ -4,6 +4,7 @@ Tests for model fitness
 
 import unittest
 import numpy as np
+
 try:
     import SparseSC as SC
 except ImportError:
@@ -13,12 +14,15 @@ from dgp.factor_model import factor_dgp
 
 # import matplotlib.pyplot as plt
 
-exec(# pylint: disable=exec-used
+exec(  # pylint: disable=exec-used
     open(join(dirname(abspath(__file__)), "..", "examples", "example_graphs.py")).read()
 )  # if we don't want an __init__.py
 
 
 # pylint: disable=no-self-use
+
+# here for lexical scoping
+command_line_options = {}
 
 
 class TestDGPs(unittest.TestCase):
@@ -36,10 +40,10 @@ class TestDGPs(unittest.TestCase):
         treated_units = range(N1)
         control_units = range(N1, N)
         T0, T1 = 2, 1
-        T = T0 + T1
-        proto_sim = np.array([1,0]+[0], ndmin=2)
-        proto_not = np.array([0,1]+[1], ndmin=2)
-        #proto_not[0,2] += 1
+        # T = T0 + T1 # unused
+        proto_sim = np.array([1, 0] + [0], ndmin=2)
+        proto_not = np.array([0, 1] + [1], ndmin=2)
+        # proto_not[0,2] += 1
         te = 2
         te_vec = np.hstack((np.zeros((1, T0)), np.full((1, T1), te)))
         proto_tr = proto_sim + te_vec
@@ -51,28 +55,29 @@ class TestDGPs(unittest.TestCase):
         def simple_summ(fit, Y):
             print("V_pen=%s, W_pen=%s" % (fit.fitted_v_pen, fit.fitted_w_pen))
             print("V=%s" % np.diag(fit.V))
-            print("Treated weights: sim=%s, uns=%s, sum=%s" % (fit.sc_weights[0,49], fit.sc_weights[0,99], sum(fit.sc_weights[0,:])))
-            print("Sim Con weights: sim=%s, uns=%s, sum=%s" % (fit.sc_weights[1,49], fit.sc_weights[1,99], sum(fit.sc_weights[1,:])))
-            print("Uns Con weights: sim=%s, uns=%s, sum=%s" % (fit.sc_weights[51,49], fit.sc_weights[51,99], sum(fit.sc_weights[51,:])))
+            print("Treated weights: sim=%s, uns=%s, sum=%s" % ( fit.sc_weights[0, 49], fit.sc_weights[0, 99], sum(fit.sc_weights[0, :]),))
+            print("Sim Con weights: sim=%s, uns=%s, sum=%s" % ( fit.sc_weights[1, 49], fit.sc_weights[1, 99], sum(fit.sc_weights[1, :]),))
+            print("Uns Con weights: sim=%s, uns=%s, sum=%s" % ( fit.sc_weights[51, 49], fit.sc_weights[51, 99], sum(fit.sc_weights[51, :]),))
             Y_sc = fit.predict(Y[fit.control_units, :])
-            print("Treated diff: %s" % (Y - Y_sc)[0,:])
+            print("Treated diff: %s" % (Y - Y_sc)[0, :])
 
-        #Y += np.random.normal(0, 0.01, Y.shape)
+        # Y += np.random.normal(0, 0.01, Y.shape)
 
         # OPTIMIZE OVER THE V_PEN'S
-        #for v_pen, w_pen in [(1,1), (1,1e-10), (1e-10,1e-10), (1e-10,1), (None, None)]: #
-        #print("\nv_pen=%s, w_pen=%s" % (v_pen, w_pen))
+        # for v_pen, w_pen in [(1,1), (1,1e-10), (1e-10,1e-10), (1e-10,1), (None, None)]: #
+        # print("\nv_pen=%s, w_pen=%s" % (v_pen, w_pen))
         ret = SC.estimate_effects(
             Y[:, :T0],
             Y[:, T0:],
             treated_units,
             ret_CI=True,
             max_n_pl=200,
-            progress = False,
+            progress=False,
             stopping_rule=4,
-            constrain="simplex",
-            #v_pen = v_pen, w_pen=w_pen
-        ) 
+            # constrain="simplex", -- handled by argparse now..
+            # v_pen = v_pen, w_pen=w_pen
+            **command_line_options,
+        )
         simple_summ(ret.fit, Y)
         V_penalty = ret.fit.fitted_v_pen
 
@@ -80,7 +85,7 @@ class TestDGPs(unittest.TestCase):
         te_vec_est = (Y - Y_sc)[0:T0:]
         # weight_sums = np.sum(ret.fit.sc_weights, axis=1)
 
-        #print(ret.fit.scores)
+        # print(ret.fit.scores)
         p_value = ret.p_value
         #print("p-value: %s" % p_value)
         #print( ret.CI)
@@ -89,7 +94,6 @@ class TestDGPs(unittest.TestCase):
         # print(ret)
         assert te in ret.CI, "Confidence interval does not include the true effect"
         assert p_value is not None
-        import pdb; pdb.set_trace()
         assert p_value < 0.1, "P-value is larger than expected"
 
         # [sc_raw, sc_diff] = ind_sc_plots(Y[0, :], Y_sc[0, :], T0, ind_ci=ret.ind_CI)
@@ -126,7 +130,15 @@ class TestDGPs(unittest.TestCase):
         Out_pre = np.vstack((Out_pre_treated, Out_pre_control))
         Out_post = np.vstack((Out_post_treated, Out_post_control))
 
-        SC.estimate_effects(Out_pre, Out_post, treated_units, Cov,constrain="simplex" )
+        SC.estimate_effects(
+            Out_pre,
+            Out_post,
+            treated_units,
+            Cov,
+            # constrain="simplex", -- handled by argparse now..
+            **command_line_options,
+        )
+
         # print(fit_res)
         # est_res = SC.estimate_effects(
         #   Cov, Out_pre, Out_post, treated_units, V_penalty=0, W_penalty=0.001
@@ -144,6 +156,14 @@ class TestDGPs(unittest.TestCase):
 
 if __name__ == "__main__":
     import random
+    import argparse
+
+    parser = argparse.ArgumentParser(prog="PROG", allow_abbrev=False)
+    parser.add_argument(
+        "--constrain", choices=["orthant", "simplex"], default="orthant"
+    )
+    args = parser.parse_args()
+    command_line_options.update(vars(args))
 
     random.seed(12345)
     np.random.seed(10101)
