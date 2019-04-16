@@ -275,6 +275,7 @@ def CV_score(
     quiet=False,
     parallel=False,
     max_workers=None,
+    cv_seed=110011,
     # this is here for API consistency:
     progress=None,  # pylint: disable=unused-argument
     **kwargs
@@ -351,8 +352,7 @@ def CV_score(
             iter(splits)
         except TypeError:
             from sklearn.model_selection import KFold
-
-            splits = KFold(splits, shuffle=True).split(np.arange(X_treat.shape[0]))
+            splits = KFold(splits, shuffle=True,random_state=cv_seed).split(np.arange(X_treat.shape[0]))
         train_test_splits = list(splits)
         n_splits = len(train_test_splits)
 
@@ -444,7 +444,7 @@ def CV_score(
         except TypeError:
             from sklearn.model_selection import KFold
 
-            splits = KFold(splits, shuffle=True).split(np.arange(X.shape[0]))
+            splits = KFold(splits, shuffle=True,random_state=cv_seed).split(np.arange(X.shape[0]))
         train_test_splits = [x for x in splits]
         n_splits = len(train_test_splits)
 

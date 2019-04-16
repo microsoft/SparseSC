@@ -58,8 +58,9 @@ class TestDGPs(unittest.TestCase):
             print("Treated weights: sim=%s, uns=%s, sum=%s" % ( fit.sc_weights[0, 49], fit.sc_weights[0, 99], sum(fit.sc_weights[0, :]),))
             print("Sim Con weights: sim=%s, uns=%s, sum=%s" % ( fit.sc_weights[1, 49], fit.sc_weights[1, 99], sum(fit.sc_weights[1, :]),))
             print("Uns Con weights: sim=%s, uns=%s, sum=%s" % ( fit.sc_weights[51, 49], fit.sc_weights[51, 99], sum(fit.sc_weights[51, :]),))
-            Y_sc = fit.predict(Y[fit.control_units, :])
+            Y_sc = fit.predict(Y)#[fit.control_units, :]
             print("Treated diff: %s" % (Y - Y_sc)[0, :])
+            import pdb; pdb.set_trace()
 
         # Y += np.random.normal(0, 0.01, Y.shape)
 
@@ -81,7 +82,7 @@ class TestDGPs(unittest.TestCase):
         simple_summ(ret.fit, Y)
         V_penalty = ret.fit.fitted_v_pen
 
-        Y_sc = ret.fit.predict(Y[control_units, :])
+        Y_sc = ret.fit.predict(Y)# [control_units, :]
         te_vec_est = (Y - Y_sc)[0:T0:]
         # weight_sums = np.sum(ret.fit.sc_weights, axis=1)
 

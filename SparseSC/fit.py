@@ -10,6 +10,20 @@ from .utils.penalty_utils import get_max_w_pen, get_max_v_pen, w_pen_guestimate
 from .cross_validation import CV_score
 from .tensor import tensor
 from .weights import weights
+from .utils.warnings import SparseSCWarning
+
+
+class SparseSCParameterWarning(
+    SparseSCWarning
+):  # pylint: disable=too-few-public-methods,missing-docstring
+    pass
+
+
+class TrivialUnitsWarning(
+    SparseSCWarning
+):  # pylint: disable=too-few-public-methods,missing-docstring
+    pass
+
 
 # TODO: Cleanup task 1:
 #  random_state = gradient_seed, in the calls to CV_score() and tensor() are
@@ -108,6 +122,11 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
         validation folds, to be used `model_type` is one either ``"foo"``
         ``"bar"``.
     :type gradient_folds: int or (int[],int[])[]
+
+
+    :param cv_seed:  passed to :func:`sklearn.model_selection.KFold`
+        to allow for consistent cross validation folds across calls
+    :type cv_seed: int, default = 10101
 
     :param gradient_seed:  passed to :func:`sklearn.model_selection.KFold`
         to allow for consistent gradient folds across calls when
@@ -267,10 +286,11 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
         last_axis = axis
 
         _params = [model_fit, previous_model_fit, _iteration][:parameters]
+        model_fits.append(model_fit)
+
         if stopping_rule(*_params):
             break
 
-        model_fits.append(model_fit)
         previous_model_fit = model_fit
         _iteration += 1
 
@@ -310,7 +330,6 @@ def _build_penalties(X, Y, v_pen, w_pen, grid, gradient_folds, verbose):
     return v_pen, w_pen, axis
 
 
-
 def _fit(
     X,
     Y,
@@ -330,8 +349,8 @@ def _fit(
 ):
     assert X.shape[0] == Y.shape[0]
 
-    if (not callable(choice)) and (choice not in ("min","1se",)):
-        # Fail Faster (tm) 
+    if (not callable(choice)) and (choice not in ("min", "1se")):
+        # Fail Faster (tm)
         raise ValueError("Unexpected value for choice parameter: %s" % choice)
 
     w_pen_is_iterable = False
@@ -357,7 +376,7 @@ def _fit(
     if v_pen_is_iterable and w_pen_is_iterable:
         raise ValueError("Features and Weights penalties are both iterables")
 
-    def _choose(scores,scores_se):
+    def _choose(scores, scores_se):
         """ helper function which implements the choice of covariate weights penalty parameter
 
         Nested here for access to  v_pen, w_pe,n w_pen_is_iterable and
@@ -365,10 +384,10 @@ def _fit(
         """
         # GET THE INDEX OF THE BEST SCORE
         if w_pen_is_iterable:
-            indx = _which(scores,scores_se, choice)
+            indx = _which(scores, scores_se, choice)
             return v_pen, w_pen[indx], scores[indx], indx
         if v_pen_is_iterable:
-            indx = _which(scores,scores_se, choice)
+            indx = _which(scores, scores_se, choice)
             return v_pen[indx], w_pen, scores[indx], indx
         return v_pen, w_pen, scores, None
 
@@ -423,7 +442,7 @@ def _fit(
                 **kwargs
             )
 
-            best_v_pen, best_w_pen, score, which = _choose(scores,scores_se)
+            best_v_pen, best_w_pen, score, which = _choose(scores, scores_se)
 
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -470,7 +489,8 @@ def _fit(
                 # TODO: this condition logic is untested:
                 if not any(treated_units_set == set(gf[1]) for gf in gradient_folds):
                     warn(
-                        "User supplied gradient_folds will be re-formed for compatibility with model_type 'prospective'"
+                        "User supplied gradient_folds will be re-formed for compatibility with model_type 'prospective'",
+                        SparseSCParameterWarning,
                     )  # pylint: disable=line-too-long
                     gradient_folds = [
                         [
@@ -505,7 +525,7 @@ def _fit(
             )
 
             # GET THE INDEX OF THE BEST SCORE
-            best_v_pen, best_w_pen, score, which = _choose(scores,scores_se)
+            best_v_pen, best_w_pen, score, which = _choose(scores, scores_se)
 
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -546,7 +566,7 @@ def _fit(
             )
 
             # GET THE INDEX OF THE BEST SCORE
-            best_v_pen, best_w_pen, score, which = _choose(scores,scores_se)
+            best_v_pen, best_w_pen, score, which = _choose(scores, scores_se)
 
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -613,7 +633,7 @@ def _fit(
         )
 
         # GET THE INDEX OF THE BEST SCORE
-        best_v_pen, best_w_pen, score, which = _choose(scores,scores_se)
+        best_v_pen, best_w_pen, score, which = _choose(scores, scores_se)
 
         # --------------------------------------------------
         # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
@@ -658,6 +678,7 @@ class SparseSCFit(object):
     """ 
     A class representing the results of a Synthetic Control model instance.
     """
+
     model_fits = None
 
     def __init__(
@@ -699,18 +720,72 @@ class SparseSCFit(object):
         self.selected_score = selected_score
 
         # FITTED SYNTHETIC CONTROLS
-        self.sc_weights = sc_weights
+        self._sc_weights = sc_weights
 
-    def predict(self, Ydonor=None):
+        # IDENTIFY TRIVIAL UNITS
+        self.trivial_units = np.apply_along_axis(
+            lambda x: (x == 0).all(), 1, np.hstack([X[:, np.diag(V) != 0], Y])
+        )
+        if self.trivial_units.any():
+            warn(
+                "Fitted Model contains %s trivial unit(s)" % self.trivial_units.sum(),
+                TrivialUnitsWarning,
+            )
+
+    @property
+    def sc_weights(self):
+        """
+        getter for the sc_weights. By default, the trivial
+        """
+        return self.get_weights()
+
+    def get_weights(self, include_trivial_donors=False):
+        """
+        getter for the sc_weights. By default, the trivial
+        """
+        if include_trivial_donors or not self.trivial_units.any():
+            return self._sc_weights
+
+        if self.model_type != "full":
+            trivial_donors = self.trivial_units[self.control_units]
+        else:
+            trivial_donors = self.trivial_units
+
+        __weights = self._sc_weights.copy()
+        __weights[np.ix_(np.logical_not(self.trivial_units), trivial_donors)] = 0
+        return __weights
+
+    def predict(self, Y=None, include_trivial_donors=False):
         """ 
         predict method
+
+        :param Y: Matrix of targets
+        :type Y:  (optional) matrix of floats
+
+        :param include_trivial_donors: Should donors for whom selected
+                predictors and all targets equal to zero be included in the weights for
+                non-trivial units.  These units will typically have a weight of 1 /
+                total number of units as they do not contribute to the gradient.
+                Default = ```False```
+        :type include_trivial_donors: boolean
+
+        :returns: matrix of predicted outcomes
+        :rtype: matrix of floats
+
+        :raises ValueError: When ``Y.shape[0]`` is inconsistent with the fitted model.
         """
-        if Ydonor is None:
-            if self.model_type != "full":
-                Ydonor = self.Y[self.control_units, :]
-            else:
-                Ydonor = self.Y
-        return self.sc_weights.dot(Ydonor)
+        if Y is None:
+            Y = self.Y
+        else:
+            if Y.shape[0] != self.Y.shape[0]:
+                raise ValueError(
+                    "parameter Y must have the same number of rows as X and Y in the fitted model"
+                )
+
+        if self.model_type != "full":
+            Y = Y[self.control_units, :]
+
+        return self.get_weights(include_trivial_donors).dot(Y)
 
     def __str__(self):
         """ 
@@ -728,6 +803,35 @@ class SparseSCFit(object):
         """
         raise NotImplementedError()
 
+    def summary(self):
+        """
+        A summary of the model fit / penalty selection
+
+        This illustrates that (a) the gird function could / should be better,
+        and (b) currently more than two iterations is typically useless.
+        """
+        try:
+            import pandas as pd
+        except ImportError:
+            DF = dict
+            # Pandas is not a core requirement, though it is popular and convenient:
+            print("consider installing pandas for a better fit.summary() experience")
+        else:
+            DF = pd.DataFrame
+        return [
+            DF(
+                {
+                    "v_pen": _fit.initial_v_pen,
+                    "w_pen": _fit.initial_w_pen,
+                    "score": _fit.scores,
+                    "min_score": _fit.scores == np.array(_fit.scores).min(),
+                    "selected_score": np.arange(len(_fit.scores))
+                    == _fit.selected_score,
+                }
+            )
+            for _fit in self.model_fits
+        ]
+
 
 _SparseFit_string_template = """ Model type: %s"
 V penalty: %s
@@ -735,7 +839,8 @@ W penalty: %s
 V: %s
 """
 
-def _which(x,se, f):
+
+def _which(x, se, f):
     """
     Return the index of the value which meets the selection rule
     """
@@ -750,9 +855,9 @@ def _which(x,se, f):
         scores by at least 1 standard error. If none of the values exceed the
         most penalized value, return the most penalized value.
         """
-        x_1se  = (np.array(x) + np.array(se))[:-1]
+        x_1se = (np.array(x) + np.array(se))[:-1]
         # reversed cumulative minimum (excluding the first value)
-        cum_min = np.minimum.accumulate(x[::-1])[-2::-1] # type: ignore
+        cum_min = np.minimum.accumulate(x[::-1])[-2::-1]  # type: ignore
         return np.where(np.append(x_1se < cum_min, np.array((True,))))[0][0]
     raise ValueError("Unexpected value for choice parameter: %s" % f)
 

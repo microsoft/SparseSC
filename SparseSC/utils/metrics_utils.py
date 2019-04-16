@@ -2,8 +2,9 @@
 """
 import numpy as np
 import itertools
-import warnings
+from warnings import warn
 
+from .warnings import SparseSCWarning
 
 def simulation_eval(effects, CI_lowers, CI_uppers, true_effect=0):
     te_mse = np.mean(np.square((effects - true_effect)))
@@ -232,8 +233,9 @@ def _gen_placebo_stats_from_diffs(
                 and low_avg_effect != 0
                 and high_avg_effect != 0
             ):
-                warnings.warn(
-                    "CI doesn't contain 0. You might not have enough placebo effects."
+                warn(
+                    "CI doesn't contain 0. You might not have enough placebo effects.",
+                    SparseSCWarning
                 )
             return (effect - high_avg_effect, effect - low_avg_effect)
 

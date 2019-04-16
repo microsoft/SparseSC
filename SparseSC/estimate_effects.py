@@ -73,7 +73,7 @@ def estimate_effects(
         treated_units=treated_units,
         **kwargs
     )
-    Y_sc = fit_res.predict(Y[control_units, :])
+    Y_sc = fit_res.predict(Y)#[control_units, :]
     diffs = Y - Y_sc
 
     # diagnostics
