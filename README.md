@@ -394,11 +394,11 @@ used in selecting the gradient folds.
 If you have the BLAS/LAPACK libraries installed and available to Python,
 you should not need to do any further optimization to ensure that maximum
 number of processors are used during the execution of `CV_score()`.  If
-not, you may wish to set the parameter `paralell=True` when you call
+not, you may wish to set the parameter `parallel=True` when you call
 `CV_score()` which will split the work across N - 2 sub-processes where N
 is the [number of cores in your
 machine](https://docs.python.org/2/library/multiprocessing.html#miscellaneous).
-(Note that setting `paralell=True` when the BLAS/LAPACK are available will
+(Note that setting `parallel=True` when the BLAS/LAPACK are available will
 tend to increase running times.)
 
 ### Documentation
