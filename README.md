@@ -1,207 +1,370 @@
 # Sparse Synthetic Controls
 
-## Requirements
-### Usage
+### TL;DR:
 
-This package requires [numpy](http://www.numpy.org/), 
-[scipy](https://www.scipy.org/), and [scikit-learn](http://scikit-learn.org/) and has been tested with ( Python 2.7.14,
-Numpy 1.14.1, and Scipy 1.0.0 )  and ( Python 3.5.5, Numpy 1.13.1, and
-Scipy 1.0.1 )
+The `fit()` function can be used to create a set of weights and returns a
+fitted model which can be used to create synthetic units using it's
+`.predict()` method:
 
-### Development
-To build the documentation you will need `sphinx`, `recommonmark`, and `sphinx-markdown-tables` (to incorporate .md files)
+```py
+from SparseSC import fit
+
+# fit the model:
+fitted_model = fit(X,Y,...)
+
+# make for the in-sample data
+in_sample_predictions = fitted_model.predict()
+
+# make predictions for a held out set of fetures (Y_hat) within the
+# original set of units
+additional_predictions = fitted_model.predict(Y_additional)
+
+# make out of sample predictotions using the fitted penalty parameters
+new_model = fitted_model.predict(X_other,
+								 Y_other,
+								 v_pen=fitted_model.fitted_v_pen,
+								 w_pen=fitted_model.fitted_w_pen)
+more_predictions = new_model.predict()
+```
 
 ## Overview 
 
 When estimating synthetic controls, units of observation are divided into
-control and treated units.   Data collected on these units may include
+control and treated units. Data collected on these units may include
 observations of the outcome of interest, as well as other characteristics
-of the units (termed "covariates", herein).  Outcomes may be observed both
+of the units (termed "covariates", herein). Outcomes may be observed both
 before and after an intervention on the treated units.
 
 To maintain independence of the fitted synthetic controls and the
 post-intervention outcomes of interest of treated units, the
 post-intervention outcomes from treated units are not used in the fitting
-process.  There are two cuts from the remaining data that may be used to
+process. There are two cuts from the remaining data that may be used to
 fit synthetic controls, and each has it's advantages and disadvantages.
 
-### Fitting to control observations
+## Fitting a synthetic control model
 
-The first cut of the data involves only the control units, but **includes
-both pre and post intervention outcomes**.  In general, any available
-covariates along with some or all of the pre-treatment outcomes are
-included in with the predictors (`X`), and cross validation is conducted by
-dividing the control units into folds, fitting the model on all but a
-hold-out fold, and creating synthetic controls for the held-out fold using
-the fitted model. 
+### Data and Model Type
 
-This cut is called the "controls-only" cut, and to implement this scenario,
-we can use `CV_score()` to calculate out-of-sample prediction errors by
-passing matrices containing (1) the covariates and some or all of the
-pre-intervention outcomes and (2) the post-intervention outcomes for the
-control units. 
+The parameters `X` and `Y` should be numeric matrices containing data on
+the features and target variables, respectively, with one row per unit
+of observation, and one column per feature or target variable.
 
-```python
-CV_score(X = x_and_y_pre, # Covariates and pre-intervention outcomes from the control units
-         Y = y_post_control, # Post-intervention outcomes from the control units
-         ...)
-```
+There area 4 model types that can be fit using the `fit()` function which
+can be selected by passing one of the following values to the `model_type` parameter: 
 
-Note that the observations from the treated units are not used to optimize 
-the penalty parameters in this scenario.
+* `"retrospective"`: In this model, data are assumed to be collected
+	retrospectively, sometime after an intervention or event has taken
+	place in a subset of the subjects/units, typically with the intent of
+	estimating the effect of the intervention. 
+	
+	In this model, `Y` should contain target variables recorded after the
+	event of interest and `X` may contain a combination of target variables
+	recorded prior to the event of interest and other predictors /
+	covariates known prior to the event. In addition, the rows in `X` and
+	`Y` which contain units that were affected by the intervention
+	("treated units") should be indicated using the `treated_units`
+	parameter, or alternatively unaffected units can be indicated using the
+	`control_units` parameter.
 
-This scenario has the advantage that if shocks to the system which affect a
-subset of factor loadings occur only in the post-intervention period, the
-prediction accuracy will be superior to that of the later "pre-only" model.
-However, this model has the disadvantage that it is computationally slower,
-owing to the fact that individual components of the gradients must be
-calculated for each control unit during gradient descent.  This is
-discussed more thoroughly in the Optimization section below. 
+* `"prospective"`: In a prospective analysis, a subset of units have been designated to
+	receive a treatment but the treatment has not yet occurred and the
+	designation of the treatment may be correlated with a (possibly unobserved)
+	feature of the treatment units. In this scenario, all data are
+	collected prior to the treatment intervention, and data on the outcome
+	of interested are divided in two, typically divided in two subsets
+	taken before and after a particular point in time. 
+	
+	In this model, `Y` should contain only target variables and `X` may
+	contain a combination of target variables and other predictors /
+	covariates. The parameters `treated_units` and/or `control_units`
+	should be used to indicate the units which will or will not receive
+	treatment.
 
-### Fitting to pre-treatment observations
+* `"prospective-restricted"`: This is motivated by the same example as the 
+	previous sample. It requires a larger set of treated units for similar
+	levels of precision, with the benefit of substantially faster running
+	time.
 
-The second cut of the data includes all the pre-intervention data
-**including both treated and control units**. This cut is called the
-"pre-only" cut, and in this scenario, cross validation is performed by
-holding out a single fold from the treated units, fitting a set of
-penalized models (e.g.  distance metrics ) using the controls and
-non-held-out treated units, and then using the fitted metric to create a
-set of synthetic controls for the held out units.
+* `"full"`: This model is motivated by the need for prospective failure 
+	detection, and is not used in the context of a historical event or
+	treatment intervention. 
 
-In this scenario, the matrices of predictors for the control units (`X`)
-and the treated units (`x_treat`) may contain covariates and some
-observations of the outcome variable, and the outcome matrices (`Y` and
-`Y_treat`) contain the remaining pre-intervention outcomes for the control
-and treated units. 
+	like the `prospective` models, data on the outcome of interested are
+	divided in two, typically divided in two subsets taken before and after
+	a particular point in time, and `Y` should contain only target
+	variables and `X` may contain a combination of target variables and
+	other predictors / covariates. The parameters `treated_units` and/or
+	`control_units` are unused.
 
-Note that care should be taken to maintain as much independence between
-outcomes included in the matrix of predictors and the outcomes matrices.
-As an extreme example, if the outcomes formed a highly correlated time
-series and every other observation was included in the matrices of predictors
-(`X` and `x_treat`), then the estimated out of sample error would be biased
-and the model would likely underperform when applied out of sample.
-
-To implement the "pre-only" scenario, we will have to pass 4 values to
-the `CV_score()`, which calculates the out-of-sample prediction error for one
-or more value of the penalty parameters:
-
-```python
-CV_score(X = x_control, # Covariates from the control units
-         Y = y_pre_control, # Pre-intervention outcomes from the control units
-         x_treat = x_treated, # Covariates from the treated units
-         y_treat = y_pre_treated, # Pre-intervention outcomes from the treated units
-         ...)
-```
-
-This scenario has the advantage of being the fastest to compute, and may
-have superior prediction (for example in A/A tests) if the treated units
-vary systemically from the control units.
+More details on the above parameters can be found in file `fit.md` in the
+root of this git repository.
 
 ### Penalty Parameters
 
-This method of fitting a Synthetic Controls model requires 2 penalty
-parameters: The parameter `LAMBDA`, which is the penalty on the model
-complexity, and the penalty `L2_PEN_W`, which is a penalty on the magnitude
-of the fitted weights, relative to a simple (un-weighted) average of the
-control units.
+The fitted synthetic control weights depend on the penalties applied to the V and W
+matrices (`v_pen` and `w_pen`, respectively), and the `fit()` function will
+attempt to find an optimal pair of penalty parameters. Users can modify the selection
+process or simply provide their own values for the penalty parameters, for
+example to optimize these parameters on their own, with one of the
+following methods:
 
-Aside: `L2_PEN_W` is really a stupid name.
+1. Passing `v_pen` and `w_pen` as floats:
 
-The function `CV_score()` is optimized to calculate out-of sample errors
-(scores) for a single value of `L2_PEN_W` and an iterable of `LAMBDA`'s.
-Empirically, the product of `LAMBDA` and `L2_PEN_W` is the most important
-axis for optimization, and, for example, halving the value of `L2_PEN_W`
-doubles the minimum value of `LAMBDA` that results in the null model (i.e a
-simple weighted average of the control units). 
+When single values are passed in the to the `v_pen` and `w_pen`, a fitted
+synthetic control model is returned using the provided penalties.
 
-Hence, if `L2_PEN_W` is not provided as a parameter to either `CV_score()`
-or `get_max_lambda()`, `L2_PEN_W` defaults to a convenient guestimate equal
-to the mean of the variances of the predictors, which is implemented in the
-function `L2_pen_guestimate()`.
+2. Passing `v_pen` as a value and `w_pen` as a vector, or vice versa:
 
-For a fixed value of the `L2_PEN_W`, the search space for `LAMBDA` penalty
-is then bounded below by zero and above by the minimum value of `LAMBDA`
-that forces all of distance parameters to zero (i.e. the null model).  The
-upper bound for `LAMBDA` can be calculated using the function `get_max_lambda()`.
+When either `v_pen` or `w_pen` are passed a vector of values, `fit()`
+will iterate over the vector of values and return the model with an optimal
+out of sample prediction error using cross validation. The choice of model
+can be controlled with the `choice` parameter which has the options of
+`"min"` (default) which selects the model with the smallest out of sample
+error, `"1se"` which implements the 'one standard-error' rule, or a
+function which implements a custom selection rule.
 
-When performing a grid search over the range of possible values for
-`LAMBDA`, there are a variety of distributions over which to search, such as
-linear spacing (e.g. `np.linspace(fmin,fmax,n_points)`, a log-linear
-spacing (e.g.  `np.exp(np.linspace(np.log(fmin),np.log(fmax),n_points))`),
-or something else entirely.  An additional consideration is that optimal
-values of `LAMBDA` may be quite small relative to `LAMBDA_max`, and we have
-found values of `fmax =LAMBDA_max * 1e-2` to be a practical starting point.
+**Note that** passing vectors to both `v_pen` and `w_pen` is assumed to be
+inefficient and `fit` will raise an error. If you wish to evaluate over a N x N
+grid of penalties, use:
 
-### Putting it All Together
-
-Assuming you have prepared your data into Numpy matrices (`X` and `Y`, and
-optionally `X_treat` and `Y_treat`) with one row per unit of observation
-and one column per covariate or observed outcome, scores for a grid of
-parameters `LAMBDA` can be obtained as follows: 
-
-```python
-import SparseSC as SC
-import numpy as np
-
-# Obtain LAMBDA_max and a grid over which to search
-fmin = 1e-5
-fmax = 1e-2
-n_points = 20
-grid = np.exp(np.linspace(np.log(fmin),np.log(fmax),n_points))
-
-LAMBDA_max = SC.get_max_lambda(
-                    X, Y, 
-
-                    # OPTIONAL, used in the 'pre-only' scenario
-                    X_treat=X_treat, Y_treat=Y_treat, 
-
-                    # OPTIONAL. Defaults to SC.L2_pen_guestimate(X)
-                    # or SC.L2_pen_guestimate(np.vstack((X,X_treat))) as
-                    # appropriate
-                    L2_PEN_W = my_favorite_l2_penalty)
-
-# get the scores for each value of `LAMBDA`
-scores = SC.CV_score(
-    X = X,
-    Y = Y,
-
-    # OPTIONAL, used in the pre-only scenario
-    X_treat = X_treat,
-    Y_treat = Y_treat,
-
-    # if LAMBDA is a single value, we get a single score, If it's an array
-    # of values, we get an array of scores.
-    LAMBDA = grid * LAMBDA_max,
-
-    # OPTIONAL, but should be present if used in the call to get_max_lambda()
-    L2_PEN_W = my_favorite_l2_penalty)
-
-# select the value of LAMBDA with the best out-of sample prediction error:
-best_LAMBDA = (grid * LAMBDA_max)[np.argmin(scores)]
-
-
-# Extract the V matrix which corresponds to the optimal value of LAMBDA
-V = SC.tensor(X = X,
-              Y = Y,
-
-              # Optional
-              X_treat = X_treat,
-              Y_treat = Y_treat,
-
-              LAMBDA = best_LAMBDA,
-
-              # Also optional
-              L2_PEN_W = my_favorite_l2_penalty)
-
-# extract the matrix of weights
-weights = SC.weights(X = X_control,
-                     X_treat = X_treated, # Optional
-                     V = V_ct,
-                     L2_PEN_W = my_favorite_l2_penalty) # Also optional
-
-# create the matrix of Synthetic Controls 
-synthetic_conrols = weights.dot(Y)
+```py
+from intertools import product
+fitted_models = [ fit(..., v_pen=v, w_pen=w) for v,w in product(v_pen,w_pen)]
 ```
+
+3. Modifying the default search
+
+By default `fit()` picks an arbitrary value for `w_pen` and creates a grid
+of values for `v_pen` over which to search, picks the optimal for `v_pen`
+from the set of parameters, and then repeats the process alternating
+between a fixed `v_pen` and array of values `w_pen` and vice versa until
+stopping rule is reached.
+
+The grid over which each penalty parameter is searched is determined by the
+value of the other (fixed) penalty parameter. For example, for a given
+value of `w_pen` there is a maximum value of `v_pen` which does not result
+in a null model (i.e. when the V matrix would be identically 0 and W would
+be identically 1/N), and the same logic applies in both scenarios (i.e.
+when `w_pen` is fixed).
+
+The search grid is therefor bounded between 0 and the maximum referenced
+above. By default the grid consists of 20 points log-linearly spaced
+between 0 and the maximum. The number of points in the grid can be
+controlled with the `grid_length` parameters, and the bounds are controlled
+via the `grid_min` and `grid_max` parameters. Alternatively, an array of
+values between 0 and 1 can be passed to the `grid` parameter and will be
+multiplied by the relevant `grid_max` to determine the search grid at each
+iteration of the alternating coordinate descent.
+
+Finally, the parameter `stopping_rule` determines how long the coordinate
+descent will alternate between searching over a grid of V and W penalties.
+(see the [Big list of parameters](#big-list-of-parameters) for details)
+
+## Advanced Topics
+
+### Custom Donor Pools
+
+By default all control units are allowed to be donors for all other units.
+There are cases where this is not desired and so the user can pass in a
+matrix specifying a unit-specific donor pool via a N x C matrix of booleans.
+
+### Constraining the V matrix
+
+In the current implementation, the V matrix is a diagonal matrix, and the
+individual elements of V are constrained to be positive, as negative values
+would be interpreted as two units would considered to *more similar* when
+their observed values for a particular feature are *more different*.
+
+Additionally, the V matrix may be constrained to [the standard simplex](https://en.wikipedia.org/wiki/Simplex#The_standard_simplex).
+which tends to minimize out of sample of error relative to the model
+constrained to the [nonnegative
+orthant](https://en.wikipedia.org/wiki/Orthant) in some cases. V is
+constrained to the either the simplex or the nonnegative orthant by passing
+either `"simplex"` or `"orthant"` to the `constrain` parameter.
+
+### Fold Parameters
+
+The data are split into folds both purpose of calculating the cross fold
+validation (out-of-sample) errors and for K-fold gradient descent, a
+technique used to speed up the model fitting process. The parameters
+`cv_fold` and `gradient_fold` can be passed either an integer number of
+folds or an list-of-lists which indicate the units (rows) which are
+allocated to each fold. 
+
+In the case that an integer is passed, the scikit-learn function
+[kfold](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.KFold.html)
+is used internally to split the data into random folds. For consistency
+across calls to fit, the `cv_seed` and `gradient_seed` parameters are
+passed to `Kfold(..., random_state=seed)`.
+
+### Parallelization
+
+If you have the BLAS/LAPACK libraries installed and available to Python,
+you should not need to do any further optimization to ensure that maximum
+number of processors are used during the execution of `fit()`.  If
+not, seting the parameter `paralell=True` when you call
+`fit()` which will split the work across N - 2 sub-processes where N
+is the [number of cores in your
+machine](https://docs.python.org/2/library/multiprocessing.html#miscellaneous).
+
+Note that setting `paralell=True` when the BLAS/LAPACK are available will
+tend to increase running times. Also, this is considered an experimenatl
+stub. While it works, parallel processing spends most of the time passing
+repeatedly sending a relatively small amount of data, which could be (but
+currently is not) initialized in each worker at the start. If this a
+priority for your team, feel free to submit a PR or feature request.
+
+### Gradient Descent in feature space
+
+Currently a custom gradient descent method called `cdl_search` (imported
+from `SparseSC.optimizers.cd_line_search import`. ) is used which which
+performs the constrained gradient descent. An alternate gradient descent
+function may be supplied to the `method` parameter, and any additional
+keyword arguments passed to `fit()` are passed along to whichever gradient
+descent function is used. (see the [Big list of
+parameters](#big-list-of-parameters) for details)
+
+
+# Big list of parameters
+
+
+* `X` *(Matrix of flaots)*: Matrix of features variables with one row per unit of observation and
+	one column per covariate / feature.
+
+* `Y` *(Matrix of flaots)*: Matrix of targets variables with one row per unit of observation and
+	one column per target variable.
+
+* `model_type` *(string, default = `"retrospective"`)*: Type of model
+	being fit. One of `"retrospective"`, `"prospective"`,
+	`"prospective-restricted"` or `"full"` See [above](#Data_and_Model_Type)
+	for details.
+
+* `treated_units`: An iterable indicating the rows of `X` and `Y` which
+	contain data from treated units.
+
+* `w_pen` *(float | float[], optional)*: Penalty / penalties applied to the
+	difference between the fitted weights (`W`) and the null weights (1/n),
+	See [above](#Penalty_Parameters) for details.
+
+* `v_pen` *(float | float[], optional)*: Penalty / penalties applied to the
+	difference between the fitted weights (`W`) and the null weights (1/n).
+	See [above](#Penalty_Parameters) for details.
+
+* `grid`: (float[], optional). See [above](#Penalty_Parameters) for details.
+
+* `grid_min` *(float, default = 1e-6)*: Lower bound for `grid` when
+	`grid` are not provided. Must be in the range `(0,1)`
+
+* `grid_max` *(float, default = 1)*: Upper bound for `grid` when
+	`v_pen` and `grid` are not provided. Must be in the range `(0,1]`
+
+* `grid_length` *(int, default = 20)*: number of points in the `grid`
+	parameter when `v_pen` and `grid` are not provided
+
+* `stopping_rule` *(int|float|function, optional)*: A stopping rule less
+	than one is interpreted as the percent improvement in the out-of-sample
+	squared prediction error required between the current and previous
+	iteration in order to continue with the coordinate descent. A stopping
+	rule of one or greater is interpreted as the number of iterations of
+	the coordinate descent (rounded down to the nearest Int).
+	Alternatively, `stopping_rule` may be a function which will be passed
+	the current model fit, the previous model fit, and the iteration number
+	(depending on it's signature), and should return a truthy value if the
+	coordinate descent should stop and a falsey value if the coordinate
+	descent should stop
+
+* `choice` *(string|function, default =`"min"`)*: Method for selecting the 
+	optimal penalty parameter from an array of penalty parameters, from the
+	out-of-sample error estimates and standard errors of the estimates.
+	When either `v_pen` or `w_pen` are passed a vector of values, `fit()`
+	will iterate over the vector of values and return the model with an
+	optimal out of sample prediction error using cross validation. The
+	choice of model can be controlled with the `choice` parameter which has
+	the options of `"min"` (default) which selects the model with the
+	smallest out of sample error, `"1se"` which implements the 'one
+	standard-error' rule, or a function which implements a custom
+	selection rule
+
+* `cv_folds` *(int[]|int[][], default = 10)*: An integer number of Cross 
+	Validation folds passed to `sklearn.model_selection.KFold`, or an
+	explicit list of train validation folds 
+
+* `gradient_folds` *(int[]|int[][], default = 10)*: An integer
+	number of Gradient folds passed to `sklearn.model_selection.KFold`, or
+	an explicit list of train validation folds. Not used when `model_type`
+	is `"prospective-restricted"`
+
+* `cv_seed` *(int, default = 10101)*: passed to `sklearn.model_selection.KFold`
+	to allow for consistent cross validation folds across calls to `fit()`
+
+* `gradient_seed` *(int, default = 110011)*: passed to `sklearn.model_selection.KFold`
+	to allow for consistent gradient folds across calls to `fit()`
+
+* `progress` *(boolean, default = `True`)*: Controls the level of
+	verbosity. If `True`, the messages indication the progress are printed
+	to the console at each iteration of the gradient descent in the feature
+	space (stdout).
+
+* `verbose` *(boolean, default = `False`)*: Controls the level of
+	verbosity. If `True`, the messages indication the progress are printed
+	to the console at each calculation of the partial gradient (stdout).
+	partial gradients are  calculated `h * c` times in the leave-one-out
+	gradient descent, and `h * k` times in the k-fold gradient descent,
+	where `h` is the number of cross-validation folds , `c` is the number
+	of controls, and `k` is the number of gradient folds. In short, this is
+	level of messaging is typically excessive.
+
+* `custom_donor_pool` *(boolean matrix, default = `None`)*: By default all 
+	control units are allowed to be donors for all units. There are cases
+	where this is not desired and so the user can pass in a matrix
+	specifying a unit-specific donor pool (NxC matrix of booleans).
+
+	Common reasons for restricting the allowability: (a) When we would like
+	to reduce interpolation bias by restricting the donor pool to those
+	units similar along certain features. (b) If units are not completely
+	independent (for example there may be contamination between neighboring
+	units). This is a violation of the Single Unit Treatment Value
+	Assumption (SUTVA). Note: These are not used in the fitting stage (of
+	V and penalties) just in final unit weight determination.
+
+* `parallel` *(boolean, default=`false`)*: split the gradient descent
+	across multiple sub-processes.  This is currently an experimental stub
+	and tends to increase running time. See notes above.
+
+* `method` *(string|function, default=`SparseSC.optimizers.cd_line_search.cdl_search`)*: 
+	The method or function responsible for performing gradient descent in
+	the feature space. If `method` is a string, it is passed as the
+	`method` argument to `scipy.optimize.minimize`. Otherwise, `method`
+	must be a function with a signature compatible with
+	`scipy.optimize.minimize` (`method(fun,x0,grad,**kwargs)`) which
+	returns an object having `x` and `fun` attributes.
+
+* `kwargs`: Additional arguments passed to the optimizer (i.e. `method` or `scipy.optimize.minimize`). Additional arguments for the
+	default optimizer include:
+
+-`constrain` *(string)*: The value `"orthant"` constrains `V`
+	to the non-negative orthant, and `"simplex"` constrains V to the
+	standard simplex.
+		
+-`learning_rate` *(float, default = 0.2)*: The initial learning rate
+	which determines the initial step size, which is set to `learning_rate
+	* null_model_error / gradient`. Must be between 0 and 1.
+
+-`learning_rate_adjustment` *(float, default = 0.9)*: Adjustment factor
+	applied to the learning rate applied between iterations when the
+	optimal step size returned by `scipy.optimize.line_search` is greater
+	less than 1, else the step size is adjusted by
+	`1/learning_rate_adjustment`. Must be between 0 and 1,
+
+-`tol` *(float, default = 0.0001)*: Tolerance used for the stopping rule 
+	based on the proportion of the in-sample residual error reduced in the
+	last step of the gradient descent.
+
+# The Model Object:
+
+coming soon
+
+# Developer Notes
 
 ### Performance Notes
 
@@ -241,24 +404,17 @@ machine](https://docs.python.org/2/library/multiprocessing.html#miscellaneous).
 (Note that setting `paralell=True` when the BLAS/LAPACK are available will
 tend to increase running times.)
 
-### Logging
-
-You may (and probably should) enable logging of the progress of the
-`CV_score()`.  Setting `progress=True` enables logging of each
-iteration of the gradient descent, and setting `verbose=True` enables
-logging or each calculation of the (partial) gradient, which is calculated
-`h * c` times in the leave-one-out gradient descent, and `h * k` times in
-the k-fold gradient descent,  where `h` is the number of cross-validation
-folds , `c` is the number of controls, and `k` is the number of gradient
-folds.
-
-### Examples
-
-The file `./example-code.py` in this package examples and a simple data
-generating process for use in understanding how to use this package.
-
 ### Documentation
-The documentation can be built locally using the `(n)make` target `htmldocs` and is generated in `docs/build/html/index.html`. You can read these online at [Read the Docs](https://sparsesc.readthedocs.io/en/latest/)
+
+You can read these online at [Read the
+Docs](https://sparsesc.readthedocs.io/en/latest/). 
+
+To build the
+documentation locally, you will need `sphinx`, `recommonmark`, and
+`sphinx-markdown-tables` (to incorporate .md files)
+
+The documentation can be built locally using the `(n)make` target
+`htmldocs` and is generated in `docs/build/html/index.html`. 
 
 ## Contributing
 
