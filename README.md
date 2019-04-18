@@ -369,8 +369,8 @@ of the fitted model.
 
 #### Fitted values:
 
-* `fitted_w_pen`: The selected `w_pen` parameter.
-* `fitted_v_pen`: The selected `v_pen` parameter.
+* `fitted_w_pen`: The selected `w_pen` value.
+* `fitted_v_pen`: The selected `v_pen` value.
 * `V`: The fitted matrix of feature weights.
 * `sc_weights`: The fitted synthetic control weights matrix `W`
 * `score`: Squared out-of-sample error from cross validation of the
@@ -388,7 +388,7 @@ of the fitted model.
 	control weights, optionally setting the contributions of trivial units
 	to the predicted values of non-trivial units to zero.
 
-* model.**get_weights** *(Y=None,include_trivial_donors=False)*: Returns matrix
+* model.**predict** *(Y=None,include_trivial_donors=False)*: Returns matrix
 	of synthetic units, optionally applying the synthetic control weights
 	to a new set of features `Y` (e.g. for prospective use-cases).
 
