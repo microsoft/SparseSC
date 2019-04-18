@@ -341,22 +341,21 @@ parameters](#big-list-of-parameters) for details)
 
 * `kwargs`: Additional arguments passed to the optimizer (i.e. `method` or `scipy.optimize.minimize`). Additional arguments for the
 	default optimizer include:
-
-    `constrain` *(string)*: The value `"orthant"` constrains `V`
+	
+	* `constrain` *(string)*: The value `"orthant"` constrains `V`
 	to the non-negative orthant, and `"simplex"` constrains V to the
 	standard simplex.
-		
-    `learning_rate` *(float, default = 0.2)*: The initial learning rate
-	which determines the initial step size, which is set to `learning_rate
-	* null_model_error / gradient`. Must be between 0 and 1.
-
-    `learning_rate_adjustment` *(float, default = 0.9)*: Adjustment factor
+	
+	* `learning_rate` *(float, default = 0.2)*: The initial learning rate
+	which determines the initial step size, which is set to `learning_rate * null_model_error / gradient`. Must be between 0 and 1.
+	
+	* `learning_rate_adjustment` *(float, default = 0.9)*: Adjustment factor
 	applied to the learning rate applied between iterations when the
 	optimal step size returned by `scipy.optimize.line_search` is greater
 	less than 1, else the step size is adjusted by
 	`1/learning_rate_adjustment`. Must be between 0 and 1,
-
-    `tol` *(float, default = 0.0001)*: Tolerance used for the stopping rule 
+	
+	* `tol` *(float, default = 0.0001)*: Tolerance used for the stopping rule 
 	based on the proportion of the in-sample residual error reduced in the
 	last step of the gradient descent.
 
