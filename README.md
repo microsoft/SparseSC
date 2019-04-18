@@ -18,13 +18,6 @@ in_sample_predictions = fitted_model.predict()
 # make predictions for a held out set of fetures (Y_hat) within the
 # original set of units
 additional_predictions = fitted_model.predict(Y_additional)
-
-# make out of sample predictotions using the fitted penalty parameters
-new_model = fitted_model.predict(X_other,
-                                 Y_other,
-                                 v_pen=fitted_model.fitted_v_pen,
-                                 w_pen=fitted_model.fitted_w_pen)
-more_predictions = new_model.predict()
 ```
 
 ## Overview 
@@ -233,7 +226,7 @@ parameters](#big-list-of-parameters) for details)
 
 * `model_type` *(string, default = `"retrospective"`)*: Type of model
 	being fit. One of `"retrospective"`, `"prospective"`,
-	`"prospective-restricted"` or `"full"` See [above](#Data_and_Model_Type)
+	`"prospective-restricted"` or `"full"` See [above](#data-and-model-type)
 	for details.
 
 * `treated_units` *(int[]|boolean[])*: A list of integers or array of
@@ -242,13 +235,13 @@ parameters](#big-list-of-parameters) for details)
 
 * `w_pen` *(float | float[], optional)*: Penalty / penalties applied to the
 	difference between the fitted weights (`W`) and the null weights (1/n),
-	See [above](#Penalty_Parameters) for details.
+	See [above](#penalty-parameters) for details.
 
 * `v_pen` *(float | float[], optional)*: Penalty / penalties applied to the
 	difference between the fitted weights (`W`) and the null weights (1/n).
-	See [above](#Penalty_Parameters) for details.
+	See [above](#penalty-parameters) for details.
 
-* `grid`: (float[], optional). See [above](#Penalty_Parameters) for details.
+* `grid`: (float[], optional). See [above](#3-modifying-the-default-search) for details.
 
 * `grid_min` *(float, default = 1e-6)*: Lower bound for `grid` when
 	`grid` are not provided. Must be in the range `(0,1)`
@@ -359,7 +352,52 @@ parameters](#big-list-of-parameters) for details)
 
 # The Model Object:
 
-coming soon
+`fit()` returns an object of type `SparseSCFit` which contains the details
+of the fitted model.
+
+### Attributes:
+
+### Input Parameters:
+
+* `X`: A reference to the input paremeter `X`
+* `Y`: A reference to the input paremeter `Y`
+* `control_units`: A reference to the input paremeter `control_units`
+* `treated_units`: A reference to the input paremeter `treated_units`
+* `model_type`: A reference to the input paremeter `model_type`
+* `initial_w_pen`: A reference to the input paremeter `w_pen`
+* `initial_v_pen`: A reference to the input paremeter `v_pen`
+
+### Fitted values:
+
+* `fitted_w_pen`: The selected `w_pen` parameter.
+* `fitted_v_pen`: The selected `v_pen` parameter.
+* `V`: The fitted matrix of feature weights.
+* `sc_weights`: The fitted synthetic control weights matrix `W`
+* `score`: Squared out-of-sample error from cross validation of the
+	for the model associated with the selected penalty parameters.
+* `trivial_units`: An array of booleans indicating which (if any) units
+	have zeros for all targets (outcomes) and all non-trivial features
+	(features with a non-zero weight in the fitted V matrix). These are
+	important as the penalties will tend to set their weights to `1/N` for
+	all synthetics units for which they may be included. (*This is
+	anticipated to be very rare in real life datasets*)
+
+### Methods:
+
+* model.**get_weights** *(include_trivial_donors=False)*: Returns the synthetic
+	control weights, optionally setting the contributions of trivial units
+	to the predicted values of non-trivial units to zero.
+
+* model.**get_weights** *(Y=None,include_trivial_donors=False)*: Returns matrix
+	of synthetic units, optionally applying the synthetic control weights
+	to a new set of features `Y` (e.g. for prospective use-cases).
+
+* model.**__str__**(): Brief summary of model fit.
+
+* model.**summary**(): Provides a summary of the coordinate descent steps
+	in the search for an optimal pair of penalty parameters.  Return a list
+	with one pandas DataFrame (if installed) per direction of the
+	coordinate descent.
 
 # Developer Notes
 
