@@ -357,7 +357,7 @@ of the fitted model.
 
 ### Attributes:
 
-### Input Parameters:
+#### Input Parameters:
 
 * `X`: A reference to the input paremeter `X`
 * `Y`: A reference to the input paremeter `Y`
@@ -367,7 +367,7 @@ of the fitted model.
 * `initial_w_pen`: A reference to the input paremeter `w_pen`
 * `initial_v_pen`: A reference to the input paremeter `v_pen`
 
-### Fitted values:
+#### Fitted values:
 
 * `fitted_w_pen`: The selected `w_pen` parameter.
 * `fitted_v_pen`: The selected `v_pen` parameter.
