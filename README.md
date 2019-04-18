@@ -21,9 +21,9 @@ additional_predictions = fitted_model.predict(Y_additional)
 
 # make out of sample predictotions using the fitted penalty parameters
 new_model = fitted_model.predict(X_other,
-								 Y_other,
-								 v_pen=fitted_model.fitted_v_pen,
-								 w_pen=fitted_model.fitted_w_pen)
+                                 Y_other,
+                                 v_pen=fitted_model.fitted_v_pen,
+                                 w_pen=fitted_model.fitted_w_pen)
 more_predictions = new_model.predict()
 ```
 
