@@ -1,8 +1,7 @@
 
 # Overview of Fit.py
 
-
-## Parameter: model_type
+## The `model_type` parameter 
 
 There are three distinct types of model fitting with respect choosing
 optimal values of the penalty parameters and the collection of units

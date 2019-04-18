@@ -402,6 +402,12 @@ def _fit(
         except TypeError:
             raise ValueError("treated_units must be an iterable")
 
+        # Coerce a mask of booleans in to a list of ints
+        _t = [u for u in iter(treated_units)]
+        if isinstance(_t[0], bool):
+            treated_units = [i for i, t in enumerate(_t) if t]
+        del _t
+
         assert len(set(treated_units)) == len(
             treated_units
         ), (
@@ -857,7 +863,7 @@ def _which(x, se, f):
         """
         x_1se = (np.array(x) + np.array(se))[:-1]
         # reversed cumulative minimum (excluding the first value)
-        cum_min = np.minimum.accumulate(x[::-1])[-2::-1]  # type: ignore
+        cum_min = np.minimum.accumulate(x[::-1])[-2::-1]  # pylint: disable=no-member
         return np.where(np.append(x_1se < cum_min, np.array((True,))))[0][0]
     raise ValueError("Unexpected value for choice parameter: %s" % f)
 

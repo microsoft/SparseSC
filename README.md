@@ -63,8 +63,7 @@ can be selected by passing one of the following values to the `model_type` param
 	covariates known prior to the event. In addition, the rows in `X` and
 	`Y` which contain units that were affected by the intervention
 	("treated units") should be indicated using the `treated_units`
-	parameter, or alternatively unaffected units can be indicated using the
-	`control_units` parameter.
+	parameter.
 
 * `"prospective"`: In a prospective analysis, a subset of units have been designated to
 	receive a treatment but the treatment has not yet occurred and the
@@ -76,9 +75,8 @@ can be selected by passing one of the following values to the `model_type` param
 	
 	In this model, `Y` should contain only target variables and `X` may
 	contain a combination of target variables and other predictors /
-	covariates. The parameters `treated_units` and/or `control_units`
-	should be used to indicate the units which will or will not receive
-	treatment.
+	covariates. The parameters `treated_units` should be used to indicate
+	the units which will or will not receive treatment.
 
 * `"prospective-restricted"`: This is motivated by the same example as the 
 	previous sample. It requires a larger set of treated units for similar
@@ -93,8 +91,7 @@ can be selected by passing one of the following values to the `model_type` param
 	divided in two, typically divided in two subsets taken before and after
 	a particular point in time, and `Y` should contain only target
 	variables and `X` may contain a combination of target variables and
-	other predictors / covariates. The parameters `treated_units` and/or
-	`control_units` are unused.
+	other predictors / covariates. The parameter `treated_units` is unused.
 
 More details on the above parameters can be found in file `fit.md` in the
 root of this git repository.
@@ -239,8 +236,9 @@ parameters](#big-list-of-parameters) for details)
 	`"prospective-restricted"` or `"full"` See [above](#Data_and_Model_Type)
 	for details.
 
-* `treated_units`: An iterable indicating the rows of `X` and `Y` which
-	contain data from treated units.
+* `treated_units` *(int[]|boolean[])*: A list of integers or array of
+	booleans indicating the rows of `X` and `Y` which contain data from
+	treated units.
 
 * `w_pen` *(float | float[], optional)*: Penalty / penalties applied to the
 	difference between the fitted weights (`W`) and the null weights (1/n),
@@ -271,7 +269,7 @@ parameters](#big-list-of-parameters) for details)
 	the current model fit, the previous model fit, and the iteration number
 	(depending on it's signature), and should return a truthy value if the
 	coordinate descent should stop and a falsey value if the coordinate
-	descent should stop
+	descent should continue.
 
 * `choice` *(string|function, default =`"min"`)*: Method for selecting the 
 	optimal penalty parameter from an array of penalty parameters, from the
