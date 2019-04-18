@@ -108,12 +108,12 @@ process or simply provide their own values for the penalty parameters, for
 example to optimize these parameters on their own, with one of the
 following methods:
 
-1. Passing `v_pen` and `w_pen` as floats:
+#### 1. Passing `v_pen` and `w_pen` as floats:
 
 When single values are passed in the to the `v_pen` and `w_pen`, a fitted
 synthetic control model is returned using the provided penalties.
 
-2. Passing `v_pen` as a value and `w_pen` as a vector, or vice versa:
+#### 2. Passing `v_pen` as a value and `w_pen` as a vector, or vice versa:
 
 When either `v_pen` or `w_pen` are passed a vector of values, `fit()`
 will iterate over the vector of values and return the model with an optimal
@@ -132,7 +132,7 @@ from intertools import product
 fitted_models = [ fit(..., v_pen=v, w_pen=w) for v,w in product(v_pen,w_pen)]
 ```
 
-3. Modifying the default search
+#### 3. Modifying the default search
 
 By default `fit()` picks an arbitrary value for `w_pen` and creates a grid
 of values for `v_pen` over which to search, picks the optimal for `v_pen`
