@@ -14,8 +14,11 @@ Welcome to SparseSC's |version| documentation!
    estimate-effects
    model-types
    api_ref
-   <!-- build/apidoc/SparseSC/SparseSC -->
+   dev_notes
 
+
+.. the complete docs (build/apidoc/SparseSC/SparseSC)  are a bit chaotic* and
+    redundant to :ref:`modindex`.  Replacing with the tamer api_ref.md
 
 .. toctree::
    :maxdepth: 2
@@ -29,4 +32,5 @@ Indices and tables
 
 * :ref:`genindex`
 * :ref:`modindex`
-* :ref:`search`
+
+.. not needed: * :ref:`search`
