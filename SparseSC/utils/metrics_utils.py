@@ -126,7 +126,7 @@ def _gen_placebo_stats_from_diffs(
     level=0.95,
 ):
     """Generates placebo distribution to compare effects against. 
-    For a single treated unit  this is just the control effects.
+    For a single treated unit, this is just the control effects.
     If there are multiple treated units then the averaging process needs to be
     done to generate placebos also.
     Generates 2-sided p-values

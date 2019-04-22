@@ -34,6 +34,7 @@ def estimate_effects(
     :param kwargs: Additional parameters passed to fit()
 
     :returns: An instance of SparseSCEstResults with the fitted results
+    :raises ValueError:  when invalid parameters are passed
 
     :Keyword Args: Passed on to fit()
     """
@@ -53,6 +54,8 @@ def estimate_effects(
         X_and_Y_pre = np.hstack((X, Y_pre))
 
     #Set default parameters for fit()
+    if 'model_type' in kwargs and kwargs['model_type'] != 'retrospective': 
+        raise ValueError("parameter 'model_type' must be 'retrospective'" )
     if 'print_path' not in kwargs:
         kwargs['print_path'] = False
     if 'progress' not in kwargs:

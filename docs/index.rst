@@ -11,6 +11,7 @@ Welcome to SparseSC's |version| documentation!
    :caption: Contents:
 
    fit
+   estimate-effects
    model-types
    build/apidoc/SparseSC/SparseSC
 

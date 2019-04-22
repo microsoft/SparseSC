@@ -1,7 +1,5 @@
 # Fitting Sparse Synthetic Controls
 
-#### TL;DR:
-
 The `fit()` function can be used to create a set of weights and returns a
 fitted model which can be used to create synthetic units using it's
 `.predict()` method:
@@ -16,9 +14,10 @@ fitted_model = fit(X,Y,...)
 in_sample_predictions = fitted_model.predict()
 
 # Make predictions for a held out set of fetures (Y_hat) 
-# within the original set of units:
+# using the fitted synthetic controls model:
 additional_predictions = fitted_model.predict(Y_additional)
 ```
+
 
 #### Feature and Target Data
 
@@ -86,7 +85,7 @@ can be selected by passing one of the following values to the `model_type` param
 	other predictors / covariates. The parameter `treated_units` is unused.
 
 A more through discussoin of the model types can be found
-[Model Types](/build/model-types.html) Page.
+[Model Types](./model-types.html) Page.
 
 #### Penalty Parameters
 
