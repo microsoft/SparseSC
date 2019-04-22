@@ -1,6 +1,6 @@
 # Fitting Sparse Synthetic Controls
 
-##### TL;DR:
+#### TL;DR:
 
 The `fit()` function can be used to create a set of weights and returns a
 fitted model which can be used to create synthetic units using it's
@@ -20,8 +20,7 @@ in_sample_predictions = fitted_model.predict()
 additional_predictions = fitted_model.predict(Y_additional)
 ```
 
-
-## Fitting a synthetic control model
+#### Feature and Target Data
 
 When estimating synthetic controls, units of observation are divided into
 control and treated units. Data collected on these units may include
@@ -89,7 +88,7 @@ can be selected by passing one of the following values to the `model_type` param
 A more through discussoin of the model types can be found
 [Model Types](/build/model-types.html) Page.
 
-### Penalty Parameters
+#### Penalty Parameters
 
 The fitted synthetic control weights depend on the penalties applied to the V and W
 matrices (`v_pen` and `w_pen`, respectively), and the `fit()` function will
@@ -98,12 +97,12 @@ process or simply provide their own values for the penalty parameters, for
 example to optimize these parameters on their own, with one of the
 following methods:
 
-#### 1. Passing `v_pen` and `w_pen` as floats:
+##### 1. Passing `v_pen` and `w_pen` as floats:
 
 When single values are passed in the to the `v_pen` and `w_pen`, a fitted
 synthetic control model is returned using the provided penalties.
 
-#### 2. Passing `v_pen` as a value and `w_pen` as a vector, or vice versa:
+##### 2. Passing `v_pen` as a value and `w_pen` as a vector, or vice versa:
 
 When either `v_pen` or `w_pen` are passed a vector of values, `fit()`
 will iterate over the vector of values and return the model with an optimal
@@ -122,7 +121,7 @@ from intertools import product
 fitted_models = [ fit(..., v_pen=v, w_pen=w) for v,w in product(v_pen,w_pen)]
 ```
 
-#### 3. Modifying the default search
+##### 3. Modifying the default search
 
 By default `fit()` picks an arbitrary value for `w_pen` and creates a grid
 of values for `v_pen` over which to search, picks the optimal for `v_pen`
@@ -152,13 +151,13 @@ descent will alternate between searching over a grid of V and W penalties.
 
 ## Advanced Topics
 
-### Custom Donor Pools
+#### Custom Donor Pools
 
 By default all control units are allowed to be donors for all other units.
 There are cases where this is not desired and so the user can pass in a
 matrix specifying a unit-specific donor pool via a N x C matrix of booleans.
 
-### Constraining the V matrix
+#### Constraining the V matrix
 
 In the current implementation, the V matrix is a diagonal matrix, and the
 individual elements of V are constrained to be positive, as negative values
@@ -172,7 +171,7 @@ orthant](https://en.wikipedia.org/wiki/Orthant) in some cases. V is
 constrained to the either the simplex or the nonnegative orthant by passing
 either `"simplex"` or `"orthant"` to the `constrain` parameter.
 
-### Fold Parameters
+#### Fold Parameters
 
 The data are split into folds both purpose of calculating the cross fold
 validation (out-of-sample) errors and for K-fold gradient descent, a
@@ -187,7 +186,7 @@ is used internally to split the data into random folds. For consistency
 across calls to fit, the `cv_seed` and `gradient_seed` parameters are
 passed to `Kfold(..., random_state=seed)`.
 
-### Parallelization
+#### Parallelization
 
 If you have the BLAS/LAPACK libraries installed and available to Python,
 you should not need to do any further optimization to ensure that maximum
@@ -204,7 +203,7 @@ repeatedly sending a relatively small amount of data, which could be (but
 currently is not) initialized in each worker at the start. If this a
 priority for your team, feel free to submit a PR or feature request.
 
-### Gradient Descent in feature space
+#### Gradient Descent in feature space
 
 Currently a custom gradient descent method called `cdl_search` (imported
 from `SparseSC.optimizers.cd_line_search import`. ) is used which which
