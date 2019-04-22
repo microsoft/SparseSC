@@ -1,153 +1,217 @@
+# Fitting Sparse Synthetic Controls
 
-# Overview of Fit.py
+### TL;DR:
 
-## The `model_type` parameter 
+The `fit()` function can be used to create a set of weights and returns a
+fitted model which can be used to create synthetic units using it's
+`.predict()` method:
 
-There are three distinct types of model fitting with respect choosing
-optimal values of the penalty parameters and the collection of units
-that are used for cross validation. 
+```py
+from SparseSC import fit
 
-Recall that a synthetic treatment unit is defined as a weighted average of
-control units where weights are determined from the targets and are chosen
-to minimize the difference between the each the treated unit and its
-synthetic unit in the absence of an intervention.  This methodology can be
-combined with cross-fold validation a variety of ways 
-separate use cases.
+# fit the model:
+fitted_model = fit(X,Y,...)
 
-### Retrospective Treatment Effects:  ( *model_type = "retrospective"*)
+# make for the in-sample data
+in_sample_predictions = fitted_model.predict()
 
-In a retrospective analysis, a subset of units have received a treatment
-which possibly correlates with features of the units and values for the
-target variable have been collected both before and after an intervention.
-For example, a software update may have been applied to machines in a
-cluster which were experiences unusually latency, and retrospectively an
-analyst wishes to understand the effect of the update on another outcome
-such as memory utilization. 
+# make predictions for a held out set of fetures (Y_hat) within the
+# original set of units
+additional_predictions = fitted_model.predict(Y_additional)
+```
 
-In this scenario, for each treated unit we wish to create a synthetic unit
-composed only of untreated units.  The units are divided into a training set
-consisting of just the control units, and a test set consisting of the
-treated units.  Within the training set, *feature* data will consist of of
-unit attributes (covariates) and pre-intervention values from the outcome
-of interest. Likewise, **target** data consist of post-intervention values
-for the outcome of interest.
+## Overview 
 
-Cross-fold validation is done within the training set, holding out a single
-fold, identifying feature weights within the remaining folds, creating
-synthetic units for each held out unit defined as a weighted average of the
-non-held-out units. Out-of-sample prediction errors are calculated for each
-training fold and summed across folds. The set of penalty parameters that
-minimizes the Cross-Fold out-of-sample error are chosen.  Feature weights
-are calculated within the training set for the chosen penalties, and
-finally individual synthetic units are calculated for each treated unit
-which is a weighted average of the control units.
+When estimating synthetic controls, units of observation are divided into
+control and treated units. Data collected on these units may include
+observations of the outcome of interest, as well as other characteristics
+of the units (termed "covariates", herein). Outcomes may be observed both
+before and after an intervention on the treated units.
 
-This model yields a synthetic unit for each treated unit composed of
-control units. 
+To maintain independence of the fitted synthetic controls and the
+post-intervention outcomes of interest of treated units, the
+post-intervention outcomes from treated units are not used in the fitting
+process. There are two cuts from the remaining data that may be used to
+fit synthetic controls, and each has it's advantages and disadvantages.
 
-### Prospective Treatment Effects ( *model_type = "prospective"*)
+## Fitting a synthetic control model
 
-In a prospective analysis, a subset of units have been designated to
-receive a treatment but the treatment has not yet occurred and the
-designation of the treatment may be correlated with a (possibly unobserved)
-feature of the treatment units.  For example, a software update may have
-been planned for machines in a cluster which are experiencing unusually
-latency, and there is a desire to understand the impact of the software on
-memory utilization.
+### Data and Model Type
 
-Like the retrospective scenario, for each treated unit we wish to create a
-synthetic unit composed only of untreated units.
+The parameters `X` and `Y` should be numeric matrices containing data on
+the features and target variables, respectively, with one row per unit
+of observation, and one column per feature or target variable.
 
-*Feature* data consist of of unit attributes (covariates) and a subset
-of the pre-intervention values from the outcome of interest, and **target**
-data consist of the remaining pre-intervention values for the outcome of
-interest
+There area 4 model types that can be fit using the `fit()` function which
+can be selected by passing one of the following values to the `model_type` parameter: 
 
-Cross fold validation is conducted using the entire dataset without regard
-to intent to treat.  However, treated units allocated to a single gradient
-fold, ensuring that synthetic treated units are composed of only the
-control units.
+* `"retrospective"`: In this model, data are assumed to be collected
+	retrospectively, sometime after an intervention or event has taken
+	place in a subset of the subjects/units, typically with the intent of
+	estimating the effect of the intervention. 
+	
+	In this model, `Y` should contain target variables recorded after the
+	event of interest and `X` may contain a combination of target variables
+	recorded prior to the event of interest and other predictors /
+	covariates known prior to the event. In addition, the rows in `X` and
+	`Y` which contain units that were affected by the intervention
+	("treated units") should be indicated using the `treated_units`
+	parameter.
 
-Cross-fold validation is done within the *test* set, holding out a single
-fold, identifying feature weights within the remaining treatment folds
-combined with the control units, synthetic units for each held out unit
-defined as a weighted average of the full set of control units. 
+* `"prospective"`: In a prospective analysis, a subset of units have been designated to
+	receive a treatment but the treatment has not yet occurred and the
+	designation of the treatment may be correlated with a (possibly unobserved)
+	feature of the treatment units. In this scenario, all data are
+	collected prior to the treatment intervention, and data on the outcome
+	of interested are divided in two, typically divided in two subsets
+	taken before and after a particular point in time. 
+	
+	In this model, `Y` should contain only target variables and `X` may
+	contain a combination of target variables and other predictors /
+	covariates. The parameters `treated_units` should be used to indicate
+	the units which will or will not receive treatment.
 
-Out-of-sample prediction errors are calculated for each treatment fold and
-the sum of these defines the Cross-Fold out-of-sample error. The set of
-penalty parameters that minimizes the Cross-Fold out-of-sample error are
-chosen.  Feature weights are calculated within the training set for the
-chosen penalties, and finally individual synthetic units are calculated for
-each full unit which is a weighted average of the control units.
+* `"prospective-restricted"`: This is motivated by the same example as the 
+	previous sample. It requires a larger set of treated units for similar
+	levels of precision, with the benefit of substantially faster running
+	time.
 
-This model yields a synthetic unit for each treated unit composed of
-control units. 
+* `"full"`: This model is motivated by the need for prospective failure 
+	detection, and is not used in the context of a historical event or
+	treatment intervention. 
 
-### Prospective Treatment Effects training (*model_type = "prospective-restricted"*)
+	like the `prospective` models, data on the outcome of interested are
+	divided in two, typically divided in two subsets taken before and after
+	a particular point in time, and `Y` should contain only target
+	variables and `X` may contain a combination of target variables and
+	other predictors / covariates. The parameter `treated_units` is unused.
 
-This is motivated by the same example as the previous sample.  It requires
-a larger set of treated units for similar levels of precision, with the
-benefit of substantially faster running time.
+More details on the above parameters can be found in file `fit.md` in the
+root of this git repository.
 
-The units are divided into a training set consisting of just the control
-units, and a test set consisting of the unit which will be treated.
-*feature* data will consist of of unit attributes (covariates) and a subset
-of the pre-intervention values from the outcome of interest, and **target**
-data consist of the remaining pre-intervention values for the outcome of
-interest
+### Penalty Parameters
 
-Cross-fold validation is done within the *test* set, holding out a single
-fold, identifying feature weights within the remaining treatment folds
-combined with the control units, synthetic units for each held out unit
-defined as a weighted average of the full set of control units. 
+The fitted synthetic control weights depend on the penalties applied to the V and W
+matrices (`v_pen` and `w_pen`, respectively), and the `fit()` function will
+attempt to find an optimal pair of penalty parameters. Users can modify the selection
+process or simply provide their own values for the penalty parameters, for
+example to optimize these parameters on their own, with one of the
+following methods:
 
-Out-of-sample prediction errors are calculated for each treatment fold and
-the sum of these defines the Cross-Fold out-of-sample error. The set of
-penalty parameters that minimizes the Cross-Fold out-of-sample error are
-chosen.  Feature weights are calculated within the training set for the
-chosen penalties, and finally individual synthetic units are calculated for
-each full unit which is a weighted average of the control units.
+#### 1. Passing `v_pen` and `w_pen` as floats:
 
-This model yields a synthetic unit for each treated unit composed of
-control units. 
+When single values are passed in the to the `v_pen` and `w_pen`, a fitted
+synthetic control model is returned using the provided penalties.
 
-Not that this model will tend to have wider confidence intervals and small estimated treatments given the sample it is fit on.
+#### 2. Passing `v_pen` as a value and `w_pen` as a vector, or vice versa:
 
-### Prospective Failure Detection ( *model_type = "full"*)
+When either `v_pen` or `w_pen` are passed a vector of values, `fit()`
+will iterate over the vector of values and return the model with an optimal
+out of sample prediction error using cross validation. The choice of model
+can be controlled with the `choice` parameter which has the options of
+`"min"` (default) which selects the model with the smallest out of sample
+error, `"1se"` which implements the 'one standard-error' rule, or a
+function which implements a custom selection rule.
 
-In this scenario the goal is to identify irregular values in an outcome
-variable prospectively in a homogeneous population (i.e. when no
-treatment / intervention is planned).  As an example, we may wish to detect
-failure of any one machine in a cluster, and to do so, we wish to create a
-synthetic unit for each machine which is composed of a weighted average of
-other machines in the cluster.  In particular, there may be variation of
-the workload across the cluster and where workload may vary across the
-cluster by (possibly unobserved) differences in machine hardware, cluster
-architecture, scheduler versions, networking architecture, job type, etc. 
+**Note that** passing vectors to both `v_pen` and `w_pen` is assumed to be
+inefficient and `fit` will raise an error. If you wish to evaluate over a N x N
+grid of penalties, use:
 
-Like the Prospective Treatment Effects scenario, *Feature* data consist of
-of unit attributes (covariates) and a subset of the pre-intervention values
-from the outcome of interest, and **target** data consist of the remaining
-pre-intervention values for the outcome of interest, and Cross fold
-validation is conducted using the entire dataset, and Cross validation and
-gradient folds are determined randomly. 
+```py
+from intertools import product
+fitted_models = [ fit(..., v_pen=v, w_pen=w) for v,w in product(v_pen,w_pen)]
+```
 
-This model yields a synthetic unit for every unit in the dataset, and
-synthetic units are composted of the remaining units not included in the
-same gradient fold. 
+#### 3. Modifying the default search
 
-### Summary
+By default `fit()` picks an arbitrary value for `w_pen` and creates a grid
+of values for `v_pen` over which to search, picks the optimal for `v_pen`
+from the set of parameters, and then repeats the process alternating
+between a fixed `v_pen` and array of values `w_pen` and vice versa until
+stopping rule is reached.
 
-Here is a summary of the main differences between the model types.
+The grid over which each penalty parameter is searched is determined by the
+value of the other (fixed) penalty parameter. For example, for a given
+value of `w_pen` there is a maximum value of `v_pen` which does not result
+in a null model (i.e. when the V matrix would be identically 0 and W would
+be identically 1/N), and the same logic applies in both scenarios (i.e.
+when `w_pen` is fixed).
 
-| Type | Sample fitting (V & penalties) | Donor pool for W |
-|---|---|---|
-|retrospective|Controls|Controls|
-|prospective|All|Controls|
-|prospective-restricted|Treated|Controls|
-|(prospective) full|All|All|
+The search grid is therefor bounded between 0 and the maximum referenced
+above. By default the grid consists of 20 points log-linearly spaced
+between 0 and the maximum. The number of points in the grid can be
+controlled with the `grid_length` parameters, and the bounds are controlled
+via the `grid_min` and `grid_max` parameters. Alternatively, an array of
+values between 0 and 1 can be passed to the `grid` parameter and will be
+multiplied by the relevant `grid_max` to determine the search grid at each
+iteration of the alternating coordinate descent.
 
-A tree view of differences:
-* Treatment date: The *prospective* studies differ from the *retrospective* study in that they can use all units for fitting.
-* (Prospective studies) Treated units: The intended-to-treat (*ITT*) studies differ from the *full* in that the "treated" units can't be used for donors.
-* (Prospective-ITT studies): The *restrictive* model differs in that it tries to maximize predictive power for just the treated units.
+Finally, the parameter `stopping_rule` determines how long the coordinate
+descent will alternate between searching over a grid of V and W penalties.
+(see the [Big list of parameters](#big-list-of-parameters) for details)
+
+## Advanced Topics
+
+### Custom Donor Pools
+
+By default all control units are allowed to be donors for all other units.
+There are cases where this is not desired and so the user can pass in a
+matrix specifying a unit-specific donor pool via a N x C matrix of booleans.
+
+### Constraining the V matrix
+
+In the current implementation, the V matrix is a diagonal matrix, and the
+individual elements of V are constrained to be positive, as negative values
+would be interpreted as two units would considered to *more similar* when
+their observed values for a particular feature are *more different*.
+
+Additionally, the V matrix may be constrained to [the standard simplex](https://en.wikipedia.org/wiki/Simplex#The_standard_simplex).
+which tends to minimize out of sample of error relative to the model
+constrained to the [nonnegative
+orthant](https://en.wikipedia.org/wiki/Orthant) in some cases. V is
+constrained to the either the simplex or the nonnegative orthant by passing
+either `"simplex"` or `"orthant"` to the `constrain` parameter.
+
+### Fold Parameters
+
+The data are split into folds both purpose of calculating the cross fold
+validation (out-of-sample) errors and for K-fold gradient descent, a
+technique used to speed up the model fitting process. The parameters
+`cv_fold` and `gradient_fold` can be passed either an integer number of
+folds or an list-of-lists which indicate the units (rows) which are
+allocated to each fold. 
+
+In the case that an integer is passed, the scikit-learn function
+[kfold](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.KFold.html)
+is used internally to split the data into random folds. For consistency
+across calls to fit, the `cv_seed` and `gradient_seed` parameters are
+passed to `Kfold(..., random_state=seed)`.
+
+### Parallelization
+
+If you have the BLAS/LAPACK libraries installed and available to Python,
+you should not need to do any further optimization to ensure that maximum
+number of processors are used during the execution of `fit()`.  If
+not, seting the parameter `paralell=True` when you call
+`fit()` which will split the work across N - 2 sub-processes where N
+is the [number of cores in your
+machine](https://docs.python.org/2/library/multiprocessing.html#miscellaneous).
+
+Note that setting `paralell=True` when the BLAS/LAPACK are available will
+tend to increase running times. Also, this is considered an experimenatl
+stub. While it works, parallel processing spends most of the time passing
+repeatedly sending a relatively small amount of data, which could be (but
+currently is not) initialized in each worker at the start. If this a
+priority for your team, feel free to submit a PR or feature request.
+
+### Gradient Descent in feature space
+
+Currently a custom gradient descent method called `cdl_search` (imported
+from `SparseSC.optimizers.cd_line_search import`. ) is used which which
+performs the constrained gradient descent. An alternate gradient descent
+function may be supplied to the `method` parameter, and any additional
+keyword arguments passed to `fit()` are passed along to whichever gradient
+descent function is used. (see the [Big list of
+parameters](#big-list-of-parameters) for details)
+
+

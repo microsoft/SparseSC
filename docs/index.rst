@@ -11,10 +11,16 @@ Welcome to SparseSC's |version| documentation!
    :caption: Contents:
 
    fit
+   model-types
    _build/html/apidoc/SparseSC/SparseSC
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Examples
 
-Indices and tables
+   exmaples/prospective_anomaly_detection.md
+
+0´Indices and tables
 ==================
 
 * :ref:`genindex`
