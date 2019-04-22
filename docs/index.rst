@@ -13,7 +13,8 @@ Welcome to SparseSC's |version| documentation!
    fit
    estimate-effects
    model-types
-   build/apidoc/SparseSC/SparseSC
+   api_ref
+   <!-- build/apidoc/SparseSC/SparseSC -->
 
 
 .. toctree::
