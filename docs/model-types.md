@@ -13,7 +13,7 @@ accommodate a variety of use cases.
 
 ## Retrospective Treatment Effects
 
-#### `model_type = "retrospective"`
+`model_type = "retrospective"`
 
 In a retrospective analysis, a subset of units have received a treatment
 which possibly correlates with features of the units and values for the
@@ -24,12 +24,14 @@ analyst wishes to understand the effect of the update on another outcome
 such as memory utilization. 
 
 In this scenario, for each treated unit we wish to create a synthetic unit
-composed only of untreated units.  The units are divided into a training set
-consisting of just the control units, and a test set consisting of the
-treated units.  Within the training set, *feature* data will consist of of
-unit attributes (covariates) and pre-intervention values from the outcome
-of interest. Likewise, **target** data consist of post-intervention values
-for the outcome of interest.
+composed only of untreated units.  The units are divided into a training
+set consisting of just the control units, and a test set consisting of the
+treated units.  Within the training set, *feature* data consist of anything
+known prior to a treatment or intervention, such as pre-intervention values
+from the outcome of interest as well as unit level attributes, sometimes
+called "covariatess". Likewise, **target** data consist of observations
+from the outcome of interest collected after the treatment or intervention
+is initiated.
 
 Cross-fold validation is done within the training set, holding out a single
 fold, identifying feature weights within the remaining folds, creating
@@ -46,7 +48,7 @@ control units.
 
 ## Prospective Treatment Effects
 
-#### `model_type = "prospective"`
+`model_type = "prospective"`
 
 In a prospective analysis, a subset of units have been designated to
 receive a treatment but the treatment has not yet occurred and the
@@ -86,7 +88,7 @@ control units.
 
 ## Prospective Treatment Effects training
 
-#### `model_type = "prospective-restricted"`
+`model_type = "prospective-restricted"`
 
 This is motivated by the same example as the previous sample.  It requires
 a larger set of treated units for similar levels of precision, with the
@@ -118,7 +120,7 @@ Not that this model will tend to have wider confidence intervals and small estim
 
 ## Prospective Failure Detection
 
-#### `model_type = "full"`
+`model_type = "full"`
 
 In this scenario the goal is to identify irregular values in an outcome
 variable prospectively in a homogeneous population (i.e. when no
@@ -145,7 +147,7 @@ same gradient fold.
 
 Here is a summary of the main differences between the model types.
 
-| Type | Sample fitting (V & penalties) | Donor pool for W |
+| Type | Units used to fit V & penalties | Donor pool for W |
 |---|---|---|
 |retrospective|Controls|Controls|
 |prospective|All|Controls|

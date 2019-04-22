@@ -1,7 +1,4 @@
----
-layout: page
-title: Anomaly Detection
----
+# Anomaly Detection
 
 ### Overview
 
@@ -75,6 +72,6 @@ This model yields a synthetic unit for every unit in the dataset, and
 synthetic units are composted of the remaining units not included in the
 same gradient fold.
 
-| Type | Sample fitting (V & penalties) | Donor pool for W |
+| Type | Units used to fit V & penalties | Donor pool for W |
 |---|---|---|
 |(prospective) full|All units|All units|

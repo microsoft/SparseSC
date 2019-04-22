@@ -113,4 +113,4 @@ conda_env_create:
 
 jupyter_DifferentialTrends:
 	START jupyter notebook examples/DifferentialTrends.ipynb > jupyter_launch.log
-  
+

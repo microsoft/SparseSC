@@ -1,6 +1,6 @@
 # Fitting Sparse Synthetic Controls
 
-### TL;DR:
+##### TL;DR:
 
 The `fit()` function can be used to create a set of weights and returns a
 fitted model which can be used to create synthetic units using it's
@@ -9,18 +9,19 @@ fitted model which can be used to create synthetic units using it's
 ```py
 from SparseSC import fit
 
-# fit the model:
+# Fit the model:
 fitted_model = fit(X,Y,...)
 
-# make for the in-sample data
+# Get the fitted synthetic controls for `Y`:
 in_sample_predictions = fitted_model.predict()
 
-# make predictions for a held out set of fetures (Y_hat) within the
-# original set of units
+# Make predictions for a held out set of fetures (Y_hat) 
+# within the original set of units:
 additional_predictions = fitted_model.predict(Y_additional)
 ```
 
-## Overview 
+
+## Fitting a synthetic control model
 
 When estimating synthetic controls, units of observation are divided into
 control and treated units. Data collected on these units may include
@@ -34,13 +35,12 @@ post-intervention outcomes from treated units are not used in the fitting
 process. There are two cuts from the remaining data that may be used to
 fit synthetic controls, and each has it's advantages and disadvantages.
 
-## Fitting a synthetic control model
+In the call to `fit()`, parameters `X` and `Y` should be numeric matrices
+containing data on the features and target variables, respectively, with
+one row per unit of observation, and one column per feature or target
+variable.
 
-### Data and Model Type
-
-The parameters `X` and `Y` should be numeric matrices containing data on
-the features and target variables, respectively, with one row per unit
-of observation, and one column per feature or target variable.
+#### Data and Model Type
 
 There area 4 model types that can be fit using the `fit()` function which
 can be selected by passing one of the following values to the `model_type` parameter: 
@@ -87,7 +87,7 @@ can be selected by passing one of the following values to the `model_type` param
 	other predictors / covariates. The parameter `treated_units` is unused.
 
 A more through discussoin of the model types can be found
-[here](./model-types.html).
+[Model Types](/build/model-types.html) Page.
 
 ### Penalty Parameters
 
