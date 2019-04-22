@@ -86,8 +86,8 @@ can be selected by passing one of the following values to the `model_type` param
 	variables and `X` may contain a combination of target variables and
 	other predictors / covariates. The parameter `treated_units` is unused.
 
-More details on the above parameters can be found in file `fit.md` in the
-root of this git repository.
+A more through discussoin of the model types can be found
+[here](./model-types.html).
 
 ### Penalty Parameters
 

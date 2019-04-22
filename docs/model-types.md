@@ -8,8 +8,8 @@ Recall that a synthetic treatment unit is defined as a weighted average of
 control units where weights are determined from the targets and are chosen
 to minimize the difference between the each the treated unit and its
 synthetic unit in the absence of an intervention.  This methodology can be
-combined with cross-fold validation a variety of ways 
-separate use cases.
+combined with cross-fold validation a in several ways in order to
+accommodate a variety of use cases.
 
 ## Retrospective Treatment Effects
 
