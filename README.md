@@ -1,4 +1,4 @@
-# Sparse Synthetic Controls
+# [Sparse Synthetic Controls](https://sparsesc.readthedocs.io/en/latest/)
 
 ### TL;DR:
 
