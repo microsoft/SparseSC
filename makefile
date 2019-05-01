@@ -71,8 +71,10 @@ tests_both:
 #add examples here when working
 check: pylint package_bdist_wheel tests_both
 
+#Have to strip because of unfixed https://github.com/jupyter/nbconvert/issues/503
 examples/DifferentialTrends.py: examples/DifferentialTrends.ipynb
 	jupyter nbconvert examples/DifferentialTrends.ipynb --to script
+	cd examples && python strip_magic.py
 
 examples/DifferentialTrends.html: examples/DifferentialTrends.ipynb
 	jupyter nbconvert examples/DifferentialTrends.ipynb --to html
@@ -113,4 +115,4 @@ conda_env_create:
 
 jupyter_DifferentialTrends:
 	START jupyter notebook examples/DifferentialTrends.ipynb > jupyter_launch.log
-
+  
