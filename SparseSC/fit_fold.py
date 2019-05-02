@@ -158,7 +158,7 @@ def fold_v_matrix(
     # CONSTANTS
     N0, N1, K = len(control_units), len(treated_units), X.shape[1]
     if start is None:
-        start = zeros(K)  # formerly: .1 * ones(K)
+        start = zeros(K)  # formerly: .1 * ones(K); zeros(K); (1/K)*ones(K)
     assert N1 > 0, "No control units"
     assert N0 > 0, "No treated units"
     assert K > 0, "variables to fit (X.shape[1] == 0)"
