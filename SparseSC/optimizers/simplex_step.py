@@ -10,6 +10,7 @@ from numpy import (
     array,
     append,
     arange,
+    cumsum,
     random,
     zeros,
     ones,
@@ -19,6 +20,7 @@ from numpy import (
     maximum,
     argmin,
     where,
+    sort,
 )
 
 
@@ -132,3 +134,24 @@ def simplex_step(x, g, verbose=False):
         if i > len(x):
             raise RuntimeError("something went wrong")
     return x
+
+def simplex_step_proj_sort(x, g, verbose=False):
+    x_new = simplex_proj_sort(x-g)
+    return x_new
+
+#There's a fast version which uses the median finding algorithm rather than full sorting, but more complicated
+#See https://en.wikipedia.org/wiki/Simplex#Projection_onto_the_standard_simplex
+# and https://gist.github.com/mblondel/6f3b7aaad90606b98f71
+def simplex_proj_sort(v, verbose=False):
+    k = v.shape[0]
+    if k == 1:
+        return 1
+
+    u = sort(v)[::-1] #switches the order
+    ind = arange(1, k+1) #shift to 1-indexing
+    pis = (cumsum(u) - 1) / ind
+    rho = ind[(u - pis) > 0][-1]
+    theta = pis[rho-1] #shift back to 0-indexing
+    v_new = maximum(v - theta, 0)
+
+    return v_new

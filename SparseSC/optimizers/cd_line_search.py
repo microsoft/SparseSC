@@ -4,7 +4,7 @@ import numpy as np
 from collections import namedtuple
 from scipy.optimize import line_search
 from scipy.optimize.linesearch import LineSearchWarning
-from .simplex_step import simplex_step
+from .simplex_step import simplex_step, simplex_step_proj_sort
 
 import warnings
 import locale
@@ -334,7 +334,7 @@ def simplex_restraint(x_curr):
         """
         Project x to the nearest point in the first orthant
         """
-        return simplex_step(x_curr, x_curr - x)
+        return simplex_step_proj_sort(x_curr, x_curr - x) #simplex_step
 
     return inner
 
