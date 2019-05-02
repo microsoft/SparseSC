@@ -74,6 +74,7 @@ def estimate_effects(
         Y=Y_post,
         model_type="retrospective",
         treated_units=treated_units,
+        constrain="simplex",
         **kwargs
     )
     Y_sc = fit_res.predict(Y)#[control_units, :]
