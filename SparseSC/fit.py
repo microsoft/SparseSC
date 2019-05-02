@@ -745,7 +745,7 @@ class SparseSCFit(object):
         """
         return self.get_weights()
 
-    def get_weights(self, include_trivial_donors=False):
+    def get_weights(self, include_trivial_donors=True):
         """
         getter for the sc_weights. By default, the trivial
         """
@@ -761,7 +761,7 @@ class SparseSCFit(object):
         __weights[np.ix_(np.logical_not(self.trivial_units), trivial_donors)] = 0
         return __weights
 
-    def predict(self, Y=None, include_trivial_donors=False):
+    def predict(self, Y=None, include_trivial_donors=True):
         """ 
         predict method
 
