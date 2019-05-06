@@ -24,7 +24,7 @@ import sys
 import recommonmark
 from recommonmark.transform import AutoStructify
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 
 # -- General configuration ------------------------------------------------
