@@ -92,10 +92,10 @@ gen_ipynb_output:
 #TODO: check if this way of doing phony targets for nmake works with make
 test/SparseSC_27.yml: .phony
 	activate SparseSC_27 && cd test && conda env export > SparseSC_27.yml
-	echo Make sure to remove the last prefix line
+	echo Make sure to remove the last prefix line and the pip sparsesc line, as user does pip install -e for that
 test/SparseSC_35.yml: .phony
 	activate SparseSC_35 && cd test && conda env export > SparseSC_35.yml
-	echo Make sure to remove the last prefix line
+	echo Make sure to remove the last prefix line and the pip sparsesc line, as user does pip install -e for that
 .phony:
 
 #Don't generate requirements-rtd.txt from conda environments (e.g. pip freeze > rtd-requirements.txt)
