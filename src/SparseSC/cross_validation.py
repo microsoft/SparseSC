@@ -352,7 +352,10 @@ def CV_score(
             iter(splits)
         except TypeError:
             from sklearn.model_selection import KFold
-            splits = KFold(splits, shuffle=True,random_state=cv_seed).split(np.arange(X_treat.shape[0]))
+
+            splits = KFold(splits, shuffle=True, random_state=cv_seed).split(
+                np.arange(X_treat.shape[0])
+            )
         train_test_splits = list(splits)
         n_splits = len(train_test_splits)
 
@@ -362,13 +365,7 @@ def CV_score(
                 "%s-fold validation with %s control and %s treated units %s "
                 "predictors and %s outcomes, holding out one fold among "
                 "Treated units; Assumes that `Y` and `Y_treat` are pre-intervention outcomes"
-                % (  # pylint: disable=line-too-long
-                    n_splits,
-                    X.shape[0],
-                    X_treat.shape[0],
-                    X.shape[1],
-                    Y.shape[1],
-                )
+                % (n_splits, X.shape[0], X_treat.shape[0], X.shape[1], Y.shape[1])
             )
 
         if parallel:
@@ -382,14 +379,14 @@ def CV_score(
                     print(
                         "WARNING: Using Parallel options with a single "
                         "split is expected reduce performance"
-                    )  # pylint: disable=line-too-long
+                    )
                 max_workers = min(
                     max(multiprocessing.cpu_count() - 2, 1), len(train_test_splits)
                 )
                 if max_workers == 1 and n_splits > 1:
                     print(
                         "WARNING: Default for max_workers is 1 on a machine with %s cores is 1."
-                    )  # pylint: disable=line-too-long
+                    )
 
             _initialize_Global_worker_pool(max_workers)
 
@@ -432,6 +429,7 @@ def CV_score(
                     train=train,
                     test=test,
                     FoldNumber=fold,
+                    progress=progress,
                     **kwargs
                 )
                 for fold, (train, test) in enumerate(train_test_splits)
@@ -444,7 +442,9 @@ def CV_score(
         except TypeError:
             from sklearn.model_selection import KFold
 
-            splits = KFold(splits, shuffle=True,random_state=cv_seed).split(np.arange(X.shape[0]))
+            splits = KFold(splits, shuffle=True, random_state=cv_seed).split(
+                np.arange(X.shape[0])
+            )
         train_test_splits = [x for x in splits]
         n_splits = len(train_test_splits)
 
@@ -491,6 +491,7 @@ def CV_score(
                         train=train,
                         test=test,
                         FoldNumber=fold,
+                        progress=progress,
                         **kwargs
                     )
                     for fold, (train, test) in enumerate(train_test_splits)
@@ -514,6 +515,7 @@ def CV_score(
                     train=train,
                     test=test,
                     FoldNumber=fold,
+                    progress=progress,
                     **kwargs
                 )
                 for fold, (train, test) in enumerate(train_test_splits)

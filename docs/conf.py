@@ -24,7 +24,7 @@ import sys
 import recommonmark
 from recommonmark.transform import AutoStructify
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 
 # -- General configuration ------------------------------------------------
@@ -110,7 +110,7 @@ def run_apidoc(app):
     from sphinx.apidoc import main as apidoc_main
     cur_dir = os.path.abspath(os.path.dirname(__file__))
     buildapidocdir = os.path.join(app.outdir, "apidoc","SparseSC")
-    module = os.path.join(cur_dir,"..","SparseSC")
+    module = os.path.join(cur_dir,"..","src","SparseSC")
     to_excl = ["cross_validation","fit_ct","fit_fold", "fit_loo","optimizers","optimizers/cd_line_search","tensor","utils/ols_model","utils/penalty_utils","utils/print_progress","utils/sub_matrix_inverse","weights"]
     #Locally could wrap each to_excl with "*" "*" and put in the apidoc cmd and end and works as exclude patterns, but doesn't work on RTD
     #with capture() as out: #doesn't have quiet option

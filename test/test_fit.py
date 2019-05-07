@@ -19,15 +19,10 @@ import numpy as np
 import sys, os, random
 import unittest
 
-# Bootstrapping the system path
-sys.path.insert(0, os.path.abspath("."))
-# try:
-from SparseSC.fit import fit
-
-# except Exception as exc:
-#    print("Importing fit module failed with %s: %s" % (exc.__class__.__name__,exc.message,) )
-#    exit()
-
+try:
+    from SparseSC import fit
+except ImportError:
+    raise RuntimeError("SparseSC is not installed. use 'pip install -e .' to install")
 
 class TestFit(unittest.TestCase):
     def setUp(self):
@@ -57,7 +52,8 @@ class TestFit(unittest.TestCase):
             else None,
             # KWARGS:
             print_path=False,
-            progress=False,
+            progress=verbose,
+            grid.length=5,
             min_iter=-1,
             tol=1,
             verbose=0,
