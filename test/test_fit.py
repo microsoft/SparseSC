@@ -18,11 +18,14 @@ from __future__ import print_function  # for compatibility with python 2.7
 import numpy as np
 import sys, os, random
 import unittest
+import warnings
+from scipy.optimize.linesearch import LineSearchWarning
 
 try:
     from SparseSC import fit
 except ImportError:
     raise RuntimeError("SparseSC is not installed. use 'pip install -e .' to install")
+
 
 class TestFit(unittest.TestCase):
     def setUp(self):
@@ -43,23 +46,35 @@ class TestFit(unittest.TestCase):
         if verbose:
             print("Calling fit with `model_type  = '%s'`..." % (model_type,), end="")
         sys.stdout.flush()
-        fit(
-            X=obj.X,
-            Y=obj.Y,
-            model_type=model_type,
-            treated_units=obj.treated_units
-            if model_type in ("retrospective", "prospective", "prospective-restricted")
-            else None,
-            # KWARGS:
-            print_path=False,
-            progress=verbose,
-            grid.length=5,
-            min_iter=-1,
-            tol=1,
-            verbose=0,
-        )
-        if verbose:
-            print("DONE")
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore",category=PendingDeprecationWarning)
+            warnings.filterwarnings("ignore",category=LineSearchWarning)
+            try:
+                fit(
+                    X=obj.X,
+                    Y=obj.Y,
+                    model_type=model_type,
+                    treated_units=obj.treated_units
+                    if model_type
+                    in ("retrospective", "prospective", "prospective-restricted")
+                    else None,
+                    # KWARGS:
+                    print_path=False,
+                    progress=verbose,
+                    grid_length=5,
+                    min_iter=-1,
+                    tol=1,
+                    verbose=0,
+                )
+                if verbose:
+                    print("DONE")
+            except LineSearchWarning:
+                pass
+            except PendingDeprecationWarning: 
+                pass
+            except Exception as exc:
+                print("Failed with %s: %s" % (exc.__class__.__name__, exc.message))
 
     def test_retrospective(self):
         TestFit.run_test(self, "retrospective")
@@ -69,18 +84,8 @@ class TestFit(unittest.TestCase):
 
     def test_prospective_restrictive(self):
         # Catch the LineSearchWarning silently, but allow others
-        import warnings
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings("error")
-            from scipy.optimize.linesearch import LineSearchWarning
-
-            try:
-                TestFit.run_test(self, "prospective-restricted")
-            except LineSearchWarning:
-                pass
-            except Exception as exc:
-                print("Failed with %s: %s" % (exc.__class__.__name__, exc.message))
+        TestFit.run_test(self, "prospective-restricted")
 
     def test_full(self):
         TestFit.run_test(self, "full")
