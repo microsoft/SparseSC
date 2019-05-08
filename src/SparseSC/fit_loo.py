@@ -42,7 +42,7 @@ def loo_v_matrix(
     w_pen=None,
     method=cdl_search,
     return_max_v_pen=False,  # this is terrible at least without documentation...
-    solve_method="standard",
+    solve_method="standard", # specific to fit_loo
     verbose=False,
     gradient_message="Calculating gradient",
     **kwargs

@@ -279,6 +279,10 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
 
         model_fit = _fit(X, Y, treated_units, w_pen, v_pen, **kwargs)
 
+        if not model_fit:
+            # this happens when only a batch file is being produced but not executed
+            return
+
         if axis == "v_pen":
             v_pen, w_pen = model_fit.fitted_v_pen, None
         else:
@@ -435,7 +439,7 @@ def _fit(
             # --------------------------------------------------
 
             # SCORES FOR EACH VALUE OF THE GRID: very slow ( minutes to hours )
-            scores, scores_se = CV_score(
+            ret = CV_score(
                 X=Xtrain,
                 Y=Ytrain,
                 splits=cv_folds,
@@ -447,6 +451,10 @@ def _fit(
                 quiet=not progress,
                 **kwargs
             )
+            if not ret:
+                # this happens when only a batch file is being produced but not executed
+                return
+            scores, scores_se = ret
 
             best_v_pen, best_w_pen, score, which = _choose(scores, scores_se)
 
@@ -517,7 +525,7 @@ def _fit(
             # --------------------------------------------------
 
             # SCORES FOR EACH VALUE OF THE GRID: very slow ( minutes to hours )
-            scores, scores_se = CV_score(
+            ret = CV_score(
                 X=X,
                 Y=Y,
                 splits=cv_folds,
@@ -529,6 +537,10 @@ def _fit(
                 quiet=not progress,
                 **kwargs
             )
+            if not ret:
+                # this happens when only a batch file is being produced but not executed
+                return
+            scores, scores_se = ret
 
             # GET THE INDEX OF THE BEST SCORE
             best_v_pen, best_w_pen, score, which = _choose(scores, scores_se)
@@ -558,7 +570,7 @@ def _fit(
             # --------------------------------------------------
 
             # SCORES FOR EACH VALUE OF THE GRID: very slow ( minutes to hours )
-            scores, scores_se = CV_score(
+            ret = CV_score(
                 X=Xtrain,
                 Y=Ytrain,
                 X_treat=Xtest,
@@ -570,6 +582,10 @@ def _fit(
                 quiet=not progress,
                 **kwargs
             )
+            if not ret:
+                # this happens when only a batch file is being produced but not executed
+                return
+            scores, scores_se = ret
 
             # GET THE INDEX OF THE BEST SCORE
             best_v_pen, best_w_pen, score, which = _choose(scores, scores_se)
@@ -625,7 +641,7 @@ def _fit(
         # --------------------------------------------------
 
         # SCORES FOR EACH VALUE OF THE GRID: very slow ( minutes to hours )
-        scores, scores_se = CV_score(
+        ret = CV_score(
             X=X,
             Y=Y,
             splits=cv_folds,
@@ -637,6 +653,10 @@ def _fit(
             quiet=not progress,
             **kwargs
         )
+        if not ret:
+            # this happens when only a batch file is being produced but not executed
+            return
+        scores, scores_se = ret
 
         # GET THE INDEX OF THE BEST SCORE
         best_v_pen, best_w_pen, score, which = _choose(scores, scores_se)

@@ -274,6 +274,7 @@ def CV_score(
     # sub_splits=None,
     quiet=False,
     parallel=False,
+    batchFile=None,
     max_workers=None,
     cv_seed=110011,
     # this is here for API consistency:
@@ -368,6 +369,29 @@ def CV_score(
                 % (n_splits, X.shape[0], X_treat.shape[0], X.shape[1], Y.shape[1])
             )
 
+        if batchFile is not None:
+            from yaml import load, dump
+            try:
+                from yaml import CLoader as Loader, CDumper as Dumper
+            except ImportError:
+                from yaml import Loader, Dumper
+
+            _params = kwargs.copy()
+            _params.update(
+                {
+                    "X": X,
+                    "Y": Y,
+                    "v_pen": v_pen,
+                    "w_pen": w_pen,
+                    "X_treat": X_treat,
+                    "Y_treat": Y_treat,
+                    "folds": train_test_splits,
+                }
+            )
+            with open(batchFile, "w") as fp:
+                fp.write(dump(_params, Dumper=Dumper))
+            return
+
         if parallel:
 
             if max_workers is None:
@@ -456,6 +480,28 @@ def CV_score(
                 "post-intervention outcomes"
                 % (n_splits, X.shape[0], X.shape[1], Y.shape[1])
             )
+
+        if batchFile is not None:
+            from yaml import load, dump
+            try:
+                from yaml import CLoader as Loader, CDumper as Dumper
+            except ImportError:
+                from yaml import Loader, Dumper
+
+            _params = kwargs.copy()
+            _params.update(
+                {
+                    "X": X,
+                    "Y": Y,
+                    "v_pen": v_pen,
+                    "w_pen": w_pen,
+                    "folds": train_test_splits,
+                }
+            )
+            with open(batchFile, "w") as fp:
+                fp.write(dump(_params, Dumper=Dumper))
+            import pdb; pdb.set_trace()
+            return
 
         if parallel:
 
