@@ -28,6 +28,15 @@ class TestDGPs(unittest.TestCase):
     """
     testing fixture
     """
+    @staticmethod
+    def simple_summ(fit, Y):
+        #print("V_pen=%s, W_pen=%s" % (fit.fitted_v_pen, fit.fitted_w_pen))
+        print("V=%s" % np.diag(fit.V))
+        print("Treated weights: sim=%s, uns=%s, sum=%s" % ( fit.sc_weights[0, 49], fit.sc_weights[0, 99], sum(fit.sc_weights[0, :]),))
+        print("Sim Con weights: sim=%s, uns=%s, sum=%s" % ( fit.sc_weights[1, 49], fit.sc_weights[1, 99], sum(fit.sc_weights[1, :]),))
+        print("Uns Con weights: sim=%s, uns=%s, sum=%s" % ( fit.sc_weights[51, 49], fit.sc_weights[51, 99], sum(fit.sc_weights[51, :]),))
+        Y_sc = fit.predict(Y)
+        print("Treated diff: %s" % (Y - Y_sc)[0, :])
 
 
     def testSimpleTrendDGP(self):
@@ -54,24 +63,26 @@ class TestDGPs(unittest.TestCase):
         Y0_not = Y0_not + np.random.normal(0,0.1,Y0_not.shape)
         Y = np.vstack((Y1, Y0_sim, Y0_not))
 
+        unit_treatment_periods = np.full((N), -1)
+        unit_treatment_periods[0] = T0
+
         # Y += np.random.normal(0, 0.01, Y.shape)
 
         # OPTIMIZE OVER THE V_PEN'S
         # for v_pen, w_pen in [(1,1), (1,1e-10), (1e-10,1e-10), (1e-10,1), (None, None)]: #
         # print("\nv_pen=%s, w_pen=%s" % (v_pen, w_pen))
         ret = SC.estimate_effects(
-            Y[:, :T0],
-            Y[:, T0:],
-            treated_units,
+            Y,
+            unit_treatment_periods,
             ret_CI=True,
             max_n_pl=200,
-            stopping_rule=4,
+            #stopping_rule=4,
             **command_line_options,
         )
-        simple_summ(ret.fit, Y)
-        V_penalty = ret.fit.fitted_v_pen
+        TestDGPs.simple_summ(ret.fits[T0], Y)
+        V_penalty = ret.fits[T0].fitted_v_pen
 
-        Y_sc = ret.fit.predict(Y)# [control_units, :]
+        Y_sc = ret.fits[T0].predict(Y)# [control_units, :]
         te_vec_est = (Y - Y_sc)[0:T0:]
         # weight_sums = np.sum(ret.fit.sc_weights, axis=1)
 
@@ -149,9 +160,9 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(prog="PROG", allow_abbrev=False)
-    #parser.add_argument(
-    #    "--constrain", choices=["orthant", "simplex"], default="orthant"
-    #)
+    parser.add_argument(
+        "--constrain", choices=["orthant", "simplex"], default="orthant"
+    )
     args = parser.parse_args()
     command_line_options.update(vars(args))
 
