@@ -15,7 +15,6 @@ def fold_v_matrix(
     v_pen=0,
     treated_units=None,
     control_units=None,
-    non_neg_weights=False,
     start=None,
     w_pen=None,
     method=cdl_search,
@@ -79,9 +78,6 @@ def fold_v_matrix(
     :param kwargs: additional arguments passed to the optimizer
     :type kwargs:
 
-    :param non_neg_weights: not implemented
-    :type non_neg_weights:
-
     :raises ValueError: raised when parameter values are invalid
     :raises TypeError: raised when parameters are of the wrong type
 
@@ -131,7 +127,6 @@ def fold_v_matrix(
         w_pen = float(w_pen)
     if not isinstance(w_pen, (float, int)):
         raise TypeError("w_pen is not a number")
-    assert not non_neg_weights, "Bounds not implemented"
 
     splits = grad_splits  # for readability...
     try:
