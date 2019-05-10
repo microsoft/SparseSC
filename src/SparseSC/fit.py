@@ -5,7 +5,6 @@ Implements round-robin fitting of Sparse Synthetic Controls Model for DGP based 
 import numpy as np
 from warnings import warn
 from inspect import signature
-from sklearn.model_selection import KFold
 from .utils.penalty_utils import get_max_w_pen, get_max_v_pen, w_pen_guestimate
 from .cross_validation import CV_score
 from .tensor import tensor
@@ -479,6 +478,8 @@ def _fit(
             try:
                 iter(gradient_folds)
             except TypeError:
+                from sklearn.model_selection import KFold
+
                 gradient_folds = KFold(
                     gradient_folds, shuffle=True, random_state=gradient_seed
                 ).split(np.arange(X.shape[0]))
