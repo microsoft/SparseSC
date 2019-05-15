@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>01446f94-f552-4ee1-90dc-e93a0db22b4c</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>test_fit.py</StartupFile>
+    <StartupFile>test_simulation.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -22,6 +22,9 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="test_simulation.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="test_batchFile.py" />
     <Compile Include="test_estimation.py" />
     <Compile Include="test_fit.py" />

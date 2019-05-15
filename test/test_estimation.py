@@ -125,6 +125,8 @@ class TestDGPs(unittest.TestCase):
             Out_pre_treated,
             Out_post_control,
             Out_post_treated,
+            _,
+            _,
         ) = factor_dgp(N0, N1, T0, T1, K, R, F)
 
         Cov = np.vstack((Cov_treated, Cov_control))
@@ -145,14 +147,6 @@ class TestDGPs(unittest.TestCase):
         #   Cov, Out_pre, Out_post, treated_units, V_penalty=0, W_penalty=0.001
         # )
         # print(est_res)
-
-    # Simulations
-    # 1) As T0 and N0 increases do
-    ##a) SC match actuals in terms of the factor loadings
-    ##b) our estimates look consistent and have good coverage
-    ##c) Can we match a longer set of factor loadings
-    # Other Counterfactual prediction:
-    ## a) Compare to SC (big N0, small T0, then SC; or many factors; should do bad) to basic time-series model
 
 
 if __name__ == "__main__":
