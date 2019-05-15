@@ -19,7 +19,7 @@ import sys, os, random
 import unittest
 import warnings
 from scipy.optimize.linesearch import LineSearchWarning
-
+import numpy as np
 
 try:
     import SparseSC as SC

@@ -29,7 +29,8 @@ class Simulation(unittest.TestCase):
                 Y_post = np.vstack((Y_post_T, Y_post_C))
                 l = np.vstack((l_T, l_C))
 
-                fit_res = fit(X=Y_pre, Y=Y_post, treated_units=treated_units, model_type="retrospective", 
+                fit_res = fit(X=Y_pre, Y=Y_post, treated_units=treated_units, 
+                              model_type="retrospective", constrain="simplex",
                               print_path = False, progress = False, verbose=0)
                 
                 Y_post_sc = fit_res.predict(Y_post)
