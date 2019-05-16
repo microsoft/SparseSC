@@ -19,7 +19,6 @@ import numpy as np
 import sys, os, random
 import unittest
 import warnings
-from os.path import expanduser,join
 from scipy.optimize.linesearch import LineSearchWarning
 
 try:
@@ -62,14 +61,14 @@ class TestFit(unittest.TestCase):
                     else None,
                     # KWARGS:
                     print_path=False,
+                    stopping_rule=1,
                     progress=verbose,
                     grid_length=5,
                     min_iter=-1,
                     tol=1,
                     verbose=0,
-                    batchFile=join(expanduser("~"),"temp","%s_batch_params.py" % model_type)
+                    batchDir=os.path.expanduser("~/SparseSC/test/data/batchTest")
                 )
-                import pdb; pdb.set_trace()
                 if verbose:
                     print("DONE")
             except LineSearchWarning:
@@ -77,21 +76,21 @@ class TestFit(unittest.TestCase):
             except PendingDeprecationWarning: 
                 pass
             except Exception as exc:
-                print("Failed with %s: %s" % (exc.__class__.__name__, str(exc)))
+                print("Failed with %s: %s" % (exc.__class__.__name__, exc.message))
 
     def test_retrospective(self):
         TestFit.run_test(self, "retrospective")
 
-    def test_prospective(self):
-        TestFit.run_test(self, "prospective")
-
-    def test_prospective_restrictive(self):
-        # Catch the LineSearchWarning silently, but allow others
-
-        TestFit.run_test(self, "prospective-restricted")
-
-    def test_full(self):
-        TestFit.run_test(self, "full")
+#--     def test_prospective(self):
+#--         TestFit.run_test(self, "prospective")
+#-- 
+#--     def test_prospective_restrictive(self):
+#--         # Catch the LineSearchWarning silently, but allow others
+#-- 
+#--         TestFit.run_test(self, "prospective-restricted")
+#-- 
+#--     def test_full(self):
+#--         TestFit.run_test(self, "full")
 
 
 if __name__ == "__main__":

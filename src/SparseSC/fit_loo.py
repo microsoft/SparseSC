@@ -42,7 +42,7 @@ def loo_v_matrix(
     w_pen=None,
     method=cdl_search,
     return_max_v_pen=False,  # this is terrible at least without documentation...
-    solve_method="standard", # specific to fit_loo
+    solve_method="standard",  # specific to fit_loo
     verbose=False,
     gradient_message="Calculating gradient",
     **kwargs
@@ -211,7 +211,7 @@ def loo_v_matrix(
             for i, index in enumerate(in_controls):
                 dA = dA_dV_ki[k][i]
                 dB = dB_dV_ki[k][i]
-                if solve_method == "step-down":# pylint: disable=no-else-raise
+                if solve_method == "step-down":  # pylint: disable=no-else-raise
                     raise NotImplementedError(
                         "The solve_method 'step-down' is currently not implemented"
                     )  # pylint: disable=line-too-long
@@ -239,7 +239,7 @@ def loo_v_matrix(
 
     def _weights(V):
         weights = zeros((N0, N1))
-        if solve_method == "step-down":# pylint: disable=no-else-raise
+        if solve_method == "step-down":  # pylint: disable=no-else-raise
             raise NotImplementedError(
                 "The solve_method 'step-down' is currently not implemented"
             )
@@ -341,7 +341,7 @@ def loo_weights(
     # > only used by the step-down method (currently not implemented) X_treat = X[treated_units,:]
     weights = zeros((N0, N1))
 
-    if solve_method == "step-down": # pylint: disable=no-else-raise
+    if solve_method == "step-down":  # pylint: disable=no-else-raise
         raise NotImplementedError(
             "The solve_method 'step-down' is currently not implemented"
         )

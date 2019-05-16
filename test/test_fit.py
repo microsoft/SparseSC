@@ -61,6 +61,7 @@ class TestFit(unittest.TestCase):
                     else None,
                     # KWARGS:
                     print_path=False,
+                    stopping_rule=1,
                     progress=verbose,
                     grid_length=5,
                     min_iter=-1,
