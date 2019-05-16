@@ -15,16 +15,17 @@
 # --------------------------------------------------------------------------------
 
 from __future__ import print_function  # for compatibility with python 2.7
-import numpy as np
 import sys, os, random
 import unittest
 import warnings
 from scipy.optimize.linesearch import LineSearchWarning
+import numpy as np
 
 try:
-    from SparseSC import fit
+    import SparseSC as SC
 except ImportError:
-    raise RuntimeError("SparseSC is not installed. use 'pip install -e .' to install")
+    raise RuntimeError("SparseSC is not installed. use 'pip install -e .' from repo root to install in dev mode")
+from SparseSC.fit import fit
 
 
 class TestFit(unittest.TestCase):
@@ -89,6 +90,55 @@ class TestFit(unittest.TestCase):
 
     def test_full(self):
         TestFit.run_test(self, "full")
+        
+
+
+class TestFitToy(unittest.TestCase):
+    @staticmethod
+    def simple_summ(fit, Y):
+        #print("V_pen=%s, W_pen=%s" % (fit.fitted_v_pen, fit.fitted_w_pen))
+        print("V=%s" % np.diag(fit.V))
+        print("Treated weights: sim=%s, uns=%s, sum=%s" % ( fit.sc_weights[0, 49], fit.sc_weights[0, 99], sum(fit.sc_weights[0, :]),))
+        print("Sim Con weights: sim=%s, uns=%s, sum=%s" % ( fit.sc_weights[1, 49], fit.sc_weights[1, 99], sum(fit.sc_weights[1, :]),))
+        print("Uns Con weights: sim=%s, uns=%s, sum=%s" % ( fit.sc_weights[51, 49], fit.sc_weights[51, 99], sum(fit.sc_weights[51, :]),))
+        Y_sc = fit.predict(Y)#[fit.control_units, :]
+        print("Treated diff: %s" % (Y - Y_sc)[0, :])
+
+    def test0s(self):
+        N1, N0_sim, N0_not = 1, 50, 50
+        N0 = N0_sim + N0_not
+        N = N1 + N0
+        treated_units, control_units  = range(N1), range(N1, N)
+        T0, T1 = 2, 1
+        T = T0 + T1 # unused
+        te = 2
+        #configs = [[[1, 0, 0], [0, 1, 1]], 
+        #           [[0, 1, 0], [1, 0, 1]], 
+        #           [[1, 0, 2], [0, 1, 1]], 
+        #           [[0, 1, 2], [1, 0, 1]]]
+        #configs = [[[2, 1, 0], [1, 2, 1]], 
+        #           [[1, 2, 0], [2, 1, 1]], 
+        #           [[2, 1, 2], [1, 2, 1]], 
+        #           [[1, 2, 2], [2, 1, 1]]]
+        configs = [[[1, 2, 2], [2, 1, 1]],
+                   [[1, 2, 3], [2, 1, 1]]]
+        for config in configs:
+            proto_sim = np.array(config[0], ndmin=2)
+            proto_not = np.array(config[1], ndmin=2)
+            proto_tr = proto_sim + np.hstack((np.zeros((1, T0)), np.full((1, T1), te)))
+            Y1 = np.matmul(np.ones((N1, 1)), proto_tr)
+            Y0_sim = np.matmul(np.ones((N0_sim, 1)), proto_sim)
+            Y0_not = np.matmul(np.ones((N0_not, 1)), proto_not)
+        
+            Y = np.vstack((Y1, Y0_sim, Y0_not))
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                fit_res = fit(Y[:, :T0], Y[:, T0:], treated_units, model_type="retrospective", 
+                              constrain="simplex", 
+                              stopping_rule=4, progress=False, verbose=0, print_path=False)
+            Y_sc = fit_res.predict(Y)
+            treated_diff = (Y - Y_sc)[0, :]
+            print("V: %s. Treated diff: %s" % (np.diag(fit_res.V), treated_diff))
 
 
 if __name__ == "__main__":
