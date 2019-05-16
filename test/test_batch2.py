@@ -73,8 +73,8 @@ class TestFit(unittest.TestCase):
                     verbose=0,
                 )
 
-                import pdb; pdb.set_trace()
                 model_b = aggregate_batch_results( batchDir=os.path.expanduser("~/SparseSC/test/data/batchTest"))
+                import pdb; pdb.set_trace()
 
                 if verbose:
                     print("DONE")

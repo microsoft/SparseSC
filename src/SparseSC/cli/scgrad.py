@@ -125,20 +125,13 @@ def main(): # pylint: disable=inconsistent-return-statements
     except NameError:
         raise RuntimeError("scgrad.py depends on os.fork, which is not available on this system.")
 
-    try:
-        with open(DAEMON_PID, "r") as pf:
-            pid = int(pf.read().strip())
-    except IOError:
-        pid = None
-
-    if not pid:
-        daemon = GradientDaemon(DAEMON_PID)
-        daemon.start()
-
     ARGS = sys.argv[1:]
     if ARGS[0] == "scgrad.py":
         ARGS.pop(0)
 
+    # --------------------------------------------------
+    # Daemon controllers
+    # --------------------------------------------------
     if ARGS[0] == "start":
         daemon = GradientDaemon(DAEMON_PID)
         daemon.start()
@@ -153,6 +146,20 @@ def main(): # pylint: disable=inconsistent-return-statements
         daemon = GradientDaemon(DAEMON_PID)
         daemon.restart()
         return
+
+    # --------------------------------------------------
+    # Gradient job
+    # --------------------------------------------------
+
+    try:
+        with open(DAEMON_PID, "r") as pf:
+            pid = int(pf.read().strip())
+    except IOError:
+        pid = None
+
+    if not pid:
+        daemon = GradientDaemon(DAEMON_PID)
+        daemon.start()
 
     assert (
         len(ARGS) == 3
