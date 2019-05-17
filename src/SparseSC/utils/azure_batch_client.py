@@ -1,5 +1,5 @@
 """
-install requires these additional modules
+usage requires these additional modules
 
 pip install  azure-batch azure-storage-blob jsonschema pyyaml
 
@@ -10,24 +10,30 @@ from SparseSC.utils.azure_batch_client import BatchConfig, run
 
 _TIMESTAMP = datetime.utcnow().strftime("%Y%m%d%H%M%S")
 
+BATCH_DIR= "path/to/my/batch_config/"
+
+fit(x=x,..., batchDir=BATCH_DIR)
+
 my_config = BatchConfig(
-    BATCH_ACCOUNT_NAME: "MySecret",
-    BATCH_ACCOUNT_KEY: "MySecret",
-    BATCH_ACCOUNT_URL: "MySecret",
-    STORAGE_ACCOUNT_NAME: "MySecret",
-    STORAGE_ACCOUNT_KEY: "MySecret",
-    POOL_ID: "my-compute-pool"
-    POOL_NODE_COUNT: 0
-    POOL_LOW_PRIORITY_NODE_COUNT: 20
-    POOL_VM_SIZE: "STANDARD_A1_v2"
-    DELETE_POOL_WHEN_DONE: bool = False
-    JOB_ID: "my-job" + _TIMESTAMP
-    DELETE_JOB_WHEN_DONE: bool = False
-    CONTAINER_NAME: "my-blob-container"
-    BATCH_DIRECTORY: "path/to/my/batch_config"
-    )
+    BATCH_ACCOUNT_NAME="MySecret",
+    BATCH_ACCOUNT_KEY="MySecret",
+    BATCH_ACCOUNT_URL="MySecret",
+    STORAGE_ACCOUNT_NAME="MySecret",
+    STORAGE_ACCOUNT_KEY="MySecret",
+    POOL_ID="my-compute-pool",
+    POOL_NODE_COUNT=0,
+    POOL_LOW_PRIORITY_NODE_COUNT=20,
+    POOL_VM_SIZE="STANDARD_A1_v2",
+    DELETE_POOL_WHEN_DONE=False,
+    JOB_ID="my-job" + _TIMESTAMP,
+    DELETE_JOB_WHEN_DONE=False,
+    CONTAINER_NAME="my-blob-container",
+    BATCH_DIRECTORY=BATCH_DIR,
+)
 
 run(my_config)
+
+fitted_model = aggregate_batch_results("path/to/my/batch_config")
 
 """
 from __future__ import print_function
@@ -402,6 +408,7 @@ config_schema = {
         "DELETE_POOL_WHEN_DONE": {"type": "boolean"},
         "JOB_ID": {"type": "string"},
         "DELETE_JOB_WHEN_DONE": {"type": "boolean"},
+        "RUN_NAME": {"type": "string"},
         "CONTAINER_NAME": {
             "type": "string",
             "pattern": "^[a-z0-9](-?[a-z0-9]+)$",
