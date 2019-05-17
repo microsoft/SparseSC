@@ -7,11 +7,12 @@ from .fit import fit
 
 
 def estimate_effects(
-    Y_pre,
-    Y_post,
-    treated_units,
+    Y,
+    unit_treatment_periods,
+    T0=None,
+    T1=None,
     X=None,
-    max_n_pl=1000000,
+    max_n_pl=10000,
     ret_pl=False,
     ret_CI=False,
     level=0.95,
@@ -20,9 +21,10 @@ def estimate_effects(
     r"""
     Determines statistical significance for average and individual effects
 
-    :param Y_pre: N x T0 matrix
-    :param Y_post: N x T1 matrix
-    :param treated_units:
+    :param Y: N x T matrix of outcomes
+    :param unit_treatment_periods: N -vector of treatment periods (use value <0 if never treated in sample)
+    :param T0: pre-history length to match over. Default is pre-period for first treatment
+    :param T1: post-history length to evaluate over. Default is post-period for last treatment
     :param X: N x K (or None)
     :param max_n_pl: The full number of placebos is choose(N0,N1). If N1=1
             then this is N0. This number grows quickly with N1 so we can
@@ -38,20 +40,11 @@ def estimate_effects(
 
     :Keyword Args: Passed on to fit()
     """
-    # TODO: Cleanup returning placebo distribution (incl pre?)
-    N1 = len(treated_units)
-    N = Y_pre.shape[0]
-    # N0 = N - N1
-    T0 = Y_pre.shape[1]
-    T1 = Y_post.shape[1]
-    T = T0 + T1
-    Y = np.hstack((Y_pre, Y_post))
-    control_units = list(set(range(N)) - set(treated_units))
-
-    if X is None:
-        X_and_Y_pre = Y_pre
-    else:
-        X_and_Y_pre = np.hstack((X, Y_pre))
+    N,T = Y.shape
+    if T0 is None:
+        T0 = min(unit_treatment_periods[unit_treatment_periods>=1])
+    if T1 is None:
+        T1 = T-max(unit_treatment_periods[unit_treatment_periods<=(T-1)])
 
     #Set default parameters for fit()
     if 'model_type' in kwargs and kwargs['model_type'] != 'retrospective': 
@@ -68,23 +61,63 @@ def estimate_effects(
         kwargs['tol'] = 1
     if 'choice' not in kwargs:
         kwargs['choice'] = "min"
+    if 'constrain' not in kwargs:
+        kwargs['constrain'] = 'simplex'
 
-    fit_res = fit(
-        X=X_and_Y_pre,
-        Y=Y_post,
-        model_type="retrospective",
-        treated_units=treated_units,
-        constrain="simplex",
-        **kwargs
-    )
-    Y_sc = fit_res.predict(Y)#[control_units, :]
-    diffs = Y - Y_sc
+    treatment_periods = np.unique(unit_treatment_periods[np.logical_and(unit_treatment_periods>=T0,unit_treatment_periods<=(T-T1))]) #sorts
+    fits = {}
+    if ret_CI:
+        ind_CI = {}
+    else:
+        ind_CI = None
+    diffs_pre_c = np.empty((0,T0))
+    diffs_pre_t = np.empty((0,T0))
+    diffs_post_c = np.empty((0,T1))
+    diffs_post_t = np.empty((0,T1))
+    diffs_post_scaled_c = np.empty((0,T1))
+    diffs_post_scaled_t = np.empty((0,T1))
+    for treatment_period in treatment_periods:
+        #Get the local values
+        c_units_mask_full, t_units_mask_full, ct_units_mask_full = get_sample_masks(unit_treatment_periods, treatment_period, T1)
+        Y_local = Y[ct_units_mask_full,(treatment_period-T0):(treatment_period+T1)]
+        treated_units = t_units_mask_full[ct_units_mask_full].nonzero()[0]
+        control_units = c_units_mask_full[ct_units_mask_full].nonzero()[0]
+
+        Y_pre = Y_local[:,:T0]
+        Y_post = Y_local[:,T0:]
+        if X is None:
+            X_and_Y_pre = Y_pre
+        else:
+            X_and_Y_pre = np.hstack((X[ct_units_mask_full,:], Y_pre))
+
+        fits[treatment_period] = fit(
+            X=X_and_Y_pre,
+            Y=Y_post,
+            model_type="retrospective",
+            treated_units=treated_units,
+            **kwargs
+        )
+        Y_sc = fits[treatment_period].predict(Y_local)
+        diffs = Y_local - Y_sc
+        diffs_pre_c = np.vstack((diffs_pre_c,diffs[control_units,:T0]))
+        diffs_pre_t = np.vstack((diffs_pre_t,diffs[treated_units,:T0]))
+        diffs_post_c = np.vstack((diffs_post_c,diffs[control_units,T0:]))
+        diffs_post_t = np.vstack((diffs_post_t,diffs[treated_units,T0:]))
+        rmspes_pre = np.sqrt(np.mean(np.square(diffs[:,:T0]), axis=1))
+        diffs_post_scaled = np.diagflat(1/rmspes_pre).dot(diffs[:,T0:])
+        diffs_post_scaled_c = np.vstack((diffs_post_scaled_c,diffs_post_scaled[control_units,:]))
+        diffs_post_scaled_t = np.vstack((diffs_post_scaled_t,diffs_post_scaled[treated_units,:]))
+
+        if ret_CI:
+            Y_sc_full = fits[treatment_period].predict(Y[ct_units_mask_full,:])
+            diffs_full = Y[ct_units_mask_full,:] - Y_sc_full
+            ind_CI[treatment_period] = _gen_placebo_stats_from_diffs(diffs_full[control_units,:], np.zeros((1,diffs_full.shape[1])),
+                                                                     max_n_pl, False, True, level).effect_vec.ci
 
     # diagnostics
-    diffs_pre = diffs[:, :T0]
     pl_res_pre = _gen_placebo_stats_from_diffs(
-        diffs_pre[control_units, :],
-        diffs_pre[treated_units, :],
+        diffs_pre_c,
+        diffs_pre_t,
         max_n_pl,
         ret_pl,
         ret_CI,
@@ -92,50 +125,34 @@ def estimate_effects(
     )
 
     # effects
-    diffs_post = diffs[:, T0:]
     pl_res_post = _gen_placebo_stats_from_diffs(
-        diffs_post[control_units, :],
-        diffs_post[treated_units, :],
+        diffs_post_c,
+        diffs_post_t,
         max_n_pl,
         ret_pl,
         ret_CI,
         level,
     )
 
-    rmspes_pre = np.sqrt(np.mean(np.square(diffs_pre), axis=1))
-    diffs_post_scaled = np.diagflat(1 / rmspes_pre).dot(diffs_post)
     pl_res_post_scaled = _gen_placebo_stats_from_diffs(
-        diffs_post_scaled[control_units, :],
-        diffs_post_scaled[treated_units, :],
+        diffs_post_scaled_c,
+        diffs_post_scaled_t,
         max_n_pl,
         ret_pl,
         ret_CI,
         level,
     )
 
-    if ret_CI:
-        if N1 > 1:
-            ind_CI = _gen_placebo_stats_from_diffs(
-                diffs[control_units, :], np.zeros((1, T)), max_n_pl, False, True, level
-            ).effect_vec.ci
-        else:
-            base = np.concatenate(
-                (pl_res_pre.effect_vec.effect, pl_res_post.effect_vec.effect)
-            )
-            ci0 = np.concatenate(
-                (pl_res_pre.effect_vec.ci.ci_low, pl_res_post.effect_vec.ci.ci_low)
-            )
-            ci1 = np.concatenate(
-                (pl_res_pre.effect_vec.ci.ci_high, pl_res_post.effect_vec.ci.ci_high)
-            )
-            ind_CI = CI_int(ci0 - base, ci1 - base, level)
-    else:
-        ind_CI = None
 
     return SparseSCEstResults(
-        fit_res, pl_res_pre, pl_res_post, pl_res_post_scaled, ind_CI
+        Y, fits, unit_treatment_periods, T0, T1, pl_res_pre, pl_res_post, pl_res_post_scaled, X, ind_CI
     )
 
+def get_sample_masks(unit_treatment_periods, treatment_period, T1):
+    c_units_mask = np.logical_or(unit_treatment_periods<0,unit_treatment_periods>(treatment_period+T1))
+    t_units_mask = (unit_treatment_periods == treatment_period)
+    ct_units_mask = np.logical_or(c_units_mask, t_units_mask)
+    return c_units_mask, t_units_mask, ct_units_mask
 
 class SparseSCEstResults(object):
     """
@@ -143,10 +160,14 @@ class SparseSCEstResults(object):
     """
 
     # pylint: disable=redefined-outer-name
-    def __init__(self, fit, pl_res_pre, pl_res_post, pl_res_post_scaled, ind_CI=None):
+    def __init__(self, Y, fits, unit_treatment_periods, T0, T1, pl_res_pre, pl_res_post, pl_res_post_scaled, X = None, ind_CI=None):
         """
-        :param fit: The fit() return object
-        :type fit: SparseSCFit
+        :param Y: Outcome for the whole sample
+        :param fits: The fit() return objects
+        :type fits: dictionary of period->SparseSCFit
+        :param unit_treatment_periods: N -vector of treatment periods (use value >=T if never treated in sample)
+        :param T0: Pre-history to match over
+        :param T1: post-history to evaluate over
         :param pl_res_pre: Statistics for the average fit of the treated units
                 in the pre-period (used for diagnostics)
         :type pl_res_pre: PlaceboResults
@@ -156,12 +177,19 @@ class SparseSCEstResults(object):
                 effect (difference divided by pre-treatment RMS fit) in the
                 post-period.
         :type pl_res_post_scaled: PlaceboResults
+        :param X: Nxk matrix of full baseline covariates (or None)
         :param ind_CI: Confidence intervals for SC predictions at the unit
                 level (not averaged over N1).  Used for graphing rather than
                 treatment effect statistics
         :type ind_CI: CI_int
+        :type ind_CI: dictionary of period->CI_int. Each CI_int is for the full sample (not necessarily T0+T1)
         """
-        self.fit = fit
+        self.Y = Y
+        self.X = X
+        self.fits = fits
+        self.unit_treatment_periods = unit_treatment_periods
+        self.T0 = T0
+        self.T1 = T1
         self.pl_res_pre = pl_res_pre
         self.pl_res_post = pl_res_post
         self.pl_res_post_scaled = pl_res_post_scaled
@@ -184,6 +212,15 @@ class SparseSCEstResults(object):
         p-value for the current model if relevant, else None.
         """
         return self.pl_res_post.avg_joint_effect
+
+    def get_sc(self, treatment_period):
+        """Returns and NxT matrix of synthetic controls. For units not eligible (those previously treated or between treatment_period and treatment_period+T1)
+        The results is left empty.
+        """
+        Y_sc = np.empty(self.Y.shape)
+        _, _, ct_units_mask = get_sample_masks(self.unit_treatment_periods, treatment_period, self.T1)
+        Y_sc[ct_units_mask,:] = self.fits[treatment_period].predict(self.Y[ct_units_mask, :])
+        return Y_sc
 
     def __str__(self):
         """

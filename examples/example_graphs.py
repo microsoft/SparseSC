@@ -36,7 +36,16 @@ def raw_plots(Y, treated_units, control_units, T0):
     return [raw_all_fig, raw_means_fig]
 
 
-def ind_sc_plots(Y, Y_sc, T0, ind_ci=None):
+#def ind_sc_plots(Y, Y_sc, T0, ind_ci=None):
+def ind_sc_plots(est_ret, treatment_date, unit):
+    Y = est_ret.Y[unit,:]
+    Y_sc_full = est_ret.get_sc(treatment_date)
+    Y_sc = Y_sc_full[unit,:]
+    T0 = est_ret.T0
+    if est_ret.ind_CI is not None:
+        ind_ci = est_ret.ind_CI[treatment_date]
+    else:
+        ind_ci = None
     istat = matplotlib.is_interactive()
     plt.ioff()
     sc_raw_fig, sc_raw_ax = plt.subplots(num="sc_raw")
