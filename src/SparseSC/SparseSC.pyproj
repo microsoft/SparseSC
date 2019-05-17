@@ -30,6 +30,7 @@
     <Compile Include="optimizers\simplex_step.py" />
     <Compile Include="optimizers\__init__.py" />
     <Compile Include="tensor.py" />
+    <Compile Include="utils\azure_batch_client.py" />
     <Compile Include="utils\metrics_utils.py">
       <SubType>Code</SubType>
     </Compile>
