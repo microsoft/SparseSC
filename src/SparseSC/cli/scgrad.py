@@ -154,7 +154,7 @@ def main(test=False): # pylint: disable=inconsistent-return-statements
     if ARGS[0] == "scgrad.py":
         ARGS.pop(0)
 
-    print(sys.argv)
+    print(ARGS)
 
     WorkerDaemon = TestDaemon if test else GradientDaemon
     # --------------------------------------------------
