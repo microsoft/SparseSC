@@ -67,7 +67,7 @@ DAEMON_FIFO = "{}sc-daemon.fifo".format(DIR)
 DAEMON_PID = "{}sc-gradient-daemon.pid".format(DIR)
 
 
-class GradientDaemon(Daemon):
+class TestDaemon(Daemon):
     """
     A daemon which calculates Sparse SC gradient components
     """
@@ -97,8 +97,11 @@ class GradientDaemon(Daemon):
                     with open(return_fifo, "w") as rf:
                         rf.write("0")
 
-
-    def _run(self):
+class GradientDaemon(Daemon):
+    """
+    A daemon which calculates Sparse SC gradient components
+    """
+    def run(self):
         # pylint: disable=no-self-use
         while True:
             with open(DAEMON_FIFO, "r") as fifo:
@@ -137,7 +140,7 @@ class GradientDaemon(Daemon):
 
 
 
-def main(): # pylint: disable=inconsistent-return-statements
+def main(test=False): # pylint: disable=inconsistent-return-statements
     """
     read in the contents of the inputs yaml file
     """
@@ -147,26 +150,28 @@ def main(): # pylint: disable=inconsistent-return-statements
     except NameError:
         raise RuntimeError("scgrad.py depends on os.fork, which is not available on this system.")
 
-    print(sys.argv)
     ARGS = sys.argv[1:]
     if ARGS[0] == "scgrad.py":
         ARGS.pop(0)
 
+    print(sys.argv)
+
+    WorkerDaemon = TestDaemon if test else GradientDaemon
     # --------------------------------------------------
     # Daemon controllers
     # --------------------------------------------------
     if ARGS[0] == "start":
-        daemon = GradientDaemon(DAEMON_PID, DAEMON_FIFO)
+        daemon = WorkerDaemon(DAEMON_PID, DAEMON_FIFO)
         daemon.start()
         return
 
     if ARGS[0] == "stop":
-        daemon = GradientDaemon(DAEMON_PID, DAEMON_FIFO)
+        daemon = WorkerDaemon(DAEMON_PID, DAEMON_FIFO)
         daemon.stop()
         return
 
     if ARGS[0] == "restart":
-        daemon = GradientDaemon(DAEMON_PID, DAEMON_FIFO)
+        daemon = WorkerDaemon(DAEMON_PID, DAEMON_FIFO)
         daemon.restart()
         return
 
@@ -205,8 +210,8 @@ def main(): # pylint: disable=inconsistent-return-statements
 
 
 if __name__ == "__main__":
-    condition_flag = main()
+    condition_flag = main(test=True)
     if condition_flag == "0":
-        print("Gradient calculated!")
+        print("Test Daemon worked!")
     else:
         print("Something went wrong")

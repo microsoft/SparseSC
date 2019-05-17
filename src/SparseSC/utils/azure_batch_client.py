@@ -3,6 +3,8 @@ usage requires these additional modules
 
 pip install  azure-batch azure-storage-blob jsonschema pyyaml
 
+pip install jsonschema pyyaml
+
 usage:
 
 from SparseSC import fit, aggregate_batch_results
