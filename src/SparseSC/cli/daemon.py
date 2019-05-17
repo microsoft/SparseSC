@@ -1,4 +1,5 @@
 """Generic linux daemon base class for python 3.x."""
+# pylint: disable=multiple-imports
 
 import sys, os, time, atexit, signal
 
@@ -9,8 +10,9 @@ class Daemon:
 	Usage: subclass the daemon class and override the run() method.
     """
 
-    def __init__(self, pidfile):
+    def __init__(self, pidfile, fifofile):
         self.pidfile = pidfile
+        self.fifofile = fifofile
 
     def daemonize(self):
         """Deamonize class. UNIX double fork mechanism."""
@@ -54,12 +56,16 @@ class Daemon:
         # write pidfile
         atexit.register(self.delpid)
 
+        os.mkfifo(self.fifofile)  # pylint: disable=no-member
+
         pid = str(os.getpid())
         with open(self.pidfile, "w+") as f:
             f.write(pid + "\n")
 
     def delpid(self):
+        " clean up"
         os.remove(self.pidfile)
+        os.remove(self.fifofile)
 
     def start(self):
         """Start the daemon."""
