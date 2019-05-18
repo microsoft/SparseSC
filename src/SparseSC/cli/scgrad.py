@@ -21,7 +21,7 @@ except ImportError:
 pluck = lambda d, *args: (d[arg] for arg in args)
 
 
-def grad_part(common, part):
+def grad_part(common, part,k):
     """
     Calculate a single component of the gradient
     """
@@ -106,7 +106,7 @@ class GradientDaemon(Daemon):
         while True:
             with open(DAEMON_FIFO, "r") as fifo:
                 try:
-                    common_file, part_file, out_file, return_fifo = json.loads(
+                    common_file, part_file, out_file, k, return_fifo = json.loads(
                         fifo.read()
                     )
 
@@ -117,7 +117,7 @@ class GradientDaemon(Daemon):
                         part = load(fp, Loader=Loader)
 
                     # DO THE WORK
-                    grad = grad_part(common, part)
+                    grad = grad_part(common, part, int(k))
 
                     # DUMP THE RESULT TO THE OUTPUT FILE
                     with open(out_file, "w") as fp:
@@ -154,9 +154,8 @@ def main(test=False): # pylint: disable=inconsistent-return-statements
     if ARGS[0] == "scgrad.py":
         ARGS.pop(0)
 
-    print(ARGS)
-
     WorkerDaemon = TestDaemon if test else GradientDaemon
+
     # --------------------------------------------------
     # Daemon controllers
     # --------------------------------------------------
@@ -189,8 +188,13 @@ def main(test=False): # pylint: disable=inconsistent-return-statements
         raise RuntimeError( "please start the daemon")
 
     assert (
-        len(ARGS) == 3
-    ), "ssc.py expects 2 parameters, including a commonfile, partfile, outfile"
+        len(ARGS) == 4
+    ), "ssc.py expects 4 parameters, including a commonfile, partfile, outfile and the component index"
+
+    try:
+        int(ARGS[3])
+    except ValueError:
+        raise ValueError("The args[3] must be an integer")
 
     # CREATE THE RESPONSE FIFO
     RETURN_FIFO = os.path.join("/tmp/sc-" + str(uuid.uuid4()) + ".fifo")

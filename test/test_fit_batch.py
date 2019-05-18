@@ -16,7 +16,7 @@
 
 from __future__ import print_function  # for compatibility with python 2.7
 import numpy as np
-import sys, os, random
+import sys, random
 import unittest
 import warnings
 from scipy.optimize.linesearch import LineSearchWarning

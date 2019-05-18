@@ -1,5 +1,5 @@
 """
-utilities for doing gradient descent in batches
+utilities for TESTING gradient descent in batches
 """
 import os
 import numpy as np

@@ -9,6 +9,8 @@ from .optimizers.cd_line_search import cdl_search
 from .utils.print_progress import print_progress
 from .utils.batch_gradient import single_grad_cli, single_grad
 
+_BATCH_GRADIENT_FILE = "grad_parameters.yml"
+
 
 def fold_v_matrix(
     X,
@@ -25,6 +27,7 @@ def fold_v_matrix(
     verbose=False,
     gradient_message="Calculating gradient",
     use=None,
+    batch_client_config=None,
     **kwargs
 ):
     """
@@ -252,6 +255,7 @@ def fold_v_matrix(
         sg = single_grad(
             N0, N1, in_controls, splits, b_i, w_pen, treated_units, Y_treated, Y_control
         )
+
         for k in range(K):
             dGamma0_dV_term2[k] = sg(A, weights, dA_dV_ki[k], dB_dV_ki[k])
         return v_pen + dGamma0_dV_term2
@@ -265,22 +269,31 @@ def fold_v_matrix(
         dv = diag(V)
         weights, A, _ = _weights(dv)
         # Ey = (weights.T.dot(Y_control) - Y_treated).getA()
-        dGamma0_dV_term2 = zeros(K)
 
-        import tempfile
-        with tempfile.TemporaryDirectory() as tmpdirname:  
-            sg = single_grad_cli(
-                tmpdirname, N0, N1, in_controls, splits, b_i, w_pen, treated_units, Y_treated, Y_control
-            )
-            for k in range(K):
-                dGamma0_dV_term2[k] = sg(A, weights, dA_dV_ki[k], dB_dV_ki[k])
-            return v_pen + dGamma0_dV_term2
+        dGamma0_dV_term2 = batch_client.do_grad((A, weights, dA_dV_ki, dB_dV_ki))
+        return v_pen + dGamma0_dV_term2
 
     if use == "sg":
         _grad = _grad_batch
-    elif use == "sg_cli":
-        _grad = _grad_batch_cli
+    if batch_client_config is not None:
+        from .utils.azure_batch_client import gradient_batch_client
 
+        batch_client = gradient_batch_client(
+            config=batch_client_config,
+            common_data=(
+                N0,
+                N1,
+                in_controls,
+                splits,
+                b_i,
+                w_pen,
+                treated_units,
+                Y_treated,
+                Y_control,
+            ),
+            K=K,
+        )
+        _grad = _grad_batch_cli
 
     def _weights(V):
         weights = zeros((N0, N1))
@@ -330,7 +343,6 @@ def fold_v_matrix(
     ts_score = linalg.norm(errors) / sqrt(prod(errors.shape))
 
     return weights, v_mat, ts_score, ts_loss, w_pen, opt
-
 
 
 def fold_weights(
