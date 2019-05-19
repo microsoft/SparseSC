@@ -62,10 +62,28 @@ class Daemon:
         with open(self.pidfile, "w+") as f:
             f.write(pid + "\n")
 
+        sys.stdout = open("/private/tmp/sc-out.txt","a+")
+        sys.stderr = open("/private/tmp/sc-err.txt","a+")
+        print("daemonized >>>>>>>>>>>"); sys.stdout.flush()
+
     def delpid(self):
         " clean up"
-        os.remove(self.pidfile)
-        os.remove(self.fifofile)
+        try:
+            os.remove(self.pidfile)
+        except: 
+            print("failed to remove pidfile"); sys.stdout.flush()
+            raise RuntimeError("failed to remove pidfile")
+        else:
+            print("removed pidfile"); sys.stdout.flush()
+        try:
+            os.remove(self.fifofile)
+        except: 
+            print("failed to remove fifofile"); sys.stdout.flush()
+            raise RuntimeError("failed to remove pidfile")
+        else:
+            print("removed fifofile"); sys.stdout.flush()
+
+        
 
     def start(self):
         """Start the daemon."""
@@ -112,6 +130,8 @@ class Daemon:
             if e.find("No such process") > 0:
                 if os.path.exists(self.pidfile):
                     os.remove(self.pidfile)
+                if os.path.exists(self.fifofile):
+                    os.remove(self.fifofile)
             else:
                 print(str(err.args))
                 sys.exit(1)

@@ -7,7 +7,7 @@ import numpy as np
 import itertools
 from .optimizers.cd_line_search import cdl_search
 from .utils.print_progress import print_progress
-from .utils.batch_gradient import single_grad_cli, single_grad
+from .utils.batch_gradient import single_grad
 
 _BATCH_GRADIENT_FILE = "grad_parameters.yml"
 
@@ -26,7 +26,6 @@ def fold_v_matrix(
     random_state=10101,
     verbose=False,
     gradient_message="Calculating gradient",
-    use=None,
     batch_client_config=None,
     **kwargs
 ):
@@ -178,8 +177,8 @@ def fold_v_matrix(
     Y_control = Y[control_units, :]
 
     # INITIALIZE PARTIAL DERIVATIVES
-    dA_dV_ki = [[None] * N1 for i in range(K)]
-    dB_dV_ki = [[None] * N1 for i in range(K)]
+    dA_dV_ki = [[None] * len(splits) for i in range(K)]
+    dB_dV_ki = [[None] * len(splits) for i in range(K)]
     b_i = [None] * N1
     for i, k in itertools.product(
         range(len(splits)), range(K)
@@ -242,6 +241,8 @@ def fold_v_matrix(
             )
         return v_pen + dGamma0_dV_term2
 
+    _grad_default = _grad
+
     def _grad_batch(V):
         """ 
         Calculates just the diagonal of dGamma0_dV
@@ -260,7 +261,7 @@ def fold_v_matrix(
             dGamma0_dV_term2[k] = sg(A, weights, dA_dV_ki[k], dB_dV_ki[k])
         return v_pen + dGamma0_dV_term2
 
-    def _grad_batch_cli(V):
+    def _grad_daemon(V):
         """ 
         Calculates just the diagonal of dGamma0_dV
 
@@ -270,30 +271,72 @@ def fold_v_matrix(
         weights, A, _ = _weights(dv)
         # Ey = (weights.T.dot(Y_control) - Y_treated).getA()
 
-        dGamma0_dV_term2 = batch_client.do_grad((A, weights, dA_dV_ki, dB_dV_ki))
+        dGamma0_dV_term2 = daemon_client.do_grad({"A": A, "weights": weights, "b_i": b_i})
+#--         thisgrad = v_pen + dGamma0_dV_term2
+#--         defgrad = _grad_default(V)
+#--         batgrad = _grad_batch(V)
+#--         if not np.all(defgrad == thisgrad) or not np.all(defgrad == batgrad ):
+#--             import pdb; pdb.set_trace();
         return v_pen + dGamma0_dV_term2
 
-    if use == "sg":
-        _grad = _grad_batch
-    if batch_client_config is not None:
-        from .utils.azure_batch_client import gradient_batch_client
+        # matricies:
+        # A [45,45]
+        # dA_dV_ki[0][0] [40,40]
+        # dB_dV_ki[0][0] [40,5]
+        # weights [45,45]
 
-        batch_client = gradient_batch_client(
-            config=batch_client_config,
-            common_data=(
-                N0,
-                N1,
-                in_controls,
-                splits,
-                b_i,
-                w_pen,
-                treated_units,
-                Y_treated,
-                Y_control,
-            ),
+    def close():
+        pass
+
+    if batch_client_config == "sg":
+        _grad = _grad_batch
+
+    elif batch_client_config == "sg_daemon":
+
+        from .utils.local_grad_daemon import local_batch_daemon
+
+        # import pdb; pdb.set_trace()
+        daemon_client = local_batch_daemon(
+            common_data={
+                "N0": N0,
+                "N1": N1,
+                "in_controls": in_controls,
+                "splits": splits,
+                "w_pen": w_pen,
+                "treated_units": treated_units,
+                "Y_treated": Y_treated,
+                "Y_control": Y_control,
+                "dA_dV_ki": dA_dV_ki,
+                "dB_dV_ki": dB_dV_ki,
+            },
             K=K,
         )
-        _grad = _grad_batch_cli
+        _grad = _grad_daemon
+
+        def close():
+            daemon_client.stop()
+
+    elif batch_client_config is not None:
+
+        from .utils.azure_batch_client import gradient_batch_client
+
+        daemon_client = gradient_batch_client(
+            config=batch_client_config,
+            common_data={
+                "N0": N0,
+                "N1": N1,
+                "in_controls": in_controls,
+                "splits": splits,
+                "w_pen": w_pen,
+                "treated_units": treated_units,
+                "Y_treated": Y_treated,
+                "Y_control": Y_control,
+                "dA_dV_ki": dA_dV_ki,
+                "dB_dV_ki": dB_dV_ki,
+            },
+            K=K,
+        )
+        _grad = _grad_daemon
 
     def _weights(V):
         weights = zeros((N0, N1))
@@ -341,7 +384,7 @@ def fold_v_matrix(
     errors = Y_treated - weights.T.dot(Y_control)
     ts_loss = opt.fun
     ts_score = linalg.norm(errors) / sqrt(prod(errors.shape))
-
+    close()
     return weights, v_mat, ts_score, ts_loss, w_pen, opt
 
 

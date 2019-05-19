@@ -84,7 +84,7 @@ class TestFit(unittest.TestCase):
                     min_iter=-1,
                     tol=1,
                     verbose=0,
-                    use="sg_cli",
+                    batch_client_config="sg_daemon",
                 )
                 import pdb; pdb.set_trace()
                 if verbose:
@@ -94,7 +94,7 @@ class TestFit(unittest.TestCase):
             except PendingDeprecationWarning:
                 pass
             except Exception as exc:
-                print("Failed with %s: %s" % (exc.__class__.__name__, exc.message))
+                print("Failed with %s: %s" % (exc.__class__.__name__, getattr(exc,"message","<>")))
 
     def test_retrospective(self):
         TestFit.run_test(self, "retrospective")

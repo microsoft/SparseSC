@@ -743,7 +743,7 @@ _BATCH_CV_FILE_NAME = "cv_parameters.yaml"
 _BATCH_FIT_FILE_NAME = "fit_parameters.yaml"
 
 
-def aggregate_batch_results(batchDir, choice=None):
+def aggregate_batch_results(batchDir,batch_client_config=None, choice=None):
     """
     Aggregate results from a batch run 
     """
@@ -825,10 +825,13 @@ def aggregate_batch_results(batchDir, choice=None):
         best_V = tensor(
             X=X_cv,
             Y=Y_cv,
-            X_treat=Xtest,
-            Y_treat=Ytest,
             w_pen=best_w_pen,
             v_pen=best_v_pen,
+            #
+            X_treat=Xtest,
+            Y_treat=Ytest,
+            #
+            batch_client_config= batch_client_config, # TODO: not sure if this makes sense...
             **_fit_params["kwargs"]
         )
     else:
@@ -837,8 +840,11 @@ def aggregate_batch_results(batchDir, choice=None):
             Y=Y_cv,
             w_pen=best_w_pen,
             v_pen=best_v_pen,
+            #
             grad_splits=grad_splits,
             random_state=random_state,
+            #
+            batch_client_config= batch_client_config,
             **_fit_params["kwargs"]
         )
 
