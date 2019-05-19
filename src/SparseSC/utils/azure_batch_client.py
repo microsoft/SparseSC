@@ -1,9 +1,8 @@
 """
 usage requires these additional modules
 
-pip install  azure-batch azure-storage-blob jsonschema pyyaml
+pip install azure-batch azure-storage-blob jsonschema pyyaml && pip install git+https://github.com/microsoft/SparseSC.git@2530a76577beb63a94910a6643151ab98b16b5c4 && scgrad start
 
-pip install jsonschema pyyaml
 
 usage:
 
