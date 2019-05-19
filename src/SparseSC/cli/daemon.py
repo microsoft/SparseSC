@@ -62,8 +62,8 @@ class Daemon:
         with open(self.pidfile, "w+") as f:
             f.write(pid + "\n")
 
-        sys.stdout = open("/private/tmp/sc-out.txt","a+")
-        sys.stderr = open("/private/tmp/sc-err.txt","a+")
+        sys.stdout = open("/tmp/sc-out.txt","a+")
+        sys.stderr = open("/tmp/sc-err.txt","a+")
         print("daemonized >>>>>>>>>>>"); sys.stdout.flush()
 
     def delpid(self):
