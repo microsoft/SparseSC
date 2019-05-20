@@ -144,8 +144,7 @@ def start():
     if pid:
         message = "pidfile {0} already exist. " + "Daemon already running?\n"
         sys.stderr.write(message.format(pidfile))
-        sys.exit(1)
-
+        return
 
     def delpid():
         " clean up"
@@ -201,6 +200,8 @@ def main():
 
     if not ARGS:
         print("no args provided")
+    elif ARGS[0] == "trystart":
+        start()
     elif ARGS[0] == "start":
         start()
     elif ARGS[0] == "stop":

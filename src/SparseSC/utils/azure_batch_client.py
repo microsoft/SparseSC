@@ -66,6 +66,8 @@ except ImportError:
 
 # pylint: disable=fixme
 
+_CONTAINER = "jathorpe/sparsesc:x-grad-daemon"
+
 _STANDARD_OUT_FILE_NAME = "stdout.txt"  # Standard Output file
 
 # pylint: disable=bad-continuation, invalid-name, protected-access, line-too-long
@@ -222,12 +224,11 @@ def create_pool(config, batch_service_client):
             registry_server=config.REGISTRY_SERVER,
         )
         container_conf = batch.models.ContainerConfiguration(
-            container_image_names=["jdthorpe/sparsesc:x-grad-daemon"],
-            container_registries=[registry],
+            container_image_names=[_CONTAINER], container_registries=[registry]
         )
     else:
         container_conf = batch.models.ContainerConfiguration(
-            container_image_names=["jdthorpe/sparsesc:x-grad-daemon"]
+            container_image_names=[_CONTAINER]
         )
 
     new_pool = batch.models.PoolAddParameter(
@@ -288,8 +289,7 @@ def add_tasks(
         )
 
         task_container_settings = models.TaskContainerSettings(
-            image_name="jdthorpe/sparsesc:x-grad-daemon",
-            container_run_options="scgrad start",
+            image_name=_CONTAINER, container_run_options="scgrad start"
         )
 
         tasks.append(
@@ -743,13 +743,24 @@ class gradient_batch_client:
         tasks = list()
         for i in range(self.K):
             output_file = self.build_output_file(i)
-            command_line = "/bin/bash -c 'edho $AZ_BATCH_TASK_WORKING_DIR && scgrad start && scgrad {} {} {} {}'".format(
+            command_line = "/bin/bash -c 'echo $AZ_BATCH_TASK_WORKING_DIR && daemon status && scgrad {} {} {} {}'".format(
                 _GRAD_COMMON_FILE, _GRAD_PART_FILE, _CONTAINER_OUTPUT_FILE, i
             )
 
-            task_container_settings = models.TaskContainerSettings(
-                image_name="jdthorpe/sparsesc:x-grad-daemon"
-            )
+            if self.config.REGISTRY_USERNAME:
+                registry = batch.models.ContainerRegistry(
+                    user_name=self.config.REGISTRY_USERNAME,
+                    password=self.config.REGISTRY_PASSWORD,
+                    registry_server=self.config.REGISTRY_SERVER,
+                )
+                task_container_settings = models.TaskContainerSettings(
+                    image_name=_CONTAINER, registry=registry
+                )
+                # pdb.set_trace()
+            else:
+                task_container_settings = models.TaskContainerSettings(
+                    image_name=_CONTAINER
+                )
 
             tasks.append(
                 batch.models.TaskAddParameter(
@@ -761,7 +772,6 @@ class gradient_batch_client:
                 )
             )
 
-        pdb.set_trace()
         self.batch_client.task.add_collection(JOB_ID, [tasks[0]])
 
     def build_output_file(self, i):
