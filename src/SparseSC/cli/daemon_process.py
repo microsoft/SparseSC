@@ -200,7 +200,7 @@ def status():
         else:
             print("daemon process (pid {}) NOT is running".format(_pid))
 
-if __name__ == "__main__":
+def main():
     ARGS = sys.argv[1:]
 
     if not ARGS:
@@ -215,4 +215,5 @@ if __name__ == "__main__":
         print("unknown command '{}'".format(ARGS[0]))
 
 
-
+if __name__ == "__main__":
+    main()
