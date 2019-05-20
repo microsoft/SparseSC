@@ -543,8 +543,6 @@ def run(config: BatchConfig) -> None:
 
     _LOCAL_INPUT_FILE = os.path.join(config.BATCH_DIRECTORY, _BATCH_CV_FILE_NAME)
 
-    pdb.set_trace()
-
     v_pen, w_pen, model_data = get_config(_LOCAL_INPUT_FILE)
     n_folds = len(model_data["folds"]) * len(v_pen) * len(w_pen)
 

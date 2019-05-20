@@ -141,8 +141,6 @@ def start():
     except IOError:
         pid = None
 
-    import pdb; pdb.set_trace()
-    
     if pid:
         message = "pidfile {0} already exist. " + "Daemon already running?\n"
         sys.stderr.write(message.format(pidfile))
