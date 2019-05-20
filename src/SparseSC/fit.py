@@ -614,6 +614,7 @@ def _fit(
                 Y_treat=Ytest,
                 splits=cv_folds,
                 v_pen=v_pen,
+                w_pen=w_pen,
                 progress=progress,
                 quiet=not progress,
                 batchDir=batchDir,
