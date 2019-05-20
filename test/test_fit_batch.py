@@ -16,10 +16,9 @@
 
 from __future__ import print_function  # for compatibility with python 2.7
 import numpy as np
-import sys, os, random
+import sys, random
 import unittest
 import warnings
-from os.path import expanduser,join
 from scipy.optimize.linesearch import LineSearchWarning
 
 try:
@@ -49,10 +48,10 @@ class TestFit(unittest.TestCase):
         sys.stdout.flush()
 
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore",category=PendingDeprecationWarning)
-            warnings.filterwarnings("ignore",category=LineSearchWarning)
+            warnings.filterwarnings("ignore", category=PendingDeprecationWarning)
+            warnings.filterwarnings("ignore", category=LineSearchWarning)
             try:
-                fit(
+                Model1 = fit(
                     X=obj.X,
                     Y=obj.Y,
                     model_type=model_type,
@@ -62,36 +61,55 @@ class TestFit(unittest.TestCase):
                     else None,
                     # KWARGS:
                     print_path=False,
+                    stopping_rule=1,
                     progress=verbose,
                     grid_length=5,
                     min_iter=-1,
                     tol=1,
                     verbose=0,
-                    batchFile=join(expanduser("~"),"temp","%s_batch_params.py" % model_type)
+                )
+                Model2 = fit(
+                    X=obj.X,
+                    Y=obj.Y,
+                    model_type=model_type,
+                    treated_units=obj.treated_units
+                    if model_type
+                    in ("retrospective", "prospective", "prospective-restricted")
+                    else None,
+                    # KWARGS:
+                    print_path=False,
+                    stopping_rule=1,
+                    progress=verbose,
+                    grid_length=5,
+                    min_iter=-1,
+                    tol=1,
+                    verbose=0,
+                    batch_client_config="sg_daemon",
                 )
                 import pdb; pdb.set_trace()
                 if verbose:
                     print("DONE")
             except LineSearchWarning:
                 pass
-            except PendingDeprecationWarning: 
+            except PendingDeprecationWarning:
                 pass
             except Exception as exc:
-                print("Failed with %s: %s" % (exc.__class__.__name__, str(exc)))
+                print("Failed with %s: %s" % (exc.__class__.__name__, getattr(exc,"message","<>")))
 
     def test_retrospective(self):
         TestFit.run_test(self, "retrospective")
 
-    def test_prospective(self):
-        TestFit.run_test(self, "prospective")
 
-    def test_prospective_restrictive(self):
-        # Catch the LineSearchWarning silently, but allow others
-
-        TestFit.run_test(self, "prospective-restricted")
-
-    def test_full(self):
-        TestFit.run_test(self, "full")
+# --     def test_prospective(self):
+# --         TestFit.run_test(self, "prospective")
+# --
+# --     def test_prospective_restrictive(self):
+# --         # Catch the LineSearchWarning silently, but allow others
+# --
+# --         TestFit.run_test(self, "prospective-restricted")
+# --
+# --     def test_full(self):
+# --         TestFit.run_test(self, "full")
 
 
 if __name__ == "__main__":

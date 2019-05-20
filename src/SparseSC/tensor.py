@@ -74,9 +74,6 @@ def tensor(X, Y, X_treat=None, Y_treat=None, grad_splits=None, **kwargs):
         adjusted=False
         if kwargs["w_pen"] < 1:
             adjusted=True
-#--             new_pen = 1.5
-#--             print("w_pen: %s -> %s"% (kwargs["w_pen"], new_pen))
-#--             kwargs["w_pen"] = new_pen
 
         if grad_splits is not None:
             _, v_mat, _, _, _, _ = fold_v_matrix(
@@ -85,7 +82,6 @@ def tensor(X, Y, X_treat=None, Y_treat=None, grad_splits=None, **kwargs):
                 control_units=np.arange(X.shape[0]),
                 treated_units=np.arange(X.shape[0]),
                 grad_splits=grad_splits,
-                # treated_units = [X.shape[0] + i for i in  range(len(train))],
                 **kwargs
             )
 
@@ -98,7 +94,6 @@ def tensor(X, Y, X_treat=None, Y_treat=None, grad_splits=None, **kwargs):
                 Y=Y,
                 control_units=np.arange(X.shape[0]),
                 treated_units=np.arange(X.shape[0]),
-                # treated_units = [X.shape[0] + i for i in  range(len(train))],
                 **kwargs
             )
     return v_mat

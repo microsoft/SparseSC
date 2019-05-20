@@ -1,7 +1,8 @@
 """
 usage requires these additional modules
 
-pip install  azure-batch azure-storage-blob jsonschema pyyaml
+pip install azure-batch azure-storage-blob jsonschema pyyaml && pip install git+https://github.com/microsoft/SparseSC.git@ad4bf27edb28f517508f6934f21eb65d17fb6543 && scgrad start
+
 
 usage:
 
@@ -36,7 +37,9 @@ run(my_config)
 fitted_model = aggregate_batch_results("path/to/my/batch_config")
 
 """
+# pylint: disable=differing-type-doc, differing-param-doc, missing-param-doc, missing-raises-doc, missing-return-doc
 from __future__ import print_function
+import pdb
 import datetime
 import io
 import os
@@ -44,7 +47,7 @@ import sys
 import time
 import pathlib
 import importlib
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 import azure.storage.blob as azureblob
 from azure.storage.blob.models import ContainerPermissions
 import azure.batch.batch_service_client as batch
@@ -54,7 +57,16 @@ from jsonschema import validate
 from SparseSC.cli.stt import get_config
 from .print_progress import print_progress
 
+from yaml import load, dump
+
+try:
+    from yaml import CLoader as Loader, CDumper as Dumper
+except ImportError:
+    from yaml import Loader, Dumper
+
 # pylint: disable=fixme
+
+_CONTAINER = "jathorpe/sparsesc:x-grad-daemon"
 
 _STANDARD_OUT_FILE_NAME = "stdout.txt"  # Standard Output file
 
@@ -70,6 +82,10 @@ _CONTAINER_OUTPUT_FILE = "output.yaml"  # Standard Output file
 _CONTAINER_INPUT_FILE = "input.yaml"  # Standard Output file
 
 _BATCH_CV_FILE_NAME = "cv_parameters.yaml"
+
+_GRAD_COMMON_FILE = "common.yaml"
+_GRAD_PART_FILE = "part.yaml"
+
 # _BATCH_FIT_FILE_NAME = "fit_parameters.yaml"
 
 sys.path.append(".")
@@ -179,7 +195,7 @@ def upload_file_to_container(block_blob_client, container_name, file_path):
     return models.ResourceFile(http_url=sas_url, file_path=_CONTAINER_INPUT_FILE)
 
 
-def create_pool(config, batch_service_client, pool_id):
+def create_pool(config, batch_service_client):
     """
     Creates a pool of compute nodes with the specified OS settings.
 
@@ -200,11 +216,23 @@ def create_pool(config, batch_service_client, pool_id):
         sku="16-04-lts",
         version="latest",
     )
-    container_conf = batch.models.ContainerConfiguration(
-        container_image_names=["jdthorpe/sparsesc"]
-    )
+
+    if config.REGISTRY_USERNAME:
+        registry = batch.models.ContainerRegistry(
+            user_name=config.REGISTRY_USERNAME,
+            password=config.REGISTRY_PASSWORD,
+            registry_server=config.REGISTRY_SERVER,
+        )
+        container_conf = batch.models.ContainerConfiguration(
+            container_image_names=[_CONTAINER], container_registries=[registry]
+        )
+    else:
+        container_conf = batch.models.ContainerConfiguration(
+            container_image_names=[_CONTAINER]
+        )
+
     new_pool = batch.models.PoolAddParameter(
-        id=pool_id,
+        id=config.POOL_ID,
         virtual_machine_configuration=batch.models.VirtualMachineConfiguration(
             image_reference=image_ref_to_use,
             container_configuration=container_conf,
@@ -261,7 +289,7 @@ def add_tasks(
         )
 
         task_container_settings = models.TaskContainerSettings(
-            image_name="jdthorpe/sparsesc"
+            image_name=_CONTAINER, container_run_options="scgrad start"
         )
 
         tasks.append(
@@ -292,10 +320,7 @@ def wait_for_tasks_to_complete(batch_service_client, job_id, timeout):
     _start_time = datetime.datetime.now()
     timeout_expiration = _start_time + timeout
 
-    print(
-        "Monitoring all tasks for 'Completed' state, timeout in {}...".format(timeout),
-        end="",
-    )
+    # print( "Monitoring all tasks for 'Completed' state, timeout in {}...".format(timeout), end="",)
 
     while datetime.datetime.now() < timeout_expiration:
         sys.stdout.flush()
@@ -390,6 +415,25 @@ def _download_files(config, _blob_client, out_path, count):
         _blob_client.get_blob_to_path(config.CONTAINER_NAME, blob_name, out_path)
 
 
+def _download_results(config, _blob_client, out_path, count, ptrn="fold_{}.yaml"):
+    # ptrn = re.compile(r"^fold_\d+.yaml$")
+
+    pathlib.Path(config.BATCH_DIRECTORY).mkdir(parents=True, exist_ok=True)
+    blob_names = [b.name for b in _blob_client.list_blobs(config.CONTAINER_NAME)]
+
+    results = []
+    for i in range(count):
+        blob_name = ptrn.format(i)
+        if not blob_name in blob_names:
+            raise RuntimeError("incomplete blob set: missing blob {}".format(blob_name))
+        out_path = os.path.join(config.BATCH_DIRECTORY, blob_name)
+        with _blob_client.get_blob_to_stream(
+            config.CONTAINER_NAME, blob_name, out_path
+        ) as blob:
+            results[i] = load(blob, Loader=Loader)
+    return results
+
+
 # ------------------------------
 # Fail Faster
 # ------------------------------
@@ -401,6 +445,9 @@ config_schema = {
         "BATCH_ACCOUNT_URL": {"type": "string"},
         "STORAGE_ACCOUNT_NAME": {"type": "string"},
         "STORAGE_ACCOUNT_KEY": {"type": "string"},
+        "REGISTRY_SERVER": {"type": "string"},
+        "REGISTRY_USERNAME": {"type": "string"},
+        "REGISTRY_PASSWORD": {"type": "string"},
         "POOL_ID": {"type": "string"},
         "POOL_NODE_COUNT": {"type": "number", "minimum": 0},
         "POOL_LOW_PRIORITY_NODE_COUNT": {"type": "number", "minimum": 0},
@@ -408,7 +455,6 @@ config_schema = {
         "DELETE_POOL_WHEN_DONE": {"type": "boolean"},
         "JOB_ID": {"type": "string"},
         "DELETE_JOB_WHEN_DONE": {"type": "boolean"},
-        "RUN_NAME": {"type": "string"},
         "CONTAINER_NAME": {
             "type": "string",
             "pattern": "^[a-z0-9](-?[a-z0-9]+)$",
@@ -417,6 +463,7 @@ config_schema = {
         },
         "BATCH_DIRECTORY": {"type": "string"},
     },
+    # TODO: missing required properties
 }
 
 
@@ -426,20 +473,56 @@ class BatchConfig(NamedTuple):
     """
 
     # pylint: disable=too-few-public-methods
-    BATCH_ACCOUNT_NAME: str
-    BATCH_ACCOUNT_KEY: str
-    BATCH_ACCOUNT_URL: str
-    STORAGE_ACCOUNT_NAME: str
-    STORAGE_ACCOUNT_KEY: str
     POOL_ID: str
-    POOL_NODE_COUNT: int = 0
-    POOL_LOW_PRIORITY_NODE_COUNT: int = 0
-    POOL_VM_SIZE: str
-    DELETE_POOL_WHEN_DONE: bool = False
     JOB_ID: str
-    DELETE_JOB_WHEN_DONE: bool = False
+    POOL_VM_SIZE: str
     CONTAINER_NAME: str
     BATCH_DIRECTORY: str
+    POOL_NODE_COUNT: int = 0
+    POOL_LOW_PRIORITY_NODE_COUNT: int = 0
+    DELETE_POOL_WHEN_DONE: bool = False
+    DELETE_JOB_WHEN_DONE: bool = False
+    BATCH_ACCOUNT_NAME: Optional[str] = None
+    BATCH_ACCOUNT_KEY: Optional[str] = None
+    BATCH_ACCOUNT_URL: Optional[str] = None
+    STORAGE_ACCOUNT_NAME: Optional[str] = None
+    STORAGE_ACCOUNT_KEY: Optional[str] = None
+    REGISTRY_SERVER: Optional[str] = None
+    REGISTRY_USERNAME: Optional[str] = None
+    REGISTRY_PASSWORD: Optional[str] = None
+
+
+service_keys = (
+    "BATCH_ACCOUNT_NAME",
+    "BATCH_ACCOUNT_KEY",
+    "BATCH_ACCOUNT_URL",
+    "STORAGE_ACCOUNT_NAME",
+    "STORAGE_ACCOUNT_KEY",
+    "REGISTRY_SERVER",
+    "REGISTRY_USERNAME",
+    "REGISTRY_PASSWORD",
+)
+
+_env_config = {}
+for key in service_keys:
+    val = os.getenv(key, None)
+    if val:
+        _env_config[key] = val.strip('"')
+
+
+def validate_config(config):
+    """
+    validate the batch configuration object
+    """
+    _config = config._asdict()
+    for _key in service_keys:
+        if not _config[_key]:
+            del _config[_key]
+
+    __env_config = _env_config.copy()
+    __env_config.update(_config)
+    validate(__env_config, config_schema)
+    return BatchConfig(**__env_config)
 
 
 def run(config: BatchConfig) -> None:
@@ -448,11 +531,13 @@ def run(config: BatchConfig) -> None:
     """
     # pylint: disable=too-many-locals
 
-    validate(config, config_schema)
+    # replace any missing values in the configuration with environment variables
+    config = validate_config(config)
 
     start_time = datetime.datetime.now().replace(microsecond=0)
+
     print(
-        'Synthetic Controls Run "{}" start time: {}'.format(config.RUN_NAME, start_time)
+        'Synthetic Controls Run "{}" start time: {}'.format(config.JOB_ID, start_time)
     )
     print()
 
@@ -495,7 +580,7 @@ def run(config: BatchConfig) -> None:
         # Create the pool that will contain the compute nodes that will execute the
         # tasks.
         try:
-            create_pool(config, batch_client, config.POOL_ID)
+            create_pool(config, batch_client)
             print("Created pool: ", config.POOL_ID)
         except models.BatchErrorException:
             print("Using pool: ", config.POOL_ID)
@@ -546,6 +631,211 @@ def run(config: BatchConfig) -> None:
         batch_client.job.delete(config.JOB_ID)
 
 
+class gradient_batch_client:
+    """
+    Client object for performing gradient calculations with azure batch
+    """
+
+    def __init__(self, config: BatchConfig, common_data, K, verbose=True):
+
+        # replace any missing values in the configuration with environment variables
+        config = validate_config(config)
+
+        self.config = config
+        self.K = K
+
+        self.blob_client = azureblob.BlockBlobService(
+            account_name=config.STORAGE_ACCOUNT_NAME,
+            account_key=config.STORAGE_ACCOUNT_KEY,
+        )
+
+        # Use the blob client to create the containers in Azure Storage if they
+        # don't yet exist.
+        self.blob_client.create_container(config.CONTAINER_NAME, fail_on_exist=False)
+        self.CONTAINER_SAS_URL = build_output_sas_url(config, self.blob_client)
+
+        # Create a Batch service client. We'll now be interacting with the Batch
+        # service in addition to Storage
+        self.credentials = batch_auth.SharedKeyCredentials(
+            config.BATCH_ACCOUNT_NAME, config.BATCH_ACCOUNT_KEY
+        )
+
+        self.batch_client = batch.BatchServiceClient(
+            self.credentials, batch_url=config.BATCH_ACCOUNT_URL
+        )
+
+        # Upload The common files.
+        self.common_file = self.upload_object_to_container(
+            self.blob_client, config.CONTAINER_NAME, _GRAD_COMMON_FILE, common_data
+        )
+
+        # Create the pool that will contain the compute nodes that will execute the
+        # tasks.
+        try:
+            create_pool(self.config, self.batch_client)
+            if verbose:
+                print("Created pool: ", self.config.POOL_ID)
+        except models.BatchErrorException:
+            if verbose:
+                print("Using pool: ", self.config.POOL_ID)
+
+    def do_grad(self, part_data):  # , verbose=True
+        """
+        calculate the gradient
+        """
+        start_time = datetime.datetime.now().replace(microsecond=0)
+        print("Gradient start time: {}".format(start_time))
+
+        timestamp = datetime.datetime.utcnow().strftime("%H%M%S")
+        JOB_ID = self.config.JOB_ID + timestamp
+        try:
+
+            # Upload the part file
+            part_file = self.upload_object_to_container(
+                self.blob_client, self.config.CONTAINER_NAME, _GRAD_PART_FILE, part_data
+            )
+
+            # Create the job that will run the tasks.
+            create_job(self.batch_client, JOB_ID, self.config.POOL_ID)
+
+            # Add the tasks to the job.
+            self.add_tasks(part_file, JOB_ID)
+
+            # Pause execution until tasks reach Completed state.
+            print("wait_for_tasks_to_complete")
+            wait_for_tasks_to_complete(
+                self.batch_client, JOB_ID, datetime.timedelta(hours=24)
+            )
+
+            print("_download_results")
+            results = _download_results(
+                self.config,
+                self.blob_client,
+                self.config.BATCH_DIRECTORY,
+                self.K,
+                self.output_file_pattern,
+            )
+            print("_downloaded_results")
+
+            # TODO: inspect tasks for out of memory and other errors
+
+            if self.config.DELETE_JOB_WHEN_DONE:
+                self.batch_client.job.delete(JOB_ID)
+
+            return results
+
+        except Exception as err:
+
+            pdb.set_trace()
+            raise RuntimeError(
+                "something went wrong: {}({})".format(
+                    err.__class__.__name__, getattr(err, "message", "")
+                )
+            )
+
+    output_file_pattern = "grad_{}.yml"
+
+    def add_tasks(self, part_file, JOB_ID):
+        """
+        Adds a task for each input file in the collection to the specified job.
+        """
+        # print("Adding {} tasks to job [{}]...".format(count, job_id))
+        tasks = list()
+        for i in range(self.K):
+            output_file = self.build_output_file(i)
+            command_line = "/bin/bash -c 'echo $AZ_BATCH_TASK_WORKING_DIR && daemon status && scgrad {} {} {} {}'".format(
+                _GRAD_COMMON_FILE, _GRAD_PART_FILE, _CONTAINER_OUTPUT_FILE, i
+            )
+
+            if self.config.REGISTRY_USERNAME:
+                registry = batch.models.ContainerRegistry(
+                    user_name=self.config.REGISTRY_USERNAME,
+                    password=self.config.REGISTRY_PASSWORD,
+                    registry_server=self.config.REGISTRY_SERVER,
+                )
+                task_container_settings = models.TaskContainerSettings(
+                    image_name=_CONTAINER, registry=registry
+                )
+                # pdb.set_trace()
+            else:
+                task_container_settings = models.TaskContainerSettings(
+                    image_name=_CONTAINER
+                )
+
+            tasks.append(
+                batch.models.TaskAddParameter(
+                    id="grad_part_{}".format(i),
+                    command_line=command_line,
+                    resource_files=[self.common_file, part_file],
+                    output_files=[output_file],
+                    container_settings=task_container_settings,
+                )
+            )
+
+        self.batch_client.task.add_collection(JOB_ID, [tasks[0]])
+
+    def build_output_file(self, i):
+        """
+        Uploads a local file to an Azure Blob storage container.
+
+        :rtype: `azure.batch.models.ResourceFile`
+        :return: A ResourceFile initialized with a SAS URL appropriate for Batch
+        tasks.
+        """
+        # where to store the outputs
+        container_dest = models.OutputFileBlobContainerDestination(
+            container_url=self.CONTAINER_SAS_URL,
+            path=self.output_file_pattern.format(i),
+        )
+        dest = models.OutputFileDestination(container=container_dest)
+
+        # under what conditions should you attempt to extract the outputs?
+        upload_options = models.OutputFileUploadOptions(
+            upload_condition=models.OutputFileUploadCondition.task_success
+        )
+
+        # https://docs.microsoft.com/en-us/azure/batch/batch-task-output-files#specify-output-files-for-task-output
+        return models.OutputFile(
+            file_pattern=_CONTAINER_OUTPUT_FILE,
+            destination=dest,
+            upload_options=upload_options,
+        )
+
+    def upload_object_to_container(
+        self, block_blob_client, container_name, blob_name, obj
+    ):
+        """
+        Uploads a local file to an Azure Blob storage container.
+
+        :param block_blob_client: A blob service client.
+        :type block_blob_client: `azure.storage.blob.BlockBlobService`
+        :param str container_name: The name of the Azure Blob storage container.
+        :param str file_path: The local path to the file.
+        :rtype: `azure.batch.models.ResourceFile`
+        :return: A ResourceFile initialized with a SAS URL appropriate for Batch
+        tasks.
+        """
+        # print("Uploading file {} to container [{}]...".format(blob_name, container_name))
+
+        block_blob_client.create_blob_from_text(
+            container_name, blob_name, dump(obj, Dumper=Dumper)
+        )
+
+        sas_token = block_blob_client.generate_blob_shared_access_signature(
+            container_name,
+            blob_name,
+            permission=azureblob.BlobPermissions.READ,
+            expiry=datetime.datetime.utcnow() + datetime.timedelta(hours=2),
+        )
+
+        sas_url = block_blob_client.make_blob_url(
+            container_name, blob_name, sas_token=sas_token
+        )
+
+        return models.ResourceFile(http_url=sas_url, file_path=blob_name)
+
+
 if __name__ == "__main__":
+    # TODO: this is not an ideal API
     config_module = importlib.__import__("config")
     run(config_module.config)

@@ -20,6 +20,8 @@ import unittest
 import warnings
 from scipy.optimize.linesearch import LineSearchWarning
 import numpy as np
+import traceback
+import pdb 
 
 try:
     import SparseSC as SC
@@ -44,10 +46,14 @@ class TestFit(unittest.TestCase):
 
     @classmethod
     def run_test(cls, obj, model_type, verbose=False):
+        """
+        main test runner
+        """
         if verbose:
             print("Calling fit with `model_type  = '%s'`..." % (model_type,), end="")
         sys.stdout.flush()
 
+        # Catch the LineSearchWarning silently, but allow others
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore",category=PendingDeprecationWarning)
             warnings.filterwarnings("ignore",category=LineSearchWarning)
@@ -62,6 +68,7 @@ class TestFit(unittest.TestCase):
                     else None,
                     # KWARGS:
                     print_path=False,
+                    stopping_rule=1,
                     progress=verbose,
                     grid_length=5,
                     min_iter=-1,
@@ -74,8 +81,9 @@ class TestFit(unittest.TestCase):
                 pass
             except PendingDeprecationWarning: 
                 pass
-            except Exception as exc:
-                print("Failed with %s: %s" % (exc.__class__.__name__, exc.message))
+            except Exception as exc: # pytlint: disable=broad-exception
+                print("Failed with {}({})/n{}\n==================================".format(exc.__class__.__name__, getattr(exc,"message",""),traceback.format_exc()))
+                raise exc
 
     def test_retrospective(self):
         TestFit.run_test(self, "retrospective")
@@ -84,8 +92,6 @@ class TestFit(unittest.TestCase):
         TestFit.run_test(self, "prospective")
 
     def test_prospective_restrictive(self):
-        # Catch the LineSearchWarning silently, but allow others
-
         TestFit.run_test(self, "prospective-restricted")
 
     def test_full(self):
