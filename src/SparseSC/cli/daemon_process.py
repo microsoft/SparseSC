@@ -185,18 +185,16 @@ def status():
     """
     check the process_deamon status
     """
-
-    if ARGS[0] == "status":
-        if not os.path.exists(DAEMON_PID):
-            print("Daemon not running")
-            return
-        with open(DAEMON_PID,'r') as fh:
-            _pid = int(fh.read())
-        
-        if _pid in psutil.pids():
-            print("daemon process (pid {}) is running".format(_pid))
-        else:
-            print("daemon process (pid {}) NOT is running".format(_pid))
+    if not os.path.exists(DAEMON_PID):
+        print("Daemon not running")
+        return
+    with open(DAEMON_PID,'r') as fh:
+        _pid = int(fh.read())
+    
+    if _pid in psutil.pids():
+        print("daemon process (pid {}) is running".format(_pid))
+    else:
+        print("daemon process (pid {}) NOT is running".format(_pid))
 
 def main():
     ARGS = sys.argv[1:]
