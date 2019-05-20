@@ -214,9 +214,22 @@ def create_pool(config, batch_service_client):
         sku="16-04-lts",
         version="latest",
     )
-    container_conf = batch.models.ContainerConfiguration(
-        container_image_names=["python:3.7", "jdthorpe/sparsesc:x-grad-daemon"]
-    )
+
+    if config.REGISTRY_USERNAME:
+        registry = batch.models.ContainerRegistry(
+            user_name=config.REGISTRY_USERNAME,
+            password=config.REGISTRY_PASSWORD,
+            registry_server=config.REGISTRY_SERVER,
+        )
+        container_conf = batch.models.ContainerConfiguration(
+            container_image_names=["jdthorpe/sparsesc:x-grad-daemon"],
+            container_registries=[registry],
+        )
+    else:
+        container_conf = batch.models.ContainerConfiguration(
+            container_image_names=["jdthorpe/sparsesc:x-grad-daemon"]
+        )
+
     new_pool = batch.models.PoolAddParameter(
         id=config.POOL_ID,
         virtual_machine_configuration=batch.models.VirtualMachineConfiguration(
@@ -432,6 +445,9 @@ config_schema = {
         "BATCH_ACCOUNT_URL": {"type": "string"},
         "STORAGE_ACCOUNT_NAME": {"type": "string"},
         "STORAGE_ACCOUNT_KEY": {"type": "string"},
+        "REGISTRY_SERVER": {"type": "string"},
+        "REGISTRY_USERNAME": {"type": "string"},
+        "REGISTRY_PASSWORD": {"type": "string"},
         "POOL_ID": {"type": "string"},
         "POOL_NODE_COUNT": {"type": "number", "minimum": 0},
         "POOL_LOW_PRIORITY_NODE_COUNT": {"type": "number", "minimum": 0},
@@ -471,6 +487,9 @@ class BatchConfig(NamedTuple):
     BATCH_ACCOUNT_URL: Optional[str] = None
     STORAGE_ACCOUNT_NAME: Optional[str] = None
     STORAGE_ACCOUNT_KEY: Optional[str] = None
+    REGISTRY_SERVER: Optional[str] = None
+    REGISTRY_USERNAME: Optional[str] = None
+    REGISTRY_PASSWORD: Optional[str] = None
 
 
 service_keys = (
@@ -479,6 +498,9 @@ service_keys = (
     "BATCH_ACCOUNT_URL",
     "STORAGE_ACCOUNT_NAME",
     "STORAGE_ACCOUNT_KEY",
+    "REGISTRY_SERVER",
+    "REGISTRY_USERNAME",
+    "REGISTRY_PASSWORD",
 )
 
 _env_config = {}
@@ -723,7 +745,7 @@ class gradient_batch_client:
         tasks = list()
         for i in range(self.K):
             output_file = self.build_output_file(i)
-            command_line = "/bin/bash -c 'scgrad start && scgrad {} {} {} {}'".format(
+            command_line = "/bin/bash -c 'edho $AZ_BATCH_TASK_WORKING_DIR && scgrad start && scgrad {} {} {} {}'".format(
                 _GRAD_COMMON_FILE, _GRAD_PART_FILE, _CONTAINER_OUTPUT_FILE, i
             )
 

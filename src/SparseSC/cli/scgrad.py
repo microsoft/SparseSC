@@ -232,6 +232,20 @@ def main(test=False):  # pylint: disable=inconsistent-return-statements
         daemon.start()
         return "0"
 
+    if ARGS[0] == "status":
+        if not os.path.exists(DAEMON_PID):
+            print("Daemon not running")
+            return '0'
+
+        with open(DAEMON_PID,'w') as fh:
+            _pid = fh.read()
+        pids = [pid for pid in os.listdir('/proc') if pid.isdigit()]
+        if _pid in pids:
+            print("daemon process (pid {}) is running".format(_pid))
+        else:
+            print("daemon process (pid {}) NOT is running".format(_pid))
+        return '0'
+
     if ARGS[0] == "stop":
         print("stopping daemon")
         daemon = WorkerDaemon(DAEMON_PID, DAEMON_FIFO)
