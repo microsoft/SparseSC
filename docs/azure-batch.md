@@ -8,7 +8,7 @@ The azure batch client requires some additional dependencies which can be instal
 pip install  azure-batch azure-storage-blob jsonschema pyyaml
 ```
 
-# Createing Azure Resources
+### Create the Required Azure resources
 
 Using Azure batch requires an azure account, and we'll demonstrate how to run
 this module using the [azure command line tool]().
@@ -18,27 +18,25 @@ resource group into which the batch account is created.  In addition, the
 azure batch service requires a storage account which is used to keep track of
 details of the jobs and tasks.
 
-Althought the the resource group, storage account and batch account could have
-different names, for sake of expositoin, we'll give them all the same name and
-locate them in the US West 2 region, which we'll delare by creating variables
-like so:
+Although the resource group, storage account and batch account could have
+different names, for sake of exposition, we'll give them all the same name and
+locate them in the US West 2 region, like so:
 
 ```bash
+# parameters
 name="sparsesctest"
 location="westus2"
-```
 
-Next, the required resource group, storage account and batch account can be
-created with the following commands:
-
-```bash
+# create the resources
 az group create -l $location -n $name
 az storage account create -n $name -g run-dammit
 az batch account create -l $location -n $name -g $name --storage-account $name
 ```
 
-Finally, we'll need some information about created accounts in order to create
-and run batch jobs. We can create bash variables that contain the information
+# Gather Resource Credentials
+
+We'll need some information about created accounts in order to create and
+run batch jobs. We can create bash variables that contain the information
 that the SparseSC azure batch client will require, with the following:
 
 ```bash
@@ -50,26 +48,28 @@ export STORAGE_ACCOUNT_KEY=$(az storage account keys list -n $name --query [0].v
 ```
 
 We could of course echo these to the console and copy/paste the values into the
-BatchConfig object below. however we don't need to do that if we run python
-from within the same terminal session, as these variales will be found by the
-SparseSC batch client if they are not provided explicitly.
+BatchConfig object below. However we don't need to do that if we run python
+from within the same environment (terminal session), as these environment
+variables will be used by the `azure_batch_client` if they are not provided
+explicitly.
 
 # Prepare parameters for the Batch Job
 
 Parameters for a batch job can be created using `fit()` by providing a directory where the batch parameters should be stored:
 ```python
 from SparseSC import fit
-batchdir = os.path.expanduser("/path/to/my/batch/data/")
+batch_dir = os.path.expanduser("/path/to/my/batch/data/")
 
-fit(x, y, ... , batchdir = batchdir)
+# initialize the batch parameters in the directory `batch_dir`
+fit(x, y, ... , batchdir = batch_dir)
 ```
 
 # Executing the Batch Job
 
 In the following Python script, a Batch configuration is created and the batch
 job is executed with Azure Batch. Note that the Batch Account and Storage
-Account details can be provided directly to the Batch Config, with default
-values taken from the system envoironment.
+Account details can be provided directly to the BatchConfig, with default
+values taken from the system environment.
 
 ```python
 import os
