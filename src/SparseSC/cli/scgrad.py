@@ -83,8 +83,8 @@ def grad_part(common, part, k):
 
 DAEMON_FIFO = "/tmp/sc-daemon.fifo"
 DAEMON_PID = "/tmp/sc-gradient-daemon.pid"
-print("DAEMON_FIFO: " + DAEMON_FIFO)
-print("DAEMON_PID: " + DAEMON_PID)
+#-- print("DAEMON_FIFO: " + DAEMON_FIFO)
+#-- print("DAEMON_PID: " + DAEMON_PID)
 
 _CONTAINER_OUTPUT_FILE = "output.yaml"  # Standard Output file
 _GRAD_COMMON_FILE = "common.yaml"

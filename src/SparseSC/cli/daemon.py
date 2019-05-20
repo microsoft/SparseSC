@@ -63,8 +63,8 @@ class Daemon:
             f.write(pid + "\n")
 
         workdir = os.getenv("AZ_BATCH_TASK_WORKING_DIR","/tmp")
-        sys.stdout = open(os.path.join(workdir,"/sc-out.txt","a+")
-        sys.stderr = open(os.path.join(workdir,"/sc-err.txt","a+")
+        sys.stdout = open(os.path.join(workdir,"sc-out.txt"),"a+")
+        sys.stderr = open(os.path.join(workdir,"sc-err.txt"),"a+")
         print("daemonized >>>>>>>>>>>"); sys.stdout.flush()
 
     def delpid(self):
