@@ -5,7 +5,7 @@
 The azure batch client requires some additional dependencies which can be installed via:
 
 ```bash
-pip install  azure-batch azure-storage-blob jsonschema pyyaml
+pip install azure-batch azure-storage-blob jsonschema pyyaml
 ```
 
 ### Create the Required Azure resources
@@ -33,7 +33,7 @@ az storage account create -n $name -g run-dammit
 az batch account create -l $location -n $name -g $name --storage-account $name
 ```
 
-# Gather Resource Credentials
+### Gather Resource Credentials
 
 We'll need some information about created accounts in order to create and
 run batch jobs. We can create bash variables that contain the information
@@ -53,7 +53,7 @@ from within the same environment (terminal session), as these environment
 variables will be used by the `azure_batch_client` if they are not provided
 explicitly.
 
-# Prepare parameters for the Batch Job
+### Prepare parameters for the Batch Job
 
 Parameters for a batch job can be created using `fit()` by providing a directory where the batch parameters should be stored:
 ```python
@@ -64,7 +64,7 @@ batch_dir = os.path.expanduser("/path/to/my/batch/data/")
 fit(x, y, ... , batchdir = batch_dir)
 ```
 
-# Executing the Batch Job
+### Executing the Batch Job
 
 In the following Python script, a Batch configuration is created and the batch
 job is executed with Azure Batch. Note that the Batch Account and Storage
@@ -105,7 +105,7 @@ run_batch_job(my_config)
 fitted_model = aggregate_batch_results(batchdir)
 ```
 
-# Cleaning Up
+### Cleaning Up
 
 In order to prevent unexpected charges, the resource group, including all the
 resources it contains, such as the storge account and batch pools, can be
