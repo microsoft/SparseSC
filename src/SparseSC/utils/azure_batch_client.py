@@ -1,7 +1,7 @@
 """
 usage requires these additional modules
 
-pip install azure-batch azure-storage-blob jsonschema pyyaml && pip install git+https://github.com/microsoft/SparseSC.git@2530a76577beb63a94910a6643151ab98b16b5c4 && scgrad start
+pip install azure-batch azure-storage-blob jsonschema pyyaml && pip install git+https://github.com/microsoft/SparseSC.git@ad4bf27edb28f517508f6934f21eb65d17fb6543 && scgrad start
 
 
 usage:
@@ -215,7 +215,7 @@ def create_pool(config, batch_service_client):
         version="latest",
     )
     container_conf = batch.models.ContainerConfiguration(
-        container_image_names=["jdthorpe/sparsesc"]
+        container_image_names=["python:3.7", "jdthorpe/sparsesc:x-grad-daemon"]
     )
     new_pool = batch.models.PoolAddParameter(
         id=config.POOL_ID,
@@ -275,7 +275,8 @@ def add_tasks(
         )
 
         task_container_settings = models.TaskContainerSettings(
-            image_name="jdthorpe/sparsesc"
+            image_name="jdthorpe/sparsesc:x-grad-daemon",
+            container_run_options="scgrad start",
         )
 
         tasks.append(
@@ -722,12 +723,12 @@ class gradient_batch_client:
         tasks = list()
         for i in range(self.K):
             output_file = self.build_output_file(i)
-            command_line = "/bin/bash -c 'scgrad {} {} {} {}'".format(
+            command_line = "/bin/bash -c 'scgrad start && scgrad {} {} {} {}'".format(
                 _GRAD_COMMON_FILE, _GRAD_PART_FILE, _CONTAINER_OUTPUT_FILE, i
             )
 
             task_container_settings = models.TaskContainerSettings(
-                image_name="jdthorpe/sparsesc"
+                image_name="jdthorpe/sparsesc:x-grad-daemon"
             )
 
             tasks.append(
@@ -753,8 +754,8 @@ class gradient_batch_client:
         """
         # where to store the outputs
         container_dest = models.OutputFileBlobContainerDestination(
-            container_url=self.CONTAINER_SAS_URL, path=
-                self.output_file_pattern.format(i)
+            container_url=self.CONTAINER_SAS_URL,
+            path=self.output_file_pattern.format(i),
         )
         dest = models.OutputFileDestination(container=container_dest)
 
