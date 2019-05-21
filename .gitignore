@@ -85,3 +85,6 @@ examples/DifferentialTrends.py
 
 #Jupyter Windows
 jupyter_launch.log
+
+tmp/
+
