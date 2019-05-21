@@ -3,6 +3,7 @@
 Implements round-robin fitting of Sparse Synthetic Controls Model for DGP based analysis
 """
 import numpy as np
+from os.path import join
 from warnings import warn
 from inspect import signature
 from .utils.penalty_utils import get_max_w_pen, get_max_v_pen, w_pen_guestimate
@@ -10,6 +11,8 @@ from .cross_validation import CV_score
 from .tensor import tensor
 from .weights import weights
 from .utils.warnings import SparseSCWarning
+
+# pylint: disable=too-many-lines, inconsistent-return-statements, fixme
 
 
 class SparseSCParameterWarning(
@@ -213,11 +216,12 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
     if v_pen_is_iterable and w_pen_is_iterable:
         raise ValueError("Features and Weights penalties are both iterables")
 
-    if v_pen_is_iterable or w_pen_is_iterable:
-        return _fit(X, Y, treated_units, w_pen, v_pen, **kwargs)
-
-    if v_pen is not None and w_pen is not None:
-        return _fit(X, Y, treated_units, w_pen, v_pen, **kwargs)
+    if (
+        v_pen_is_iterable
+        or w_pen_is_iterable
+        or (v_pen is not None and w_pen is not None)
+    ):
+        return _fit(X, Y, treated_units, w_pen, v_pen, gradient_folds=gradient_folds,**kwargs)
 
     # Herein, either v_pen or w_pen is None (possibly both)
 
@@ -237,11 +241,10 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
     #  BUILD THE STOPPING RULE
     # --------------------------------------------------
     if callable(stopping_rule):
-        stopping_rule = stopping_rule
         parameters = len(signature(stopping_rule).parameters)
     else:
         assert stopping_rule > 0, "stopping_rule must be positive number or a function"
-        if stopping_rule > 1:
+        if stopping_rule >= 1:
             iterations = [stopping_rule]
             parameters = 0
 
@@ -252,12 +255,13 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
             stopping_rule = iterations_rule
         else:
             parameters = 2
+            _stopping_rule = stopping_rule
 
             def percent_reduction_rule(current, previous):
                 if previous is None:
                     return False
                 oss_error_reduction = 1 - current.score / previous.score
-                return oss_error_reduction < stopping_rule
+                return oss_error_reduction < _stopping_rule
 
             stopping_rule = percent_reduction_rule
 
@@ -276,7 +280,7 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
         if last_axis:
             assert axis != last_axis
 
-        model_fit = _fit(X, Y, treated_units, w_pen, v_pen, **kwargs)
+        model_fit = _fit(X, Y, treated_units, w_pen, v_pen, gradient_folds=gradient_folds, **kwargs)
 
         if not model_fit:
             # this happens when only a batch file is being produced but not executed
@@ -348,6 +352,7 @@ def _fit(
     custom_donor_pool=None,
     # VERBOSITY
     progress=True,
+    batchDir=None,
     **kwargs
 ):
     assert X.shape[0] == Y.shape[0]
@@ -378,6 +383,36 @@ def _fit(
 
     if v_pen_is_iterable and w_pen_is_iterable:
         raise ValueError("Features and Weights penalties are both iterables")
+
+    if batchDir is not None:
+
+        import pathlib
+        from yaml import dump
+
+        try:
+            from yaml import CDumper as Dumper
+        except ImportError:
+            from yaml import Dumper
+
+        pathlib.Path(batchDir).mkdir(parents=True, exist_ok=True)
+        _fit_params = {
+            "X": X,
+            "Y": Y,
+            "v_pen": v_pen,
+            "w_pen": w_pen,
+            "treated_units": treated_units,
+            "choice": choice,
+            "cv_folds": cv_folds,
+            "gradient_folds": gradient_folds,
+            "gradient_seed": gradient_seed,
+            "model_type": model_type,
+            "custom_donor_pool": custom_donor_pool,
+            "kwargs": kwargs,
+        }
+
+        from .utils.AzureBatch.constants import _BATCH_FIT_FILE_NAME
+        with open(join(batchDir, _BATCH_FIT_FILE_NAME), "w") as fp:
+            fp.write(dump(_fit_params, Dumper=Dumper))
 
     def _choose(scores, scores_se):
         """ helper function which implements the choice of covariate weights penalty parameter
@@ -448,6 +483,7 @@ def _fit(
                 grad_splits=gradient_folds,
                 random_state=gradient_seed,  # TODO: Cleanup Task 1
                 quiet=not progress,
+                batchDir=batchDir,
                 **kwargs
             )
             if not ret:
@@ -460,7 +496,6 @@ def _fit(
             # --------------------------------------------------
             # Phase 2: extract V and weights: slow ( tens of seconds to minutes )
             # --------------------------------------------------
-
             best_V = tensor(
                 X=Xtrain,
                 Y=Ytrain,
@@ -536,6 +571,7 @@ def _fit(
                 grad_splits=gradient_folds,
                 random_state=gradient_seed,  # TODO: Cleanup Task 1
                 quiet=not progress,
+                batchDir=batchDir,
                 **kwargs
             )
             if not ret:
@@ -578,9 +614,10 @@ def _fit(
                 Y_treat=Ytest,
                 splits=cv_folds,
                 v_pen=v_pen,
-                progress=progress,
                 w_pen=w_pen,
+                progress=progress,
                 quiet=not progress,
+                batchDir=batchDir,
                 **kwargs
             )
             if not ret:
@@ -628,6 +665,7 @@ def _fit(
         sc_weights[control_units, :] = weights(
             Xtrain, V=best_V, w_pen=best_w_pen, custom_donor_pool=custom_donor_pool_c
         )
+
     else:
 
         if model_type != "full":
@@ -652,6 +690,7 @@ def _fit(
             grad_splits=gradient_folds,
             random_state=gradient_seed,  # TODO: Cleanup Task 1
             quiet=not progress,
+            batchDir=batchDir,
             **kwargs
         )
         if not ret:

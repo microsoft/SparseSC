@@ -65,6 +65,11 @@ setup(
     ],
     keywords=["Sparse", "Synthetic", "Controls"],
     install_requires=["numpy", "Scipy", "scikit-learn"],
-    entry_points={"console_scripts": ["stt=SparseSC.cli.stt:main"]},
-    
+    entry_points={
+        "console_scripts": [
+            "scgrad=SparseSC.cli.scgrad:main",
+            "daemon=SparseSC.cli.daemon_process:main",
+            "stt=SparseSC.cli.stt:main",
+        ]
+    },
 )

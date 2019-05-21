@@ -14,6 +14,7 @@ Welcome to SparseSC's |version| documentation!
    estimate-effects
    model-types
    api_ref
+   azure_batch
    dev_notes
 
 

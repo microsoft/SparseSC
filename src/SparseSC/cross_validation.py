@@ -2,6 +2,7 @@
 Implements the cross-fold Validation and parallelization methods
 """
 
+from os.path import join
 import atexit
 import numpy as np
 from concurrent import futures
@@ -274,7 +275,7 @@ def CV_score(
     # sub_splits=None,
     quiet=False,
     parallel=False,
-    batchFile=None,
+    batchDir=None,
     max_workers=None,
     cv_seed=110011,
     # this is here for API consistency:
@@ -369,8 +370,9 @@ def CV_score(
                 % (n_splits, X.shape[0], X_treat.shape[0], X.shape[1], Y.shape[1])
             )
 
-        if batchFile is not None:
+        if batchDir is not None:
             from yaml import load, dump
+
             try:
                 from yaml import CLoader as Loader, CDumper as Dumper
             except ImportError:
@@ -388,7 +390,7 @@ def CV_score(
                     "folds": train_test_splits,
                 }
             )
-            with open(batchFile, "w") as fp:
+            with open(join(batchDir,"cv_parameters.yaml"), "w") as fp:
                 fp.write(dump(_params, Dumper=Dumper))
             return
 
@@ -481,8 +483,9 @@ def CV_score(
                 % (n_splits, X.shape[0], X.shape[1], Y.shape[1])
             )
 
-        if batchFile is not None:
+        if batchDir is not None:
             from yaml import load, dump
+
             try:
                 from yaml import CLoader as Loader, CDumper as Dumper
             except ImportError:
@@ -498,9 +501,8 @@ def CV_score(
                     "folds": train_test_splits,
                 }
             )
-            with open(batchFile, "w") as fp:
+            with open(join(batchDir,"cv_parameters.yaml"), "w") as fp:
                 fp.write(dump(_params, Dumper=Dumper))
-            import pdb; pdb.set_trace()
             return
 
         if parallel:
@@ -586,13 +588,10 @@ def CV_score(
 
     return total_score, se
 
-
 # ------------------------------------------------------------
 # utilities for maintaining a worker pool
 # ------------------------------------------------------------
-
 _worker_pool = None
-
 
 def _initialize_Global_worker_pool(n_workers):
     global _worker_pool  # pylint: disable=global-statement

@@ -5,8 +5,11 @@ Implements k-fold gradient descent methods
 from numpy import ones, diag, zeros, mean, var, linalg, prod, sqrt, absolute
 import numpy as np
 import itertools
+from .optimizers.cd_line_search import cdl_search
 from .utils.print_progress import print_progress
-from SparseSC.optimizers.cd_line_search import cdl_search
+from .utils.batch_gradient import single_grad
+
+_BATCH_GRADIENT_FILE = "grad_parameters.yml"
 
 
 def fold_v_matrix(
@@ -23,6 +26,7 @@ def fold_v_matrix(
     random_state=10101,
     verbose=False,
     gradient_message="Calculating gradient",
+    batch_client_config=None,
     **kwargs
 ):
     """
@@ -142,12 +146,7 @@ def fold_v_matrix(
     for i, split in enumerate(splits):
         assert len(split[0]) + len(split[1]) == len(treated_units), (
             "Splits for fold %s do not match the number of treated units.  Expected %s; got %s + %s"
-            % (  
-                i,
-                len(treated_units),
-                len(split[0]),
-                len(split[1]),
-            )
+            % (i, len(treated_units), len(split[0]), len(split[1]))
         )
 
     # CONSTANTS
@@ -167,10 +166,10 @@ def fold_v_matrix(
     out_controls = [
         ctrl_rng[np.logical_not(np.isin(control_units, treated_units[test]))]
         for _, test in splits
-    ]  
+    ]
 
     # this is non-trivial when there control units are also being predicted:
-    # out_treated = [ctrl_rng[np.isin(control_units, treated_units[test]) ] 
+    # out_treated = [ctrl_rng[np.isin(control_units, treated_units[test]) ]
     #                for train,test in splits]
 
     # handy constants (for speed purposes):
@@ -178,8 +177,8 @@ def fold_v_matrix(
     Y_control = Y[control_units, :]
 
     # INITIALIZE PARTIAL DERIVATIVES
-    dA_dV_ki = [[None] * N1 for i in range(K)]
-    dB_dV_ki = [[None] * N1 for i in range(K)]
+    dA_dV_ki = [[None] * len(splits) for i in range(K)]
+    dB_dV_ki = [[None] * len(splits) for i in range(K)]
     b_i = [None] * N1
     for i, k in itertools.product(
         range(len(splits)), range(K)
@@ -242,6 +241,103 @@ def fold_v_matrix(
             )
         return v_pen + dGamma0_dV_term2
 
+    _grad_default = _grad
+
+    def _grad_batch(V):
+        """ 
+        Calculates just the diagonal of dGamma0_dV
+
+        There is an implementation that allows for all elements of V to be varied...
+        """
+        dv = diag(V)
+        weights, A, _ = _weights(dv)
+        # Ey = (weights.T.dot(Y_control) - Y_treated).getA()
+        dGamma0_dV_term2 = zeros(K)
+        sg = single_grad(
+            N0, N1, in_controls, splits, b_i, w_pen, treated_units, Y_treated, Y_control
+        )
+
+        for k in range(K):
+            dGamma0_dV_term2[k] = sg(A, weights, dA_dV_ki[k], dB_dV_ki[k])
+        return v_pen + dGamma0_dV_term2
+
+    def _grad_daemon(V):
+        """ 
+        Calculates just the diagonal of dGamma0_dV
+
+        There is an implementation that allows for all elements of V to be varied...
+        """
+        dv = diag(V)
+        weights, A, _ = _weights(dv)
+        # Ey = (weights.T.dot(Y_control) - Y_treated).getA()
+
+        dGamma0_dV_term2 = daemon_client.do_grad({"A": A, "weights": weights, "b_i": b_i})
+#--         thisgrad = v_pen + dGamma0_dV_term2
+#--         defgrad = _grad_default(V)
+#--         batgrad = _grad_batch(V)
+#--         if not np.all(defgrad == thisgrad) or not np.all(defgrad == batgrad ):
+#--             import pdb; pdb.set_trace();
+        return v_pen + dGamma0_dV_term2
+
+        # matricies:
+        # A [45,45]
+        # dA_dV_ki[0][0] [40,40]
+        # dB_dV_ki[0][0] [40,5]
+        # weights [45,45]
+
+    def close():
+        pass
+
+    if batch_client_config == "sg":
+        _grad = _grad_batch
+
+    elif batch_client_config == "sg_daemon":
+
+        from .utils.local_grad_daemon import local_batch_daemon
+
+        # import pdb; pdb.set_trace()
+        daemon_client = local_batch_daemon(
+            common_data={
+                "N0": N0,
+                "N1": N1,
+                "in_controls": in_controls,
+                "splits": splits,
+                "w_pen": w_pen,
+                "treated_units": treated_units,
+                "Y_treated": Y_treated,
+                "Y_control": Y_control,
+                "dA_dV_ki": dA_dV_ki,
+                "dB_dV_ki": dB_dV_ki,
+            },
+            K=K,
+        )
+        _grad = _grad_daemon
+
+        def close():
+            daemon_client.stop()
+
+    elif batch_client_config is not None:
+
+        from .utils.azure_batch_client import gradient_batch_client
+
+        daemon_client = gradient_batch_client(
+            config=batch_client_config,
+            common_data={
+                "N0": N0,
+                "N1": N1,
+                "in_controls": in_controls,
+                "splits": splits,
+                "w_pen": w_pen,
+                "treated_units": treated_units,
+                "Y_treated": Y_treated,
+                "Y_control": Y_control,
+                "dA_dV_ki": dA_dV_ki,
+                "dB_dV_ki": dB_dV_ki,
+            },
+            K=K,
+        )
+        _grad = _grad_daemon
+
     def _weights(V):
         weights = zeros((N0, N1))
         A = X.dot(V + V.T).dot(X.T) + 2 * w_pen * diag(ones(X.shape[0]))  # 5
@@ -280,7 +376,7 @@ def fold_v_matrix(
     else:
         assert callable(
             method
-        ), "Method must be a valid method name for scipy.optimize.minimize or a minimizer"  
+        ), "Method must be a valid method name for scipy.optimize.minimize or a minimizer"
         opt = method(_score, start.copy(), jac=_grad, **kwargs)
     v_mat = diag(opt.x)
     # CALCULATE weights AND ts_score
@@ -288,7 +384,7 @@ def fold_v_matrix(
     errors = Y_treated - weights.T.dot(Y_control)
     ts_loss = opt.fun
     ts_score = linalg.norm(errors) / sqrt(prod(errors.shape))
-
+    close()
     return weights, v_mat, ts_score, ts_loss, w_pen, opt
 
 
@@ -345,7 +441,7 @@ def fold_weights(
     out_controls = [
         ctrl_rng[np.logical_not(np.isin(control_units, treated_units[test]))]
         for _, test in splits
-    ]  
+    ]
 
     weights = zeros((N0, N1))
     A = X.dot(V + V.T).dot(X.T) + 2 * w_pen * diag(ones(X.shape[0]))  # 5
@@ -355,13 +451,13 @@ def fold_weights(
         if verbose >= 2:  # for large sample sizes, linalg.solve is a huge bottle neck,
             print(
                 "Calculating weights, linalg.solve() call %s of %s" % (i, len(splits))
-            )  
+            )
         try:
             b = linalg.solve(
                 A[in_controls2[i]],
                 B[np.ix_(in_controls[i], treated_units[test])]
                 + 2 * w_pen / len(in_controls[i]),
-            )  
+            )
         except linalg.LinAlgError as exc:
             print("Unique weights not possible.")
             if w_pen == 0:
