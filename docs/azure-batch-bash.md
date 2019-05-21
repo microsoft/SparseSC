@@ -1,4 +1,4 @@
-# Using Azure Batch from the Bash Terminal
+# Using Azure Batch from the Windows CMD Terminal
 
 ## Setup
 
