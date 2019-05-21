@@ -2,17 +2,12 @@
 aggregate batch results, and optionally use batch to compute the final gradient descent.
 """
 import numpy as np
-from os.path import join
-from ...cross_validation import _score_from_batch
+import os
+#$ from ...cross_validation import _score_from_batch
 from ...fit import _which, SparseSCFit
 from ...weights import weights
 from ...tensor import tensor
-
-# from SparseSC.fit import 
-
-_BATCH_CV_FILE_NAME = "cv_parameters.yaml"
-_BATCH_FIT_FILE_NAME = "fit_parameters.yaml"
-
+from . import _BATCH_CV_FILE_NAME, _BATCH_FIT_FILE_NAME
 
 def aggregate_batch_results(batchDir,batch_client_config=None, choice=None):
     """
@@ -26,10 +21,10 @@ def aggregate_batch_results(batchDir,batch_client_config=None, choice=None):
     except ImportError:
         from yaml import Loader
 
-    with open(join(batchDir, _BATCH_CV_FILE_NAME), "r") as fp:
+    with open(os.path.join(batchDir, _BATCH_CV_FILE_NAME), "r") as fp:
         _cv_params = load(fp, Loader=Loader)
 
-    with open(join(batchDir, _BATCH_FIT_FILE_NAME), "r") as fp:
+    with open(os.path.join(batchDir, _BATCH_FIT_FILE_NAME), "r") as fp:
         _fit_params = load(fp, Loader=Loader)
 
     # https://stackoverflow.com/a/17074606/1519199
@@ -164,5 +159,65 @@ def aggregate_batch_results(batchDir,batch_client_config=None, choice=None):
         scores=scores,
         selected_score=which,
     )
+
+
+
+
+def _score_from_batch(batchDir, config):
+    """
+    read in the results from a batch run
+    """
+    from yaml import load
+
+    try:
+        from yaml import CLoader as Loader
+    except ImportError:
+        from yaml import Loader
+
+    try:
+        v_pen = tuple(config["v_pen"])
+    except TypeError:
+        v_pen = (config["v_pen"],)
+
+    try:
+        w_pen = tuple(config["w_pen"])
+    except TypeError:
+        w_pen = (config["w_pen"],)
+
+    n_folds = len(config["folds"]) * len(v_pen) * len(w_pen)
+    n_pens = np.max((len(v_pen), len(w_pen)))
+    n_cv_folds = n_folds // n_pens
+
+    scores = np.empty((n_pens, n_cv_folds))
+    for i in range(n_folds):
+        # i_fold, i_v, i_w = pluck(res, "i_fold", "i_v", "i_w", )
+        i_fold = i % len(config["folds"])
+        i_pen = i // len(config["folds"])
+        with open(os.path.join(batchDir, "fold_{}.yaml".format(i)), "r") as fp:
+            res = load(fp, Loader=Loader)
+            assert (
+                res["batch"] == i
+            ), "Batch File Import Error Inconsistent batch identifiers"
+            scores[i_pen, i_fold] = res["results"][2]
+
+    # TODO: np.sqrt(len(scores)) * np.std(scores) is a quick and dirty hack for
+    # calculating the standard error of the sum from the partial sums.  It's
+    # assumes the samples are equal size and randomly allocated (which is true
+    # in the default settings).  However, it could be made more formal with a
+    # fixed effects framework, and leveraging the individual errors.
+    # https://stats.stackexchange.com/a/271223/67839
+
+    if len(v_pen) > 0 or len(w_pen):
+        n_pens = np.max((len(v_pen), len(w_pen)))
+        n_cv_folds = n_folds // n_pens
+        total_score = scores.sum(axis=1)
+        se = np.sqrt(n_cv_folds) * scores.std(axis=1)
+    else:
+        total_score = sum(scores)
+        se = np.sqrt(len(scores)) * np.std(scores)
+
+    return total_score, se
+
+
 
 

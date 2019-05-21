@@ -47,7 +47,6 @@ import sys
 import time
 import pathlib
 import importlib
-from typing import NamedTuple, Optional
 import azure.storage.blob as azureblob
 from azure.storage.blob.models import ContainerPermissions
 import azure.batch.batch_service_client as batch
@@ -55,7 +54,20 @@ import azure.batch.batch_auth as batch_auth
 import azure.batch.models as models
 from jsonschema import validate
 from SparseSC.cli.stt import get_config
-from .print_progress import print_progress
+from ..print_progress import print_progress
+from .BatchConfig import BatchConfig, validate_config
+
+
+from . import (
+    _CONTAINER,
+    _STANDARD_OUT_FILE_NAME,
+    _CONTAINER_OUTPUT_FILE,
+    _CONTAINER_INPUT_FILE,
+    _BATCH_CV_FILE_NAME,
+    _GRAD_COMMON_FILE,
+    _GRAD_PART_FILE,
+)
+
 
 from yaml import load, dump
 
@@ -64,29 +76,8 @@ try:
 except ImportError:
     from yaml import Loader, Dumper
 
-# pylint: disable=fixme
+# pylint: disable=bad-continuation, invalid-name, protected-access, line-too-long, fixme
 
-_CONTAINER = "jathorpe/sparsesc"
-
-_STANDARD_OUT_FILE_NAME = "stdout.txt"  # Standard Output file
-
-# pylint: disable=bad-continuation, invalid-name, protected-access, line-too-long
-
-try:
-    input = raw_input  # pylint:  disable=redefined-builtin
-except NameError:
-    pass
-
-
-_CONTAINER_OUTPUT_FILE = "output.yaml"  # Standard Output file
-_CONTAINER_INPUT_FILE = "input.yaml"  # Standard Output file
-
-_BATCH_CV_FILE_NAME = "cv_parameters.yaml"
-
-_GRAD_COMMON_FILE = "common.yaml"
-_GRAD_PART_FILE = "part.yaml"
-
-# _BATCH_FIT_FILE_NAME = "fit_parameters.yaml"
 
 sys.path.append(".")
 sys.path.append("..")
@@ -434,97 +425,6 @@ def _download_results(config, _blob_client, out_path, count, ptrn="fold_{}.yaml"
     return results
 
 
-# ------------------------------
-# Fail Faster
-# ------------------------------
-config_schema = {
-    "type": "object",
-    "properties": {
-        "BATCH_ACCOUNT_NAME": {"type": "string"},
-        "BATCH_ACCOUNT_KEY": {"type": "string"},
-        "BATCH_ACCOUNT_URL": {"type": "string"},
-        "STORAGE_ACCOUNT_NAME": {"type": "string"},
-        "STORAGE_ACCOUNT_KEY": {"type": "string"},
-        "REGISTRY_SERVER": {"type": "string"},
-        "REGISTRY_USERNAME": {"type": "string"},
-        "REGISTRY_PASSWORD": {"type": "string"},
-        "POOL_ID": {"type": "string"},
-        "POOL_NODE_COUNT": {"type": "number", "minimum": 0},
-        "POOL_LOW_PRIORITY_NODE_COUNT": {"type": "number", "minimum": 0},
-        "POOL_VM_SIZE": {"type": "string"},
-        "DELETE_POOL_WHEN_DONE": {"type": "boolean"},
-        "JOB_ID": {"type": "string"},
-        "DELETE_JOB_WHEN_DONE": {"type": "boolean"},
-        "CONTAINER_NAME": {
-            "type": "string",
-            "pattern": "^[a-z0-9](-?[a-z0-9]+)$",
-            "maxLength": 63,
-            "minLength": 3,
-        },
-        "BATCH_DIRECTORY": {"type": "string"},
-    },
-    # TODO: missing required properties
-}
-
-
-class BatchConfig(NamedTuple):
-    """
-    A convenience class for typing the config object
-    """
-
-    # pylint: disable=too-few-public-methods
-    POOL_ID: str
-    JOB_ID: str
-    POOL_VM_SIZE: str
-    CONTAINER_NAME: str
-    BATCH_DIRECTORY: str
-    POOL_NODE_COUNT: int = 0
-    POOL_LOW_PRIORITY_NODE_COUNT: int = 0
-    DELETE_POOL_WHEN_DONE: bool = False
-    DELETE_JOB_WHEN_DONE: bool = False
-    BATCH_ACCOUNT_NAME: Optional[str] = None
-    BATCH_ACCOUNT_KEY: Optional[str] = None
-    BATCH_ACCOUNT_URL: Optional[str] = None
-    STORAGE_ACCOUNT_NAME: Optional[str] = None
-    STORAGE_ACCOUNT_KEY: Optional[str] = None
-    REGISTRY_SERVER: Optional[str] = None
-    REGISTRY_USERNAME: Optional[str] = None
-    REGISTRY_PASSWORD: Optional[str] = None
-
-
-service_keys = (
-    "BATCH_ACCOUNT_NAME",
-    "BATCH_ACCOUNT_KEY",
-    "BATCH_ACCOUNT_URL",
-    "STORAGE_ACCOUNT_NAME",
-    "STORAGE_ACCOUNT_KEY",
-    "REGISTRY_SERVER",
-    "REGISTRY_USERNAME",
-    "REGISTRY_PASSWORD",
-)
-
-_env_config = {}
-for key in service_keys:
-    val = os.getenv(key, None)
-    if val:
-        _env_config[key] = val.strip('"')
-
-
-def validate_config(config):
-    """
-    validate the batch configuration object
-    """
-    _config = config._asdict()
-    for _key in service_keys:
-        if not _config[_key]:
-            del _config[_key]
-
-    __env_config = _env_config.copy()
-    __env_config.update(_config)
-    validate(__env_config, config_schema)
-    return BatchConfig(**__env_config)
-
-
 def run(config: BatchConfig) -> None:
     """
     Run a batch job
@@ -635,6 +535,8 @@ class gradient_batch_client:
     """
     Client object for performing gradient calculations with azure batch
     """
+
+    # pylint: disable=no-self-use
 
     def __init__(self, config: BatchConfig, common_data, K, verbose=True):
 

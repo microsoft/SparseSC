@@ -588,69 +588,6 @@ def CV_score(
 
     return total_score, se
 
-
-def _score_from_batch(batchDir, config):
-    """
-    read in the results from a batch run
-    """
-    from yaml import load
-
-    try:
-        from yaml import CLoader as Loader
-    except ImportError:
-        from yaml import Loader
-
-    try:
-        v_pen = tuple(config["v_pen"])
-    except TypeError:
-        v_pen = (config["v_pen"],)
-
-    try:
-        w_pen = tuple(config["w_pen"])
-    except TypeError:
-        w_pen = (config["w_pen"],)
-
-    n_folds = len(config["folds"]) * len(v_pen) * len(w_pen)
-    n_pens = np.max((len(v_pen), len(w_pen)))
-    n_cv_folds = n_folds // n_pens
-
-    scores = np.empty((n_pens, n_cv_folds))
-    for i in range(n_folds):
-        # i_fold, i_v, i_w = pluck(res, "i_fold", "i_v", "i_w", )
-        i_fold = i % len(config["folds"])
-        i_pen = i // len(config["folds"])
-        with open(join(batchDir, "fold_{}.yaml".format(i)), "r") as fp:
-            res = load(fp, Loader=Loader)
-            assert (
-                res["batch"] == i
-            ), "Batch File Import Error Inconsistent batch identifiers"
-            scores[i_pen, i_fold] = res["results"][2]
-
-    # TODO: np.sqrt(len(scores)) * np.std(scores) is a quick and dirty hack for
-    # calculating the standard error of the sum from the partial sums.  It's
-    # assumes the samples are equal size and randomly allocated (which is true
-    # in the default settings).  However, it could be made more formal with a
-    # fixed effects framework, and leveraging the individual errors.
-    # https://stats.stackexchange.com/a/271223/67839
-
-    if len(v_pen) > 0 or len(w_pen):
-        n_pens = np.max((len(v_pen), len(w_pen)))
-        n_cv_folds = n_folds // n_pens
-        total_score = scores.sum(axis=1)
-        se = np.sqrt(n_cv_folds) * scores.std(axis=1)
-    else:
-        total_score = sum(scores)
-        se = np.sqrt(len(scores)) * np.std(scores)
-
-    return total_score, se
-
-
-""" 
-
-import SparseSC
-SparseSC.cross_validation._score_from_batch( './results/run2', 'input.yaml')
-
-"""
 # ------------------------------------------------------------
 # utilities for maintaining a worker pool
 # ------------------------------------------------------------
