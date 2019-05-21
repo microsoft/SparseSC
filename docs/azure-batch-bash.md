@@ -82,21 +82,21 @@ timestamp = datetime.utcnow().strftime("%H%M%S")
 batchdir = os.path.expanduser("/path/to/my/batch/data/")
 
 my_config = BatchConfig(
-	# Name of the VM pool
+    # Name of the VM pool
     POOL_ID= name,
-	# number of standard nodes
+    # number of standard nodes
     POOL_NODE_COUNT=5,
-	# number of low priority nodes
+    # number of low priority nodes
     POOL_LOW_PRIORITY_NODE_COUNT=5,
-	# VM type 
+    # VM type 
     POOL_VM_SIZE= "STANDARD_A1_v2",
-	# Job ID.  Note that this must be unique.
+    # Job ID.  Note that this must be unique.
     JOB_ID= name + timestamp,
-	# Name of the storage container for storing parameters and results
+    # Name of the storage container for storing parameters and results
     CONTAINER_NAME= name,
-	# local directory with the parameters, and where the results will go
+    # local directory with the parameters, and where the results will go
     BATCH_DIRECTORY= batchdir,
-	)
+    )
 
 # run the batch job
 run_batch_job(my_config)
@@ -104,6 +104,11 @@ run_batch_job(my_config)
 # aggregate the results into a fitted model instance
 fitted_model = aggregate_batch_results(batchdir)
 ```
+
+Note that the pool configuration will only be used to create a new pool if no pool 
+by the id `POOL_ID` exists.  If the pool already exists, these parameters are
+ignored and will *not* update the pool configuration.  Changing pool attrributes 
+such as type or quantity of nodes can be done through the [Azure Portal](https://portal.azure.com/), [Azure Batch Explorer](https://azure.github.io/BatchExplorer/) or any of the APIs.
 
 ### Cleaning Up
 
