@@ -66,7 +66,7 @@ except ImportError:
 
 # pylint: disable=fixme
 
-_CONTAINER = "jathorpe/sparsesc:x-grad-daemon"
+_CONTAINER = "jathorpe/sparsesc"
 
 _STANDARD_OUT_FILE_NAME = "stdout.txt"  # Standard Output file
 
