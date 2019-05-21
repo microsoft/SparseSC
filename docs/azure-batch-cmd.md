@@ -3,10 +3,10 @@
 ## Setup
 
 The azure batch client requires some additional dependencies which can be installed via:
-
 ```bash
 pip install azure-batch azure-storage-blob jsonschema pyyaml
 ```
+Also note that this module has only been tested with Python 3.7
 
 ### Create the Required Azure resources
 
@@ -80,7 +80,7 @@ values taken from the system environment.
 ```python
 import os
 from datetime import datetime
-from SparseSC.utils.azure_batch_client import BatchConfig, run as run_batch_job, aggregate_batch_results
+from SparseSC.utils.AzureBatch import BatchConfig, run as run_batch_job, aggregate_batch_results
 
 # Batch job names must be unique, and a 
 timestamp = datetime.utcnow().strftime("%H%M%S")

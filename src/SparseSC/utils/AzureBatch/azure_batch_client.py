@@ -429,8 +429,13 @@ def _download_results(config, _blob_client, out_path, count, ptrn="fold_{}.yaml"
 
 
 def run(config: BatchConfig) -> None:
-    """
-    Run a batch job
+    r"""
+    :param config: A :class:`BatchConfig` instance with the Azure Batch run parameters
+    :type config: :class:BatchConfig
+
+    :returns: None
+
+    :raises BatchErrorException: If raised by the Azure Batch Python SDK
     """
     # pylint: disable=too-many-locals
 
