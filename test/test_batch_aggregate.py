@@ -14,6 +14,23 @@
 #
 # --------------------------------------------------------------------------------
 # pylint: disable=multiple-imports, missing-docstring
+"""
+usage 
+
+az login
+
+name="sparsesctest"
+location="westus2"
+
+export BATCH_ACCOUNT_NAME=$name
+export BATCH_ACCOUNT_KEY=$(az batch account keys list -n $name -g $name --query primary)
+export BATCH_ACCOUNT_URL="https://$name.$location.batch.azure.com"
+export STORAGE_ACCOUNT_NAME=$name
+export STORAGE_ACCOUNT_KEY=$(az storage account keys list -n $name --query [0].value)
+
+"""
+
+
 from __future__ import print_function  # for compatibility with python 2.7
 import numpy as np
 import sys, os, random
