@@ -13,16 +13,14 @@
 #     \SpasrseSC > python -m unittest test.test_fit.TestFit.test_retrospective
 #
 # --------------------------------------------------------------------------------
-
+# pylint: disable=multiple-imports, missing-docstring
 from __future__ import print_function  # for compatibility with python 2.7
 import numpy as np
 import sys, os, random
 import unittest
 import warnings
 from scipy.optimize.linesearch import LineSearchWarning
-
-from SparseSC import aggregate_batch_results
-from os.path import expanduser, join
+from SparseSC.utils.AzureBatch import aggregate_batch_results
 
 try:
     from SparseSC import fit
@@ -54,7 +52,7 @@ class TestFit(unittest.TestCase):
             warnings.filterwarnings("ignore",category=PendingDeprecationWarning)
             warnings.filterwarnings("ignore",category=LineSearchWarning)
             try:
-                verbose =1
+                verbose =0
                 model_a = fit(
                     X=obj.X,
                     Y=obj.Y,
@@ -73,8 +71,9 @@ class TestFit(unittest.TestCase):
                     verbose=0,
                 )
 
-                model_b = aggregate_batch_results( batchDir=os.path.expanduser("~/SparseSC/test/data/batchTest"), batch_client_config="sg_daemon")
-                import pdb; pdb.set_trace()
+                model_b = aggregate_batch_results( batchDir=os.path.expanduser("~/SparseSC/test/data/batchTest")) # , batch_client_config="sg_daemon"  
+
+                assert np.all(np.abs(model_a.scores - model_b.scores) < 1e-14), "model scores are not within rounding error"
 
                 if verbose:
                     print("DONE")
@@ -82,8 +81,8 @@ class TestFit(unittest.TestCase):
                 pass
             except PendingDeprecationWarning: 
                 pass
-            except Exception as exc:
-                print("Failed with %s: %s" % (exc.__class__.__name__, exc.message))
+            except Exception as exc: #pylint: disable=broad-except
+                print("Failed with %s(%s)" % (exc.__class__.__name__, getattr(exc,"message","")))
 
     def test_retrospective(self):
         TestFit.run_test(self, "retrospective")

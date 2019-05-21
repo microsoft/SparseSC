@@ -52,22 +52,9 @@ from azure.storage.blob.models import ContainerPermissions
 import azure.batch.batch_service_client as batch
 import azure.batch.batch_auth as batch_auth
 import azure.batch.models as models
-from jsonschema import validate
 from SparseSC.cli.stt import get_config
 from ..print_progress import print_progress
 from .BatchConfig import BatchConfig, validate_config
-
-
-from . import (
-    _CONTAINER,
-    _STANDARD_OUT_FILE_NAME,
-    _CONTAINER_OUTPUT_FILE,
-    _CONTAINER_INPUT_FILE,
-    _BATCH_CV_FILE_NAME,
-    _GRAD_COMMON_FILE,
-    _GRAD_PART_FILE,
-)
-
 
 from yaml import load, dump
 
@@ -75,6 +62,15 @@ try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
     from yaml import Loader, Dumper
+
+from .constants import (
+    _STANDARD_OUT_FILE_NAME,
+    _CONTAINER_OUTPUT_FILE,
+    _CONTAINER_INPUT_FILE,
+    _BATCH_CV_FILE_NAME,
+    _GRAD_COMMON_FILE,
+    _GRAD_PART_FILE,
+)
 
 # pylint: disable=bad-continuation, invalid-name, protected-access, line-too-long, fixme
 
@@ -215,11 +211,12 @@ def create_pool(config, batch_service_client):
             registry_server=config.REGISTRY_SERVER,
         )
         container_conf = batch.models.ContainerConfiguration(
-            container_image_names=[_CONTAINER], container_registries=[registry]
+            container_image_names=[config.DOCKER_CONTAINER],
+            container_registries=[registry],
         )
     else:
         container_conf = batch.models.ContainerConfiguration(
-            container_image_names=[_CONTAINER]
+            container_image_names=[config.DOCKER_CONTAINER]
         )
 
     new_pool = batch.models.PoolAddParameter(
@@ -255,7 +252,13 @@ def create_job(batch_service_client, job_id, pool_id):
 
 
 def add_tasks(
-    _blob_client, batch_service_client, container_sas_url, job_id, _input_file, count
+    config,
+    _blob_client,
+    batch_service_client,
+    container_sas_url,
+    job_id,
+    _input_file,
+    count,
 ):
     """
     Adds a task for each input file in the collection to the specified job.
@@ -280,7 +283,7 @@ def add_tasks(
         )
 
         task_container_settings = models.TaskContainerSettings(
-            image_name=_CONTAINER, container_run_options="scgrad start"
+            image_name=config.DOCKER_CONTAINER
         )
 
         tasks.append(
@@ -490,6 +493,7 @@ def run(config: BatchConfig) -> None:
 
         # Add the tasks to the job.
         add_tasks(
+            config,
             blob_client,
             batch_client,
             CONTAINER_SAS_URL,
@@ -656,12 +660,12 @@ class gradient_batch_client:
                     registry_server=self.config.REGISTRY_SERVER,
                 )
                 task_container_settings = models.TaskContainerSettings(
-                    image_name=_CONTAINER, registry=registry
+                    image_name=self.config.DOCKER_CONTAINER, registry=registry
                 )
                 # pdb.set_trace()
             else:
                 task_container_settings = models.TaskContainerSettings(
-                    image_name=_CONTAINER
+                    image_name=self.config.DOCKER_CONTAINER
                 )
 
             tasks.append(
