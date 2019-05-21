@@ -75,8 +75,11 @@ class TestFit(unittest.TestCase):
                 pass
             except PendingDeprecationWarning: 
                 pass
-            except Exception as exc:
-                print("Failed with %s: %s" % (exc.__class__.__name__, exc.message))
+            except Exception as exc:  # pylint: disable=broad-except
+                print(
+                    "Failed with %s(%s)"
+                    % (exc.__class__.__name__, getattr(exc, "message", ""))
+                )
 
     def test_retrospective(self):
         TestFit.run_test(self, "retrospective")

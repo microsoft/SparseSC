@@ -36,13 +36,13 @@ import numpy as np
 import sys, os, random
 import unittest
 import warnings
-from scipy.optimize.linesearch import LineSearchWarning
-from SparseSC.utils.AzureBatch import aggregate_batch_results
 
 try:
     from SparseSC import fit
 except ImportError:
     raise RuntimeError("SparseSC is not installed. use 'pip install -e .' to install")
+from scipy.optimize.linesearch import LineSearchWarning
+from SparseSC.utils.AzureBatch import aggregate_batch_results
 
 
 class TestFit(unittest.TestCase):
@@ -66,10 +66,10 @@ class TestFit(unittest.TestCase):
         sys.stdout.flush()
 
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore",category=PendingDeprecationWarning)
-            warnings.filterwarnings("ignore",category=LineSearchWarning)
+            warnings.filterwarnings("ignore", category=PendingDeprecationWarning)
+            warnings.filterwarnings("ignore", category=LineSearchWarning)
             try:
-                verbose =0
+                verbose = 0
                 model_a = fit(
                     X=obj.X,
                     Y=obj.Y,
@@ -88,36 +88,40 @@ class TestFit(unittest.TestCase):
                     verbose=0,
                 )
 
-                model_b = aggregate_batch_results( batchDir=os.path.expanduser("~/SparseSC/test/data/batchTest")) # , batch_client_config="sg_daemon"  
+                model_b = aggregate_batch_results(
+                    batchDir=os.path.expanduser("~/SparseSC/test/data/batchTest")
+                )  # , batch_client_config="sg_daemon"
 
-                assert np.all(np.abs(model_a.scores - model_b.scores) < 1e-14), "model scores are not within rounding error"
+                assert np.all(
+                    np.abs(model_a.scores - model_b.scores) < 1e-14
+                ), "model scores are not within rounding error"
 
                 if verbose:
                     print("DONE")
             except LineSearchWarning:
                 pass
-            except PendingDeprecationWarning: 
+            except PendingDeprecationWarning:
                 pass
-            except Exception as exc: #pylint: disable=broad-except
-                print("Failed with %s(%s)" % (exc.__class__.__name__, getattr(exc,"message","")))
+            except Exception as exc:  # pylint: disable=broad-except
+                print(
+                    "Failed with %s(%s)"
+                    % (exc.__class__.__name__, getattr(exc, "message", ""))
+                )
 
     def test_retrospective(self):
         TestFit.run_test(self, "retrospective")
 
-#--     def test_prospective(self):
-#--         TestFit.run_test(self, "prospective")
-#-- 
-#--     def test_prospective_restrictive(self):
-#--         # Catch the LineSearchWarning silently, but allow others
-#-- 
-#--         TestFit.run_test(self, "prospective-restricted")
-#-- 
-#--     def test_full(self):
-#--         TestFit.run_test(self, "full")
+# --     def test_prospective(self):
+# --         TestFit.run_test(self, "prospective")
+# --
+# --     def test_prospective_restrictive(self):
+# --         # Catch the LineSearchWarning silently, but allow others
+# --
+# --         TestFit.run_test(self, "prospective-restricted")
+# --
+# --     def test_full(self):
+# --         TestFit.run_test(self, "full")
 
 
 if __name__ == "__main__":
-    # t = TestFit()
-    # t.setUp()
-    # t.test_retrospective()
     unittest.main()
