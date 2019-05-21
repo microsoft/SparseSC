@@ -44,8 +44,13 @@ timestamp = datetime.datetime.utcnow().strftime("%H%M%S")
 class TestFit(unittest.TestCase):
     def test_retrospective(self):
 
-        name = "test43"
-        batchdir = os.path.expanduser("~/SparseSC/test/data/batchTest/")
+        name = os.getenv("name")
+        if name is None:
+            raise RuntimeError(
+                "Please create an environment variable called 'name' as en the example docs"
+            )
+        batchdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "batchTest")
+        assert os.path.exists(batchdir), "Batch Directory '{}' does not exist".format(batchdir)
 
         my_config = BatchConfig(
             POOL_ID=name,

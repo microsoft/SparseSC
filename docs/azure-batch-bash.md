@@ -29,15 +29,20 @@ location="westus2"
 
 # create the resources
 az group create -l $location -n $name
-az storage account create -n $name -g run-dammit
+az storage account create -n $name -g $name
 az batch account create -l $location -n $name -g $name --storage-account $name
 ```
 
+*(Aside: since we're using the `name` for parameter for the resource group
+storage account and batch account, it must consist of 3-24 lower case
+letters and be unique across all of azure)* 
+
 ### Gather Resource Credentials
 
-We'll need some information about created accounts in order to create and
-run batch jobs. We can create bash variables that contain the information
-that the SparseSC azure batch client will require, with the following:
+We'll need some information about the batch and storage accounts in order
+to create and run batch jobs. We can create bash variables that contain the
+information that the SparseSC azure batch client will require, with the
+following:
 
 ```bash
 export BATCH_ACCOUNT_NAME=$name
@@ -76,7 +81,6 @@ import os
 from datetime import datetime
 from SparseSC.utils.azure_batch_client import BatchConfig, run as run_batch_job, aggregate_batch_results
 
-name = "test43"
 # Batch job names must be unique, and a 
 timestamp = datetime.utcnow().strftime("%H%M%S")
 batchdir = os.path.expanduser("/path/to/my/batch/data/")
@@ -96,6 +100,12 @@ my_config = BatchConfig(
     CONTAINER_NAME= name,
     # local directory with the parameters, and where the results will go
     BATCH_DIRECTORY= batchdir,
+	# Keep the pool around after the run, which saves time when doing
+	# multiple batch jobs, as it typically takes a few minutes to spin up a
+	# pool of VMs
+    DELETE_POOL_WHEN_DONE=False,
+	# Keeping the job details can be useful for debugging:
+    DELETE_JOB_WHEN_DONE=False
     )
 
 # run the batch job

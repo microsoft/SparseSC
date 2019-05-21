@@ -47,6 +47,8 @@ class TestFit(unittest.TestCase):
             print("Calling fit with `model_type  = '%s'`..." % (model_type,), end="")
         sys.stdout.flush()
 
+        batchdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "batchTest")
+
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore",category=PendingDeprecationWarning)
             warnings.filterwarnings("ignore",category=LineSearchWarning)
@@ -67,7 +69,7 @@ class TestFit(unittest.TestCase):
                     min_iter=-1,
                     tol=1,
                     verbose=0,
-                    batchDir=os.path.expanduser("~/SparseSC/test/data/batchTest")
+                    batchDir=batchdir
                 )
                 if verbose:
                     print("DONE")
