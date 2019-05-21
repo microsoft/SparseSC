@@ -7,7 +7,7 @@ from os.path import join
 from warnings import warn
 from inspect import signature
 from .utils.penalty_utils import get_max_w_pen, get_max_v_pen, w_pen_guestimate
-from .cross_validation import CV_score, _score_from_batch
+from .cross_validation import CV_score
 from .tensor import tensor
 from .weights import weights
 from .utils.warnings import SparseSCWarning
@@ -241,7 +241,6 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
     #  BUILD THE STOPPING RULE
     # --------------------------------------------------
     if callable(stopping_rule):
-        stopping_rule = stopping_rule
         parameters = len(signature(stopping_rule).parameters)
     else:
         assert stopping_rule > 0, "stopping_rule must be positive number or a function"
