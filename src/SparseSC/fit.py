@@ -410,6 +410,7 @@ def _fit(
             "kwargs": kwargs,
         }
 
+        from .utils.AzureBatch.constants import _BATCH_FIT_FILE_NAME
         with open(join(batchDir, _BATCH_FIT_FILE_NAME), "w") as fp:
             fp.write(dump(_fit_params, Dumper=Dumper))
 
