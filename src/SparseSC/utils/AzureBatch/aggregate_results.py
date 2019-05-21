@@ -7,7 +7,7 @@ import os
 from ...fit import _which, SparseSCFit
 from ...weights import weights
 from ...tensor import tensor
-from . import _BATCH_CV_FILE_NAME, _BATCH_FIT_FILE_NAME
+from .constants import _BATCH_CV_FILE_NAME, _BATCH_FIT_FILE_NAME
 
 def aggregate_batch_results(batchDir,batch_client_config=None, choice=None):
     """

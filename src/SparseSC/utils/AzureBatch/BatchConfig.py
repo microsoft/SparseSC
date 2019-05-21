@@ -2,6 +2,9 @@
 configuration for azure batch
 """
 from typing import NamedTuple, Optional
+from jsonschema import validate
+from .constants import _DOCKER_CONTAINER
+import os
 
 # ------------------------------
 # Fail Faster
@@ -31,6 +34,7 @@ config_schema = {
             "minLength": 3,
         },
         "BATCH_DIRECTORY": {"type": "string"},
+        "DOCKER_CONTAINER": {"type": "string"},
     },
     # TODO: missing required properties
 }
@@ -59,6 +63,7 @@ class BatchConfig(NamedTuple):
     REGISTRY_SERVER: Optional[str] = None
     REGISTRY_USERNAME: Optional[str] = None
     REGISTRY_PASSWORD: Optional[str] = None
+    DOCKER_CONTAINER: Optional[str] = _DOCKER_CONTAINER
 
 
 service_keys = (
@@ -92,4 +97,3 @@ def validate_config(config):
     __env_config.update(_config)
     validate(__env_config, config_schema)
     return BatchConfig(**__env_config)
-
