@@ -226,22 +226,3 @@ az group delete -n %name%
    [`O(N^3)`](https://stackoverflow.com/a/12665483/1519199). While it is
    possible to run this step in parallel as well, it hasn't yet been
    implemented.
-
-```eval_rst
-.. autoclass:: SparseSC.utils.AzureBatch.BatchConfig
-    :members:
-    :show-inheritance:
-
-```eval_rst
-.. autoclass:: SparseSC.utils.AzureBatch.BatchConfig
-    :members:
-    :show-inheritance:
-
-```
-
-```eval_rst
-.. autoclass:: SparseSC.utils.AzureBatch.run
-    :members:
-    :show-inheritance:
-
-```
