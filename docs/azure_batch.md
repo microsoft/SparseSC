@@ -151,7 +151,7 @@ my_config = BatchConfig(
     # Keeping the job details can be useful for debugging:
     # (Optional. Default = False)
     DELETE_JOB_WHEN_DONE=False
-    )
+)
 
 # run the batch job
 run_batch_job(my_config)
@@ -179,6 +179,7 @@ az group delete -n $name
 ```bat
 az group delete -n %name%
 ```
+
 ```eval_rst
 .. autoclass:: SparseSC.utils.AzureBatch.BatchConfig
     :members:
@@ -192,4 +193,3 @@ az group delete -n %name%
     :show-inheritance:
 
 ```
-
