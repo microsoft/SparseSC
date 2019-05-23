@@ -180,6 +180,58 @@ az group delete -n $name
 az group delete -n %name%
 ```
 
+## FAQ
+
+1. What if I get disconnected while the batch job is running?
+	
+	Once the pool and the job are created, they will keep running until the
+	job completes, or your delete the resources.  You can reconnect to the
+	job and download the results with 
+
+	```python
+    from SparseSC.utils.AzureBatch import load_results
+	load_results(my_config)
+	```
+
+	In fact, if you'd rather not wait for the job to compelte, you can
+	add the parameter `run_batch_job(... ,wait=False)` and the
+	`run_batch_job` will return as soon as the job and pool configuration
+	have been createdn in Azure.
+
+
+1. `run()` or `load_results()` complain that the results are in complete.
+   What happened? 
+
+   Typically this means that one or more of the jobs failed, and a common
+   reason for the job to fail is that the VM runs out of memory while
+   running the batch job.  Failed Jobs can be viewed in either the Azure
+   Batch Explorer or the Azure Portal. The `POOL_VM_SIZE` use above
+   ("STANDARD_A1_v2") is one of the smallest (and cheapest) VMs available
+   on Azure.  Upgrading to a VM with more memory can help in this
+   situation.
+
+1. Why does `aggregate_batch_results()` take so long?
+
+   Each batch job runs a single gradient descent in V space using a subset
+   (Cross Validation fold) of the data and with a single pair of penalty
+   parameters, and return the out of sample error for the held out samples.
+   `aggregate_batch_results()` very quickly aggregates these out of sample
+   errors and chooses the optimal penalty parameters given the `choice`
+   parameter provided to `fit()` or `aggregate_batch_results()`.  Finally,
+   with the selected parameters, a final gradient descent is run using the
+   full dataset which will be larger than the and take longer as the rate
+   limiting step
+   ( [scipy.linalg.solve](https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.solve.html) )
+   has a running time of
+   [`O(N^3)`](https://stackoverflow.com/a/12665483/1519199). While it is
+   possible to run this step in parallel as well, it hasn't yet been
+   implemented.
+
+```eval_rst
+.. autoclass:: SparseSC.utils.AzureBatch.BatchConfig
+    :members:
+    :show-inheritance:
+
 ```eval_rst
 .. autoclass:: SparseSC.utils.AzureBatch.BatchConfig
     :members:
