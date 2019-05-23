@@ -144,12 +144,12 @@ my_config = BatchConfig(
     CONTAINER_NAME= name,
     # local directory with the parameters, and where the results will go
     BATCH_DIRECTORY= batchdir,
-	# Keep the pool around after the run, which saves time when doing
-	# multiple batch jobs, as it typically takes a few minutes to spin up a
-	# pool of VMs. (Optional. Default = False)
+    # Keep the pool around after the run, which saves time when doing
+    # multiple batch jobs, as it typically takes a few minutes to spin up a
+    # pool of VMs. (Optional. Default = False)
     DELETE_POOL_WHEN_DONE=False,
-	# Keeping the job details can be useful for debugging:
-	# (Optional. Default = False)
+    # Keeping the job details can be useful for debugging:
+    # (Optional. Default = False)
     DELETE_JOB_WHEN_DONE=False
     )
 
