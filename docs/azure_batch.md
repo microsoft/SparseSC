@@ -125,7 +125,7 @@ import os
 from datetime import datetime
 from SparseSC.utils.AzureBatch import BatchConfig, run as run_batch_job, aggregate_batch_results
 
-# Batch job names must be unique, and a 
+# Batch job names must be unique, and a timestamp is one way to keep it uniquie across runs
 timestamp = datetime.utcnow().strftime("%H%M%S")
 batchdir = "/path/to/my/batch/data/"
 
@@ -146,9 +146,10 @@ my_config = BatchConfig(
     BATCH_DIRECTORY= batchdir,
 	# Keep the pool around after the run, which saves time when doing
 	# multiple batch jobs, as it typically takes a few minutes to spin up a
-	# pool of VMs
+	# pool of VMs. (Optional. Default = False)
     DELETE_POOL_WHEN_DONE=False,
 	# Keeping the job details can be useful for debugging:
+	# (Optional. Default = False)
     DELETE_JOB_WHEN_DONE=False
     )
 
