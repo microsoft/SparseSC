@@ -107,7 +107,7 @@ explicitly.
 Parameters for a batch job can be created using `fit()` by providing a directory where the batch parameters should be stored:
 ```python
 from SparseSC import fit
-batch_dir = os.path.expanduser("/path/to/my/batch/data/")
+batch_dir = "/path/to/my/batch/data/"
 
 # initialize the batch parameters in the directory `batch_dir`
 fit(x, y, ... , batchdir = batch_dir)
@@ -127,7 +127,7 @@ from SparseSC.utils.AzureBatch import BatchConfig, run as run_batch_job, aggrega
 
 # Batch job names must be unique, and a 
 timestamp = datetime.utcnow().strftime("%H%M%S")
-batchdir = os.path.expanduser("/path/to/my/batch/data/")
+batchdir = "/path/to/my/batch/data/"
 
 my_config = BatchConfig(
     # Name of the VM pool
