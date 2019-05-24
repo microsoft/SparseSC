@@ -17,7 +17,7 @@ Also note that this module has only been tested with Python 3.7
 ### Create the Required Azure resources
 
 Using Azure batch requires an azure account, and we'll demonstrate how to run
-this module using the [azure command line tool]().
+this module using the [azure command line tool](https://docs.microsoft.com/en-us/cli/azure/).
 
 After logging into the console with `az login`,  you'll need to create an azure
 resource group into which the batch account is created.  In addition, the 
