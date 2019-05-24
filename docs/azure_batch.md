@@ -42,22 +42,23 @@ az batch account create -l $location -n $name -g $name --storage-account $name
 ###### Bash
 ```bash
 # parameters
-set name=sparsesctest
-set location=westus2
-# create the resources
-az group create -l %location% -n %name%
-az storage account create -n %name% -g %name%
-az batch account create -l %location% -n %name% -g %name% --storage-account %name%
-```
-###### CMD
-```bash
-# parameters
 name="sparsesctest"
 location="westus2"
 # create the resources
 az group create -l $location -n $name
 az storage account create -n $name -g $name
 az batch account create -l $location -n $name -g $name --storage-account $name
+```
+
+###### CMD
+```bash
+# parameters
+set name=sparsesctest
+set location=westus2
+# create the resources
+az group create -l %location% -n %name%
+az storage account create -n %name% -g %name%
+az batch account create -l %location% -n %name% -g %name% --storage-account %name%
 ```
 
 *(Aside: since we're using the `name` for parameter for the resource group
