@@ -34,7 +34,7 @@ from __future__ import print_function  # for compatibility with python 2.7
 import os, unittest, datetime
 
 try:
-    from SparseSC.utils.AzureBatch import BatchConfig, run as run_batch_job
+    from SparseSC.utils.AzureBatch import BatchConfig, run as run_batch_job, load_results
 except ImportError:
     raise RuntimeError("SparseSC is not installed. use 'pip install -e .' to install")
 
@@ -42,6 +42,33 @@ timestamp = datetime.datetime.utcnow().strftime("%H%M%S")
 
 
 class TestFit(unittest.TestCase):
+
+    def test_retrospective_no_wait(self):
+        """
+        test the no-wait and load_results API
+        """
+
+        name = os.getenv("name")
+        if name is None:
+            raise RuntimeError(
+                "Please create an environment variable called 'name' as en the example docs"
+            )
+        batchdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "batchTest")
+        assert os.path.exists(batchdir), "Batch Directory '{}' does not exist".format(batchdir)
+
+        my_config = BatchConfig(
+            POOL_ID=name,
+            POOL_LOW_PRIORITY_NODE_COUNT=5,
+            POOL_VM_SIZE="STANDARD_A1_v2",
+            JOB_ID=name + timestamp,
+            CONTAINER_NAME=name,
+            BATCH_DIRECTORY=batchdir,
+            DOCKER_CONTAINER="jdthorpe/sparsesc:latest",
+        )
+
+        run_batch_job(my_config,wait=False)
+        load_results(my_config)
+
     def test_retrospective(self):
 
         name = os.getenv("name")
