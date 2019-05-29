@@ -109,13 +109,13 @@ def loo_v_matrix(
 
     # parameter QC
     try:
-        X = np.asmatrix(X)
+        X = np.float64(X)
     except ValueError:
-        raise TypeError("X is not coercible to a matrix")
+        raise ValueError("X is not coercible to a numpy float64")
     try:
-        Y = np.asmatrix(Y)
+        Y = np.float64(Y)
     except ValueError:
-        raise TypeError("Y is not coercible to a matrix")
+        raise ValueError("Y is not coercible to a numpy float64")
     if X.shape[1] == 0:
         raise ValueError("X.shape[1] == 0")
     if Y.shape[1] == 0:

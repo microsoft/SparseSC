@@ -46,6 +46,7 @@ import sys
 import time
 import pathlib
 import importlib
+from collections import defaultdict
 import azure.storage.blob as azureblob
 from azure.storage.blob.models import ContainerPermissions
 import azure.batch.batch_service_client as batch
@@ -332,6 +333,17 @@ def wait_for_tasks_to_complete(batch_service_client, job_id, timeout):
             decimals=1,
             bar_length=min(len(tasks), 50),
         )
+
+        error_codes = [t.execution_info.exit_code for t in tasks if t.execution_info and t.execution_info.exit_code ]
+        if error_codes:
+            codes = defaultdict(lambda : 0)
+            for cd in error_codes:
+                codes[cd] +=1 
+            print( "\nSome tasks have exited with a non-zero exit code including: " + ", ".join([ "{}({})".format(k,v) for k, v in codes.items() ] ))
+            if 137 in codes:
+                print("Note that error code 137 often results from an out-of-memory error.  Consider using a VM Pool with more memory per VM")
+            import pdb; pdb.set_trace()
+            sys.exit()
         if not incomplete_tasks:
             print()
             return True

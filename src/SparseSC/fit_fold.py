@@ -107,13 +107,13 @@ def fold_v_matrix(
 
     # parameter QC
     try:
-        X = np.asmatrix(X)
+        X = np.float64(X)
     except ValueError:
-        raise ValueError("X is not coercible to a matrix")
+        raise ValueError("X is not coercible to a numpy float64")
     try:
-        Y = np.asmatrix(Y)
+        Y = np.float64(Y)
     except ValueError:
-        raise ValueError("Y is not coercible to a matrix")
+        raise ValueError("Y is not coercible to a numpy float64")
     if X.shape[1] == 0:
         raise ValueError("X.shape[1] == 0")
     if Y.shape[1] == 0:
@@ -271,12 +271,14 @@ def fold_v_matrix(
         weights, A, _ = _weights(dv)
         # Ey = (weights.T.dot(Y_control) - Y_treated).getA()
 
-        dGamma0_dV_term2 = daemon_client.do_grad({"A": A, "weights": weights, "b_i": b_i})
-#--         thisgrad = v_pen + dGamma0_dV_term2
-#--         defgrad = _grad_default(V)
-#--         batgrad = _grad_batch(V)
-#--         if not np.all(defgrad == thisgrad) or not np.all(defgrad == batgrad ):
-#--             import pdb; pdb.set_trace();
+        dGamma0_dV_term2 = daemon_client.do_grad(
+            {"A": A, "weights": weights, "b_i": b_i}
+        )
+        # --         thisgrad = v_pen + dGamma0_dV_term2
+        # --         defgrad = _grad_default(V)
+        # --         batgrad = _grad_batch(V)
+        # --         if not np.all(defgrad == thisgrad) or not np.all(defgrad == batgrad ):
+        # --             import pdb; pdb.set_trace();
         return v_pen + dGamma0_dV_term2
 
         # matricies:
