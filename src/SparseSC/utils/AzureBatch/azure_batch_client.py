@@ -339,11 +339,8 @@ def wait_for_tasks_to_complete(batch_service_client, job_id, timeout):
             codes = defaultdict(lambda : 0)
             for cd in error_codes:
                 codes[cd] +=1 
-            print( "\nSome tasks have exited with a non-zero exit code including: " + ", ".join([ "{}({})".format(k,v) for k, v in codes.items() ] ))
-            if 137 in codes:
-                print("Note that error code 137 often results from an out-of-memory error.  Consider using a VM Pool with more memory per VM")
-            import pdb; pdb.set_trace()
-            sys.exit()
+            # import pdb; pdb.set_trace()
+            raise RuntimeError( "\nSome tasks have exited with a non-zero exit code including: " + ", ".join([ "{}({})".format(k,v) for k, v in codes.items() ] ))
         if not incomplete_tasks:
             print()
             return True

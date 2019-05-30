@@ -34,10 +34,10 @@ def fold_v_matrix(
         penalty parameter.
 
     :param X: Matrix of Covariates
-    :type X: coercible to :class:`numpy.matrix`
+    :type X: coercible to :class:`numpy.float64`
 
     :param Y: Matrix of Outcomes
-    :type Y: coercible to :class:`numpy.matrix`
+    :type Y: coercible to :class:`numpy.float64`
 
     :param v_pen: penalty parameter used to shrink L1 norm of v/v.max() toward zero
     :type v_pen: float

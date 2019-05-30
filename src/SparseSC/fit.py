@@ -193,6 +193,16 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
     # --------------------------------------------------
     # PARAMETER VALIDATION
     # --------------------------------------------------
+
+    try:
+        X = np.float64(X)
+    except ValueError:
+        raise ValueError("X is not coercible to a numpy float64")
+    try:
+        Y = np.float64(Y)
+    except ValueError:
+        raise ValueError("Y is not coercible to a numpy float64")
+
     w_pen_is_iterable = False
     try:
         iter(w_pen)

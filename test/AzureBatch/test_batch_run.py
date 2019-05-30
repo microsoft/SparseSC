@@ -13,7 +13,7 @@
 #     \SpasrseSC > python -m unittest test.test_fit.TestFit.test_retrospective
 #
 # --------------------------------------------------------------------------------
-# pylint: disable=multiple-imports, missing-docstring
+# pylint: disable=multiple-imports, missing-docstring, no-self-use
 """
 usage 
 

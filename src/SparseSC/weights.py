@@ -13,9 +13,9 @@ def weights(X, X_treat=None, grad_splits=None, custom_donor_pool=None, **kwargs)
 
     # PARAMETER QC
     try:
-        X = np.asmatrix(X)
+        X = np.float64(X)
     except ValueError:
-        raise TypeError("X is not coercible to a matrix")
+        raise TypeError("X is not coercible to float64")
 
     if X_treat is not None:
         # weight for the control units against the remaining controls:
@@ -25,9 +25,9 @@ def weights(X, X_treat=None, grad_splits=None, custom_donor_pool=None, **kwargs)
 
         # PARAMETER QC
         try:
-            X_treat = np.asmatrix(X_treat)
+            X_treat = np.float64(X_treat)
         except ValueError:
-            raise ValueError("X_treat is not coercible to a matrix")
+            raise ValueError("X_treat is not coercible to float64")
         if X_treat.shape[1] == 0:
             raise ValueError("X_treat.shape[1] == 0")
 

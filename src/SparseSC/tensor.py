@@ -12,13 +12,13 @@ def tensor(X, Y, X_treat=None, Y_treat=None, grad_splits=None, **kwargs):
     """
     # PARAMETER QC
     try:
-        X = np.asmatrix(X)
+        X = np.float64(X)
     except ValueError:
-        raise ValueError("X is not coercible to a matrix")
+        raise ValueError("X is not coercible to float64")
     try:
-        Y = np.asmatrix(Y)
+        Y = np.float64(Y)
     except ValueError:
-        raise ValueError("Y is not coercible to a matrix")
+        raise ValueError("Y is not coercible to float64")
     if X.shape[1] == 0:
         raise ValueError("X.shape[1] == 0")
     if Y.shape[1] == 0:
@@ -40,13 +40,13 @@ def tensor(X, Y, X_treat=None, Y_treat=None, grad_splits=None, **kwargs):
 
         # PARAMETER QC
         try:
-            X_treat = np.asmatrix(X_treat)
+            X_treat = np.float64(X_treat)
         except ValueError:
-            raise ValueError("X_treat is not coercible to a matrix")
+            raise ValueError("X_treat is not coercible to float64")
         try:
-            Y_treat = np.asmatrix(Y_treat)
+            Y_treat = np.float64(Y_treat)
         except ValueError:
-            raise ValueError("Y_treat is not coercible to a matrix")
+            raise ValueError("Y_treat is not coercible to float64")
         if X_treat.shape[1] == 0:
             raise ValueError("X_treat.shape[1] == 0")
         if Y_treat.shape[1] == 0:

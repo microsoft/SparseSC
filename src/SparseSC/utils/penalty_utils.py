@@ -42,11 +42,11 @@ def get_max_v_pen(X, Y, w_pen=None, X_treat=None, Y_treat=None, **kwargs):
 
     # PARAMETER QC
     try:
-        X = np.asmatrix(X)
+        X = np.float64(X)
     except ValueError:
         raise ValueError("X is not coercible to a matrix")
     try:
-        Y = np.asmatrix(Y)
+        Y = np.float64(Y)
     except ValueError:
         raise ValueError("Y is not coercible to a matrix")
     if (X_treat is None) != (Y_treat is None):
