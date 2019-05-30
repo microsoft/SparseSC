@@ -49,6 +49,10 @@ def get_max_v_pen(X, Y, w_pen=None, X_treat=None, Y_treat=None, **kwargs):
         Y = np.float64(Y)
     except ValueError:
         raise ValueError("Y is not coercible to a matrix")
+    Y = np.asmatrix(Y) # this needs to be deprecated properly -- bc Array.dot(Array) != matrix(Array).dot(matrix(Array)) -- not even close !!!
+    X = np.asmatrix(X)
+
+    
     if (X_treat is None) != (Y_treat is None):
         raise ValueError(
             "parameters `X_treat` and `Y_treat` must both be Matrices or None"

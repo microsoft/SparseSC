@@ -17,6 +17,7 @@ def weights(X, X_treat=None, grad_splits=None, custom_donor_pool=None, **kwargs)
     except ValueError:
         raise TypeError("X is not coercible to float64")
 
+    X = np.asmatrix(X) # this needs to be deprecated properly -- bc Array.dot(Array) != matrix(Array).dot(matrix(Array)) -- not even close !!!
     if X_treat is not None:
         # weight for the control units against the remaining controls:
 
@@ -28,6 +29,10 @@ def weights(X, X_treat=None, grad_splits=None, custom_donor_pool=None, **kwargs)
             X_treat = np.float64(X_treat)
         except ValueError:
             raise ValueError("X_treat is not coercible to float64")
+
+        # this needs to be deprecated properly -- bc Array.dot(Array) != matrix(Array).dot(matrix(Array)) -- not even close !!!
+        X_treat = np.asmatrix(X_treat)
+
         if X_treat.shape[1] == 0:
             raise ValueError("X_treat.shape[1] == 0")
 

@@ -93,6 +93,9 @@ def ct_v_matrix(
         Y = np.float64(Y)
     except ValueError:
         raise ValueError("Y is not coercible to a numpy float64")
+    Y = np.asmatrix(Y) # this needs to be deprecated properly -- bc Array.dot(Array) != matrix(Array).dot(matrix(Array)) -- not even close !!!
+    X = np.asmatrix(X)
+
     if X.shape[1] == 0:
         raise ValueError("X.shape[1] == 0")
     if Y.shape[1] == 0:

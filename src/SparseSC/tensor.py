@@ -19,6 +19,10 @@ def tensor(X, Y, X_treat=None, Y_treat=None, grad_splits=None, **kwargs):
         Y = np.float64(Y)
     except ValueError:
         raise ValueError("Y is not coercible to float64")
+
+    Y = np.asmatrix(Y) # this needs to be deprecated properly -- bc Array.dot(Array) != matrix(Array).dot(matrix(Array)) -- not even close !!!
+    X = np.asmatrix(X)
+
     if X.shape[1] == 0:
         raise ValueError("X.shape[1] == 0")
     if Y.shape[1] == 0:
@@ -47,6 +51,10 @@ def tensor(X, Y, X_treat=None, Y_treat=None, grad_splits=None, **kwargs):
             Y_treat = np.float64(Y_treat)
         except ValueError:
             raise ValueError("Y_treat is not coercible to float64")
+
+        Y_treat = np.asmatrix(Y_treat) # this needs to be deprecated properly -- bc Array.dot(Array) != matrix(Array).dot(matrix(Array)) -- not even close !!!
+        X_treat = np.asmatrix(X_treat)
+
         if X_treat.shape[1] == 0:
             raise ValueError("X_treat.shape[1] == 0")
         if Y_treat.shape[1] == 0:

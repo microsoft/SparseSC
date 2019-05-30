@@ -203,6 +203,9 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
     except ValueError:
         raise ValueError("Y is not coercible to a numpy float64")
 
+    Y = np.asmatrix(Y) # this needs to be deprecated properly -- bc Array.dot(Array) != matrix(Array).dot(matrix(Array)) -- not even close !!!
+    X = np.asmatrix(X)
+
     w_pen_is_iterable = False
     try:
         iter(w_pen)

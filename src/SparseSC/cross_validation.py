@@ -87,6 +87,10 @@ def score_train_test(
             Y = np.float64(Y)
         except ValueError:
             raise ValueError("Y is not coercible to numpy float64")
+
+        Y = np.asmatrix(Y) # this needs to be deprecated properly -- bc Array.dot(Array) != matrix(Array).dot(matrix(Array)) -- not even close !!!
+        X = np.asmatrix(X)
+
         if X_treat.shape[1] == 0:
             raise ValueError("X_treat.shape[1] == 0")
         if Y_treat.shape[1] == 0:
@@ -295,6 +299,10 @@ def CV_score(
         Y = np.float64(Y)
     except ValueError:
         raise ValueError("X is not coercible to float64")
+
+    Y = np.asmatrix(Y) # this needs to be deprecated properly -- bc Array.dot(Array) != matrix(Array).dot(matrix(Array)) -- not even close !!!
+    X = np.asmatrix(X)
+
     if (X_treat is None) != (Y_treat is None):
         raise ValueError(
             "parameters `X_treat` and `Y_treat` must both be Matrices or None"
@@ -340,6 +348,10 @@ def CV_score(
             Y_treat = np.float64(Y_treat)
         except ValueError:
             raise ValueError("Y_treat is not coercible to float64")
+
+        Y_treat = np.asmatrix(Y_treat) # this needs to be deprecated properly -- bc Array.dot(Array) != matrix(Array).dot(matrix(Array)) -- not even close !!!
+        X_treat = np.asmatrix(X_treat)
+
         if X_treat.shape[1] == 0:
             raise ValueError("X_treat.shape[1] == 0")
         if Y_treat.shape[1] == 0:

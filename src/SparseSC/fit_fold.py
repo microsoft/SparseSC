@@ -114,6 +114,10 @@ def fold_v_matrix(
         Y = np.float64(Y)
     except ValueError:
         raise ValueError("Y is not coercible to a numpy float64")
+
+    Y = np.asmatrix(Y) # this needs to be deprecated properly -- bc Array.dot(Array) != matrix(Array).dot(matrix(Array)) -- not even close !!!
+    X = np.asmatrix(X)
+
     if X.shape[1] == 0:
         raise ValueError("X.shape[1] == 0")
     if Y.shape[1] == 0:
@@ -297,7 +301,6 @@ def fold_v_matrix(
 
         from .utils.local_grad_daemon import local_batch_daemon
 
-        # import pdb; pdb.set_trace()
         daemon_client = local_batch_daemon(
             common_data={
                 "N0": N0,
