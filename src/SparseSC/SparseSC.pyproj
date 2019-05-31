@@ -20,6 +20,11 @@
     <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="cli\daemon.py" />
+    <Compile Include="cli\daemon_process.py" />
+    <Compile Include="cli\scgrad.py" />
+    <Compile Include="cli\stt.py" />
+    <Compile Include="cli\__init__.py" />
     <Compile Include="cross_validation.py" />
     <Compile Include="estimate_effects.py" />
     <Compile Include="fit.py" />
@@ -30,7 +35,8 @@
     <Compile Include="optimizers\simplex_step.py" />
     <Compile Include="optimizers\__init__.py" />
     <Compile Include="tensor.py" />
-    <Compile Include="utils\azure_batch_client.py" />
+    <Compile Include="utils\batch_gradient.py" />
+    <Compile Include="utils\local_grad_daemon.py" />
     <Compile Include="utils\metrics_utils.py">
       <SubType>Code</SubType>
     </Compile>
@@ -46,6 +52,7 @@
     <Compile Include="__init__.py" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="cli\" />
     <Folder Include="optimizers" />
     <Folder Include="utils" />
   </ItemGroup>
