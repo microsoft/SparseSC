@@ -19,7 +19,8 @@ Also note that this module has only been tested with Python 3.7
 Using Azure batch requires an azure account, and we'll demonstrate how to run
 this module using the [azure command line tool](https://docs.microsoft.com/en-us/cli/azure/).
 
-After logging into the console with `az login`,  you'll need to create an azure
+After logging into the console with `az login` (and potentially setting the default 
+subscription with `az account set -s <subscription>`),  you'll need to create an azure
 resource group into which the batch account is created.  In addition, the 
 azure batch service requires a storage account which is used to keep track of
 details of the jobs and tasks.

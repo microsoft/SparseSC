@@ -104,7 +104,7 @@ class Simulation(unittest.TestCase):
         N1,T1 = 1,1
         data_dict = {}
         for counter, (N0,T0) in enumerate(itertools.product(N0s, T0s)):
-            data[(N0,T0)] = (N0,T0)
+            data_dict[(N0,T0)] = []
             for s in range(S):
                 _, _, Y_pre_C, Y_pre_T, Y_post_C, Y_post_T, l_C, l_T = factor_dgp(N0, N1, T0, T1, K=0, R=0, F=1)
                 Y_pre = np.vstack((Y_pre_T, Y_pre_C))
@@ -129,10 +129,11 @@ class Simulation(unittest.TestCase):
         data_keys = data_dict.keys()
         results = np.zeros((len(data_keys), 2))
         for counter, (N0,T0) in enumerate(data_keys):
-            comb_results = np.empty((S,2))
             print(counter)
             datasets = data_dict[(N0,T0)]
-            for s in range(len(datasets)):
+            S = len(datasets)
+            comb_results = np.empty((S,2))
+            for s in range(S):
                 Y_pre, Y_post, l = datasets[s]
                 fit_res = sc_method(Y_pre, Y_post, treated_units)
                 comb_results[s,0] = np.mean(np.square(Y_post-fit_res.predict(Y_post)))
@@ -155,9 +156,10 @@ class Simulation(unittest.TestCase):
         #with open(data_pkl_file, 'rb') as input:
         #    data_dic = pickle.load(input)
         
-        results_sc = Simulation.SCFactor_AA_runner(data_dict, Simulation.fitRSynth_wrapper)
-        results_ssc = Simulation.SCFactor_AA_runner(data_dict, Simulation.fitSparseSC_wrapper)
-        results = np.hstack((results_sc, results_ssc))
+        results_ssc = Simulation.SCFactor_AA_runner(data_dic, Simulation.fitSparseSC_wrapper)
+        results = results_ssc
+        #results_sc = Simulation.SCFactor_AA_runner(data_dic, Simulation.fitRSynth_wrapper)
+        #results = np.hstack((results_sc, results_ssc))
 
         print(results)
         res_pkl_file = 'sim_results.pkl'
