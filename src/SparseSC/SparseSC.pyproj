@@ -35,6 +35,12 @@
     <Compile Include="optimizers\simplex_step.py" />
     <Compile Include="optimizers\__init__.py" />
     <Compile Include="tensor.py" />
+    <Compile Include="utils\AzureBatch\aggregate_results.py" />
+    <Compile Include="utils\AzureBatch\azure_batch_client.py" />
+    <Compile Include="utils\AzureBatch\BatchConfig.py" />
+    <Compile Include="utils\AzureBatch\constants.py" />
+    <Compile Include="utils\AzureBatch\gradient_batch_client.py" />
+    <Compile Include="utils\AzureBatch\__init__.py" />
     <Compile Include="utils\batch_gradient.py" />
     <Compile Include="utils\local_grad_daemon.py" />
     <Compile Include="utils\metrics_utils.py">
@@ -55,6 +61,7 @@
     <Folder Include="cli\" />
     <Folder Include="optimizers" />
     <Folder Include="utils" />
+    <Folder Include="utils\AzureBatch\" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
 </Project>
