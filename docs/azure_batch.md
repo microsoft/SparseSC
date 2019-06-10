@@ -112,7 +112,7 @@ from SparseSC import fit
 batch_dir = "/path/to/my/batch/data/"
 
 # initialize the batch parameters in the directory `batch_dir`
-fit(x, y, ... , batchdir = batch_dir)
+fit(x, y, ... , batchDir = batch_dir)
 ```
 
 ## Executing the Batch Job
