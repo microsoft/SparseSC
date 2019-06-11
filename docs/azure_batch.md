@@ -53,10 +53,10 @@ az batch account create -l $location -n $name -g $name --storage-account $name
 
 ###### CMD
 ```bash
-# parameters
+REM parameters
 set name=sparsesctest
 set location=westus2
-# create the resources
+REM create the resources
 az group create -l %location% -n %name%
 az storage account create -n %name% -g %name%
 az batch account create -l %location% -n %name% -g %name% --storage-account %name%
@@ -90,12 +90,13 @@ export STORAGE_ACCOUNT_NAME=$name
 export STORAGE_ACCOUNT_KEY=$(az storage account keys list -n $name --query [0].value)
 ```
 ###### CMD
+Replace `%i` with `%%i` below if used from a bat file.
 ```bash
 set BATCH_ACCOUNT_NAME=%name%
 set STORAGE_ACCOUNT_NAME=%name%
 set BATCH_ACCOUNT_URL=https://%name%.%location%.batch.azure.com
-for /f %i in ('az batch account keys list -n %name% -g %name% --query primary') do set BATCH_ACCOUNT_KEY=%i
-for /f %i in ('az storage account keys list -n %name% --query [0].value') do set STORAGE_ACCOUNT_KEY=%i
+for /f %i in ('az batch account keys list -n %name% -g %name% --query primary') do @set BATCH_ACCOUNT_KEY=%i
+for /f %i in ('az storage account keys list -n %name% --query [0].value') do @set STORAGE_ACCOUNT_KEY=%i
 ```
 
 We could of course echo these to the console and copy/paste the values into the
