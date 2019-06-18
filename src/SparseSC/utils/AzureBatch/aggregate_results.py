@@ -85,6 +85,8 @@ def aggregate_batch_results(batchDir,batch_client_config=None, choice=None):
         Xtest = X[treated_units, :]
         Ytrain = Y[control_units, :]
         Ytest = Y[treated_units, :]
+    else:
+        control_units = None
 
 
     if model_type == "prospective-restricted":
