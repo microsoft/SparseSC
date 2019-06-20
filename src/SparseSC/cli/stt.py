@@ -79,4 +79,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    try:
+      main()
+    except: # catch *all* exceptions
+      e = sys.exc_info()[0]
+      print( "STT Error: %s" % e )
+    
