@@ -90,7 +90,7 @@ def build_output_sas_url(config, _blob_client):
         + ContainerPermissions.WRITE
         + ContainerPermissions.DELETE
         + ContainerPermissions.LIST,
-        datetime.datetime.utcnow() + datetime.timedelta(hours=1),
+        datetime.datetime.utcnow() + datetime.timedelta(hours=config.STORAGE_ACCESS_DURATION_HRS),
         start=datetime.datetime.utcnow(),
     )
 

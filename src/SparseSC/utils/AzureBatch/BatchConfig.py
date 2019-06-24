@@ -17,6 +17,7 @@ config_schema = {
         "BATCH_ACCOUNT_URL": {"type": "string"},
         "STORAGE_ACCOUNT_NAME": {"type": "string"},
         "STORAGE_ACCOUNT_KEY": {"type": "string"},
+        "STORAGE_ACCESS_DURATION_HRS": {"type": "number", "minimum":0, "default":24},
         "REGISTRY_SERVER": {"type": "string"},
         "REGISTRY_USERNAME": {"type": "string"},
         "REGISTRY_PASSWORD": {"type": "string"},
@@ -60,6 +61,7 @@ class BatchConfig(NamedTuple):
     BATCH_ACCOUNT_URL: Optional[str] = None
     STORAGE_ACCOUNT_NAME: Optional[str] = None
     STORAGE_ACCOUNT_KEY: Optional[str] = None
+    STORAGE_ACCESS_DURATION_HRS: int = 24
     REGISTRY_SERVER: Optional[str] = None
     REGISTRY_USERNAME: Optional[str] = None
     REGISTRY_PASSWORD: Optional[str] = None
