@@ -148,7 +148,7 @@ def build_output_file(container_sas_url, fold_number):
     )
 
 
-def upload_file_to_container(block_blob_client, container_name, file_path):
+def upload_file_to_container(block_blob_client, container_name, file_path, duration_hours=24):
     """
     Uploads a local file to an Azure Blob storage container.
 
@@ -170,7 +170,7 @@ def upload_file_to_container(block_blob_client, container_name, file_path):
         container_name,
         blob_name,
         permission=azureblob.BlobPermissions.READ,
-        expiry=datetime.datetime.utcnow() + datetime.timedelta(hours=24),
+        expiry=datetime.datetime.utcnow() + datetime.timedelta(hours=duration_hours),
     )
 
     sas_url = block_blob_client.make_blob_url(
@@ -478,7 +478,7 @@ def run(config: BatchConfig, wait=True) -> None:
 
     # Upload the data files.
     input_file = upload_file_to_container(
-        blob_client, config.CONTAINER_NAME, input_file_path
+        blob_client, config.CONTAINER_NAME, input_file_path, config.STORAGE_ACCESS_DURATION_HRS
     )
 
     # Create a Batch service client. We'll now be interacting with the Batch
@@ -519,7 +519,7 @@ def run(config: BatchConfig, wait=True) -> None:
 
         # Pause execution until tasks reach Completed state.
         wait_for_tasks_to_complete(
-            batch_client, config.JOB_ID, datetime.timedelta(hours=24)
+            batch_client, config.JOB_ID, datetime.timedelta(hours=config.STORAGE_ACCESS_DURATION_HRS)
         )
 
         _download_files(config, blob_client, config.BATCH_DIRECTORY, n_folds)
@@ -588,7 +588,7 @@ def load_results(config: BatchConfig) -> None:
 
         # Pause execution until tasks reach Completed state.
         wait_for_tasks_to_complete(
-            batch_client, config.JOB_ID, datetime.timedelta(hours=24)
+            batch_client, config.JOB_ID, datetime.timedelta(hours=config.STORAGE_ACCESS_DURATION_HRS)
         )
 
         _download_files(config, blob_client, config.BATCH_DIRECTORY, n_folds)
