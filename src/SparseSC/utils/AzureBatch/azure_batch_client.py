@@ -170,7 +170,7 @@ def upload_file_to_container(block_blob_client, container_name, file_path):
         container_name,
         blob_name,
         permission=azureblob.BlobPermissions.READ,
-        expiry=datetime.datetime.utcnow() + datetime.timedelta(hours=2),
+        expiry=datetime.datetime.utcnow() + datetime.timedelta(hours=24),
     )
 
     sas_url = block_blob_client.make_blob_url(

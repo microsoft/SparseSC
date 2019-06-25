@@ -224,7 +224,7 @@ class gradient_batch_client:
             container_name,
             blob_name,
             permission=azureblob.BlobPermissions.READ,
-            expiry=datetime.datetime.utcnow() + datetime.timedelta(hours=2),
+            expiry=datetime.datetime.utcnow() + datetime.timedelta(hours=self.config.STORAGE_ACCESS_DURATION_HRS),
         )
 
         sas_url = block_blob_client.make_blob_url(
