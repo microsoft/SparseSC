@@ -31,6 +31,9 @@
     <Compile Include="fit_ct.py" />
     <Compile Include="fit_fold.py" />
     <Compile Include="fit_loo.py" />
+    <Compile Include="fit_fast.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="optimizers\cd_line_search.py" />
     <Compile Include="optimizers\simplex_step.py" />
     <Compile Include="optimizers\__init__.py" />
