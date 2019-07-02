@@ -97,7 +97,30 @@ class TestFit(unittest.TestCase):
     def test_full(self):
         TestFit.run_test(self, "full")
         
+class TestFitFast(unittest.TestCase):
 
+    @classmethod
+    def run_test(model_type="retrospective"):
+
+        random.seed(12345)
+        np.random.seed(101101001)
+        control_units = 50
+        treated_units = 20
+        features = 10
+        targets = 5
+
+        X = np.random.rand(control_units + treated_units, features)
+        Y = np.random.rand(control_units + treated_units, targets)
+        treated_units = np.arange(treated_units)
+        fit(
+            X=X,
+            Y=Y,
+            model_type=model_type,
+            treated_units=treated_units
+            if model_type
+            in ("retrospective", "prospective", "prospective-restricted")
+            else None,
+        )
 
 class TestFitToy(unittest.TestCase):
     @staticmethod
@@ -148,7 +171,7 @@ class TestFitToy(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    # t = TestFit()
-    # t.setUp()
-    # t.test_retrospective()
-    unittest.main()
+    #t = TestFitFast()
+    #t.setUp()
+    TestFitFast.run_test()
+    #unittest.main()

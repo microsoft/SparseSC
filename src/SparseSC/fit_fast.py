@@ -7,17 +7,9 @@ import numpy as np
 def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
     X,
     Y,
+    model_type="restrospective",
     treated_units=None,
-    w_pen=None,  # Float
-    v_pen=None,  # Float or an array of floats
-    # PARAMETERS USED TO CONSTRUCT DEFAULT GRID COVARIATE_PENALTIES
-    grid=None,  # USER SUPPLIED GRID OF COVARIATE PENALTIES
-    grid_min=1e-6,
-    grid_max=1,
-    grid_length=20,
-    stopping_rule=2,
-    gradient_folds=10,
-    **kwargs
+    custom_donor_pool=None,  
 ):
     r"""
 
@@ -36,85 +28,6 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
         of `X` and `Y` which contain data from treated units.
     :type treated_units: int[], Optional
 
-    :param w_pen: Penalty applied to the difference
-        between the current weights and the null weights (1/n). default
-        provided by :func:``w_pen_guestimate``.
-    :type w_pen: float | float[], optional
-
-    :param v_pen: penalty
-        (penalties) applied to the magnitude of the covariate weights.
-        Defaults to ``[ Lambda_c_max * g for g in grid]``, where
-        `Lambda_c_max` is determined via :func:`get_max_v_pen` .
-    :type v_pen: float | float[], optional
-
-    :param grid: only used when `v_pen` is not provided.
-        Defaults to ``np.exp(np.linspace(np.log(grid_min),np.log(grid_max),grid_length))``
-    :type grid: float | float[], optional
-
-    :param grid_min: Lower bound for ``grid`` when
-        ``v_pen`` and ``grid`` are not provided.  Must be in the
-        range ``(0,1)``
-    :type grid_min: float, default = 1e-6
-
-    :param grid_max: Upper bound for ``grid`` when
-        ``v_pen`` and ``grid`` are not provided.  Must be in the
-        range ``(0,1]``
-    :type grid_max: float, default = 1
-
-    :param grid_length: number of points in the ``grid`` parameter when
-        ``v_pen`` and ``grid`` are not provided
-    :type grid_length: int, default = 20
-
-    :param stopping_rule: A stopping rule less than one is interpreted as the
-        percent improvement in the out-of-sample squared prediction error required
-        between the current and previous iteration in order to continue with the
-        coordinate descent. A stopping rule of one or greater is interpreted as
-        the number of iterations of the coordinate descent (rounded down to the
-        nearest Int).  Alternatively, ``stopping_rule`` may be a function which
-        will be passed the current model fit, the previous model fit, and the
-        iteration number (depending on it's signature), and should return a
-        truthy value if the coordinate descent should stop and a falsey value
-        if the coordinate descent should stop.
-    :type stopping_rule: int, float, or function
-
-    :param choice: Method for choosing from among the
-        v_pen.  Only used when v_pen is an
-        iterable.  Defaults to ``"min"`` which selects the v_pen parameter
-        associated with the lowest cross validation error.
-    :type choice: str or function. default = ``"min"``
-
-    :param cv_folds: An integer number of Cross Validation folds passed to
-        :func:`sklearn.model_selection.KFold`, or an explicit list of train
-        validation folds. TODO: These folds are calculated with
-        ``KFold(...,shuffle=False)``, but instead, it should be assigned a
-        random state.
-    :type cv_folds: int or (int[],int[])[], default = 10
-
-    :param gradient_folds: (default = 10) An integer
-        number of Gradient folds passed to
-        :func:`sklearn.model_selection.KFold`, or an explicit list of train
-        validation folds, to be used `model_type` is one either ``"foo"``
-        ``"bar"``.
-    :type gradient_folds: int or (int[],int[])[]
-
-
-    :param cv_seed:  passed to :func:`sklearn.model_selection.KFold`
-        to allow for consistent cross validation folds across calls
-    :type cv_seed: int, default = 10101
-
-    :param gradient_seed:  passed to :func:`sklearn.model_selection.KFold`
-        to allow for consistent gradient folds across calls when
-        `model_type` is one either ``"foo"`` ``"bar"`` with and
-        `gradient_folds` is an integer.
-    :type gradient_seed: int, default = 10101
-
-    :param progress: Controls the level of verbosity.  If `True`, the
-        messages indication the progress are printed to the console (stdout).
-    :type progress: boolean, default = ``True``
-
-    :param kwargs: Additional arguments passed to the optimizer (i.e.
-        ``method`` or `scipy.optimize.minimize`).  See below.
-
     :param custom_donor_pool: By default all control units are allowed to be donors
         for all units. There are cases where this is not desired and so the user
         can pass in a matrix specifying a unit-specific donor pool (NxC matrix
@@ -128,33 +41,6 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
         Note: These are not used in the fitting stage (of V and penalties) just
         in final unit weight determination.
     :type custom_donor_pool: boolean, default = ``None``
-
-    :Keyword Args:
-
-        * **method** (str or callable) -- The method or function
-            responsible for performing gradient  descent in the covariate
-            space.  If a string, it is passed as the ``method`` argument to
-            :func:`scipy.optimize.minimize`.  Otherwise, ``method`` must be
-            a function with a signature compatible with
-            :func:`scipy.optimize.minimize`
-            (``method(fun,x0,grad,**kwargs)``) which returns an object
-            having ``x`` and ``fun`` attributes. (Default =
-            :func:`SparseSC.optimizers.cd_line_search.cdl_search`)
-
-        * **learning_rate** *(float, Default = 0.2)*  -- The initial learning rate
-            which determines the initial step size, which is set to
-            ``learning_rate * null_model_error / gradient``. Must be between 0 and
-            1.
-
-        * **learning_rate_adjustment** *(float, Default = 0.9)* -- Adjustment factor
-            applied to the learning rate applied between iterations when the
-            optimal step size returned by :func:`scipy.optimize.line_search` is
-            greater less than 1, else the step size is adjusted by
-            ``1/learning_rate_adjustment``. Must be between 0 and 1,
-
-        * **tol** *(float, Default = 0.0001)* -- Tolerance used for the stopping
-            rule based on the proportion of the in-sample residual error
-            reduced in the last step of the gradient descent.
 
     :returns: A :class:`SparseSCFit` object containing details of the fitted model.
     :rtype: :class:`SparseSCFit`
@@ -197,14 +83,17 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
 
     y_mean = Y.mean(axis=1)
     #
-    from sklearn.linear_model import LassoCV, RidgeCV #Lasso, 
+    from sklearn.linear_model import LassoCV, MultiTaskLassoCV, RidgeCV #Lasso, 
     import scipy
     if model_type=="retrospective":
         #For control units
         n_cv = 5
         X_c = X[control_units, :]
         y_mean_c = y_mean[control_units]
-        varselectorfit = LassoCV(normalize=True).fit(X_c, y_mean_c, cv=n_cv)
+        #varselectorfit = LassoCV(normalize=True).fit(X_c, y_mean_c, cv=n_cv)
+        #V = varselectorfit.coef_
+        varselectorfit = MultiTaskLassoCV(normalize=True, cv=n_cv).fit(X_c,Y[control_units,:])
+        V = np.sqrt(np.sum(varselectorfit.coef_**2, axis=1)) #if n_features x n_tasks
         if mixed:
             raise NotImplementedError()
             #lambdas = lassocvfit.alphas_
@@ -214,7 +103,7 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
                 #params = lassocvfit.coef_
                 #remove constant if necessary
                 #scores[l_i] = scfit_pick_optimal_wpen(params, model_type=model_type)
-        V = varselectorfit.coef_
+        
         m_sel = (V!=0)
         M_c = X_c[:, m_sel]
         V_vec = V[m_sel]
