@@ -47,10 +47,10 @@ class TestDGPs(unittest.TestCase):
         N0 = N0_sim + N0_not
         N = N1 + N0
         treated_units, control_units  = range(N1), range(N1, N)
-        T0, T1 = 2, 1
+        T0, T1 = 5, 2
         T = T0 + T1 # unused
-        proto_sim = np.array([1, 0] + [2], ndmin=2)
-        proto_not = np.array([0, 1] + [1], ndmin=2)
+        proto_sim = np.array([1, 2, 3, 4, 5] + [6,7], ndmin=2)
+        proto_not = np.array([0, 2, 4, 6, 8] + [10, 12], ndmin=2)
         te = 2
         proto_tr = proto_sim + np.hstack((np.zeros((1, T0)), np.full((1, T1), te)))
         Y1 = np.matmul(np.ones((N1, 1)), proto_tr)
@@ -76,6 +76,7 @@ class TestDGPs(unittest.TestCase):
             unit_treatment_periods,
             ret_CI=True,
             max_n_pl=200,
+            fast = True,
             #stopping_rule=4,
             **command_line_options,
         )

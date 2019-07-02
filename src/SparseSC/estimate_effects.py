@@ -4,6 +4,7 @@ Effect estimation routines
 import numpy as np
 from .utils.metrics_utils import _gen_placebo_stats_from_diffs, CI_int
 from .fit import fit
+from .fit_fast import fit_fast
 
 
 def estimate_effects(
@@ -16,6 +17,7 @@ def estimate_effects(
     ret_pl=False,
     ret_CI=False,
     level=0.95,
+    fast = False,
     **kwargs
 ):
     r"""
@@ -90,13 +92,23 @@ def estimate_effects(
         else:
             X_and_Y_pre = np.hstack((X[ct_units_mask_full,:], Y_pre))
 
-        fits[treatment_period] = fit(
-            X=X_and_Y_pre,
-            Y=Y_post,
-            model_type="retrospective",
-            treated_units=treated_units,
-            **kwargs
-        )
+        if not fast:
+            fits[treatment_period] = fit(
+                X=X_and_Y_pre,
+                Y=Y_post,
+                model_type="retrospective",
+                treated_units=treated_units,
+                **kwargs
+            )
+        else:
+            fits[treatment_period] = fit_fast(
+                X=X_and_Y_pre,
+                Y=Y_post,
+                model_type="retrospective",
+                treated_units=treated_units,
+                **kwargs
+            )
+
         Y_sc = fits[treatment_period].predict(Y_local)
         diffs = Y_local - Y_sc
         diffs_pre_c = np.vstack((diffs_pre_c,diffs[control_units,:T0]))

@@ -28,6 +28,7 @@ try:
 except ImportError:
     raise RuntimeError("SparseSC is not installed. use 'pip install -e .' from repo root to install in dev mode")
 from SparseSC.fit import fit
+from SparseSC.fit_fast import fit_fast
 
 
 class TestFit(unittest.TestCase):
@@ -100,7 +101,7 @@ class TestFit(unittest.TestCase):
 class TestFitFast(unittest.TestCase):
 
     @classmethod
-    def run_test(model_type="retrospective"):
+    def run_test(cls, model_type="retrospective"):
 
         random.seed(12345)
         np.random.seed(101101001)
@@ -110,9 +111,11 @@ class TestFitFast(unittest.TestCase):
         targets = 5
 
         X = np.random.rand(control_units + treated_units, features)
-        Y = np.random.rand(control_units + treated_units, targets)
+        beta = np.array([[1,0,0,0,0,0,0,0,0,1]]).T
+        yhat = X @ beta
+        Y = yhat @ np.ones((1,targets)) + np.random.rand(control_units + treated_units, targets)
         treated_units = np.arange(treated_units)
-        fit(
+        fit_fast(
             X=X,
             Y=Y,
             model_type=model_type,

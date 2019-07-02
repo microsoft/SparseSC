@@ -3,13 +3,19 @@
 """
 import numpy as np
 
+from .fit import SparseSCFit
+
 
 def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
     X,
     Y,
     model_type="restrospective",
     treated_units=None,
+    v_pens = None,
+    w_pens = np.logspace(start=-5, stop=5, num=40),
     custom_donor_pool=None,  
+    mixed = False,
+    **kwargs
 ):
     r"""
 
@@ -59,8 +65,8 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
 
     def _weights(V , X_treated, X_control, w_pen):
         V = np.diag(V)
-        weights = np.zeros((X_control.shape[0], X_treated.shape[0]))
-        w_pen_mat = 2 * w_pen * diag(np.ones(X_control.shape[0]))
+        #weights = np.zeros((X_control.shape[0], X_treated.shape[0]))
+        w_pen_mat = 2 * w_pen * np.diag(np.ones(X_control.shape[0]))
         A = X_control.dot(2 * V).dot(X_control.T) + w_pen_mat  # 5
         B = (
             X_treated.dot(2 * V).dot(X_control.T).T + 2 * w_pen / X_control.shape[0]
@@ -72,7 +78,7 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
             if w_pen == 0:
                 print("Try specifying a very small w_pen rather than 0.")
             raise exc
-        return weights
+        return b
 
     if treated_units is not None:
         control_units = [u for u in range(Y.shape[0]) if u not in treated_units]
@@ -89,11 +95,12 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
         #For control units
         n_cv = 5
         X_c = X[control_units, :]
-        y_mean_c = y_mean[control_units]
+        #y_mean_c = y_mean[control_units]
         #varselectorfit = LassoCV(normalize=True).fit(X_c, y_mean_c, cv=n_cv)
         #V = varselectorfit.coef_
-        varselectorfit = MultiTaskLassoCV(normalize=True, cv=n_cv).fit(X_c,Y[control_units,:])
-        V = np.sqrt(np.sum(varselectorfit.coef_**2, axis=1)) #if n_features x n_tasks
+        varselectorfit = MultiTaskLassoCV(normalize=True, cv=n_cv, alphas = v_pens).fit(X_c,Y[control_units,:])
+        V = np.sqrt(np.sum(varselectorfit.coef_**2, axis=0)) #n_tasks x n_features
+        #v_pen = varselectorfit.alpha_
         if mixed:
             raise NotImplementedError()
             #lambdas = lassocvfit.alphas_
@@ -105,20 +112,51 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
                 #scores[l_i] = scfit_pick_optimal_wpen(params, model_type=model_type)
         
         m_sel = (V!=0)
+        if np.sum(m_sel) == 0:
+            sc_weights = np.empty((N0+N1,N0))
+            sc_weights[control_units,:] = (np.ones((N0, N0)) - np.eye(N0))* (1/(N0-1))
+            sc_weights[treated_units,:] = np.ones((N1, N0))* (1/N0)
+            return SparseSCFit(
+                X=X,
+                Y=Y,
+                control_units=control_units,
+                treated_units=treated_units,
+                model_type=model_type,
+                # fitting parameters
+                fitted_v_pen=None,
+                fitted_w_pen=None,
+                initial_w_pen=None,
+                initial_v_pen=None,
+                V=np.diag(V),
+                # Fitted Synthetic Controls
+                sc_weights=sc_weights,
+                score=None, 
+                scores=None,
+                selected_score=None,
+            )
         M_c = X_c[:, m_sel]
-        V_vec = V[m_sel]
+        V_sel = V[m_sel]
         for i in range(N0):
             M_c_i = np.delete(M_c, i, axis=0)
-            features_i = (M_c_i*np.sqrt(V_vec)).T #K* x (N0-1) 
-            targets_i = ((M_c[i,:]-M_c_i.mean(axis=0))*np.sqrt(V_vec)).T #K*x1
+            features_i = (M_c_i*np.sqrt(V_sel)).T #K* x (N0-1) 
+            targets_i = ((M_c[i,:]-M_c_i.mean(axis=0))*np.sqrt(V_sel)).T #K*x1
             if i==0:
                 features = features_i
                 targets = targets_i
             else:
                 features = scipy.linalg.block_diag(features, features_i)
-                targets = np.concatenate(targets, targets_i)
-        ridgecvfit = RidgeCV(fit_intercept=False).fit(features, targets) #Use the generalized cross-validation
-        ridgecvfit.get_params() #make sure can get the w_pen.
+                targets = np.hstack((targets, targets_i))
+        w_pens = np.logspace(start=-5, stop=5, num=40)
+        ridgecvfit = RidgeCV(alphas=w_pens, fit_intercept=False).fit(features, targets) #Use the generalized cross-validation
+        best_w_pen = ridgecvfit.alpha_
+
+        sc_weights = np.empty((N0+N1,N0))
+        cc_weights = np.zeros((N0, N0))
+        sel_matrix = (np.ones((N0, N0)) - np.eye(N0)) > 0
+        for i in range(N0):
+            cc_weights[i,sel_matrix[i,:]] = _weights(V , X_c[i,:], np.delete(X_c, i, axis=0), best_w_pen)
+        sc_weights[control_units,:] = cc_weights
+        sc_weights[treated_units,:] = _weights(V , X[treated_units,:], X_c, best_w_pen).T
 
     #elif model_type=="prospective":
         #same, but with X, y_mean
@@ -138,10 +176,12 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
         fitted_w_pen=best_w_pen,
         initial_w_pen=None,
         initial_v_pen=None,
-        V=V,
+        V=np.diag(V),
         # Fitted Synthetic Controls
         sc_weights=sc_weights,
-        score=None,
+        score=None, 
         scores=None,
         selected_score=None,
     )
+
+#def _fit_fast():
