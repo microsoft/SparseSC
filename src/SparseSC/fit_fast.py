@@ -9,7 +9,7 @@ from .fit import SparseSCFit
 
 def MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5):
     varselectorfit = MultiTaskLassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X, Y)
-    V = np.sqrt(np.sum(varselectorfit.coef_**2, axis=0)) #n_tasks x n_features
+    V = np.sqrt(np.sum(varselectorfit.coef_**2, axis=0)) #n_tasks x n_features -> n_feature
     best_v_pen = varselectorfit.alpha_
     m_sel = (V!=0)
     def _MT_Match(X):
@@ -125,141 +125,98 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
     for i in range(N0):
         custom_donor_pool_c[i, i] = False
     custom_donor_pool[control_units,:] = custom_donor_pool_c
+    
+    def _RidgeCVSolution(M, control_units, controls_as_goals, extra_goals, V, N0, w_pens):
+        #Could return the weights too
+        M_c = M[control_units,:]
+        features = np.empty((0,0))
+        targets = np.empty((0,))
+        if controls_as_goals:
+            for i in range(len(control_units)):
+                M_c_i = np.delete(M_c, i, axis=0)
+                features_i = (M_c_i*np.sqrt(V)).T #K* x (N0-1) 
+                targets_i = ((M_c[i,:]-M_c_i.mean(axis=0))*np.sqrt(V)).T #K*x1
 
-
-    if model_type=="full":
-        MatchSpace, V, best_v_pen, m_sel = match_space_maker(X, Y, v_pens=v_pens)
-        if m_sel is not None:
-            V_full = np.full((X.shape[1]), 0.)
-            V_full[m_sel] = V
-        else:
-            V_full = V
-        if len(V) == 0:
-            sc_weights = (np.ones((N, N)) - np.eye(N))* (1/(N-1))
-            return SparseSCFit(
-                X=X,
-                Y=Y,
-                control_units=control_units,
-                treated_units=treated_units,
-                model_type=model_type,
-                # fitting parameters
-                fitted_v_pen=None,
-                fitted_w_pen=None,
-                initial_w_pen=None,
-                initial_v_pen=None,
-                V=np.diag(V_full),
-                # Fitted Synthetic Controls
-                sc_weights=sc_weights,
-                score=None, 
-                scores=None,
-                selected_score=None,
-            )
-        M = MatchSpace(X)
-        for i in range(N):
-            M_i = np.delete(M, i, axis=0)
-            features_i = (M_i*np.sqrt(V)).T #K* x (N0-1) 
-            targets_i = ((M[i,:]-M_i.mean(axis=0))*np.sqrt(V)).T #K*x1
-            if i==0:
-                features = features_i
-                targets = targets_i
-            else:
                 features = scipy.linalg.block_diag(features, features_i)
                 targets = np.hstack((targets, targets_i))
-        ridgecvfit = RidgeCV(alphas=w_pens, fit_intercept=False).fit(features, targets) #Use the generalized cross-validation
-        best_w_pen = ridgecvfit.alpha_
+        if extra_goals is not None:
+            for extra_goal in extra_goals:
+                features_i = (M_c*np.sqrt(V)).T #K* x (N0-1) 
+                targets_i = ((M[extra_goal,:]-M_c.mean(axis=0))*np.sqrt(V)).T #K*x1
 
-        sc_weights = np.full((N,N), 0)
-        for i in range(N0):
-            allowed = custom_donor_pool[i,:]
-            sc_weights[i, allowed] = _weights(V , M[i,:], M[allowed,:], best_w_pen)
+                features = scipy.linalg.block_diag(features, features_i)
+                targets = np.hstack((targets, targets_i))
+
+        ridgecvfit = RidgeCV(alphas=w_pens, fit_intercept=False).fit(features, targets) #Use the generalized cross-validation
+        return(ridgecvfit.alpha_)
+
+    if model_type=="full":
+        null_weights = (np.ones((N0, N0)) - np.eye(N0))* (1/(N0-1))
+        X_v = X
+        Y_v = Y
     else:
-        X_c = X[control_units, :]
-        X_t = X[treated_units, :]
+        null_weights = np.empty((N,N0))
+        null_weights[control_units,:] = (np.ones((N0, N0)) - np.eye(N0))* (1/(N0-1))
+        null_weights[treated_units,:] = np.ones((N1, N0))* (1/N0)
         if model_type=="retrospective":
-            X_v = X_c
+            X_v = X[control_units, :]
             Y_v = Y[control_units,:]
-            w_pen_target_idx = range(N0)
         elif model_type=="prospective":
             X_v = X
             Y_v = Y
-            w_pen_target_idx = range(N)
         elif model_type=="prospective-restricted:":
-            X_v = X_t
+            X_v = X[treated_units, :]
             Y_v = Y[treated_units,:]
-            M_t = X_v
-            w_pen_target_idx = range(N1)
-        MatchSpace, V, best_v_pen, m_sel = match_space_maker(X_v, Y_v, v_pens=v_pens)
-        if m_sel is not None:
-            V_full = np.full((X.shape[1]), 0.)
-            V_full[m_sel] = V
-        else:
-            V_full = V
-        #if mixed:
-            #raise NotImplementedError()
-            #lambdas = lassocvfit.alphas_
-            #scores = [] * len(lambdas)
-            #for l_i, l in enumerate(lambdas):
-                #lassofit = Lasso(normalize=True, alpha=l).fit(X_c,y_c_mean)
-                #params = lassocvfit.coef_
-                #remove constant if necessary
-                #scores[l_i] = scfit_pick_optimal_wpen(params, model_type=model_type)
-        
-        if len(V) == 0:
-            sc_weights = np.empty((N0+N1,N0))
-            sc_weights[control_units,:] = (np.ones((N0, N0)) - np.eye(N0))* (1/(N0-1))
-            sc_weights[treated_units,:] = np.ones((N1, N0))* (1/N0)
-            return SparseSCFit(
-                X=X,
-                Y=Y,
-                control_units=control_units,
-                treated_units=treated_units,
-                model_type=model_type,
-                # fitting parameters
-                fitted_v_pen=None,
-                fitted_w_pen=None,
-                initial_w_pen=None,
-                initial_v_pen=None,
-                V=np.diag(V_full),
-                # Fitted Synthetic Controls
-                sc_weights=sc_weights,
-                score=None, 
-                scores=None,
-                selected_score=None,
-            )
-        M = MatchSpace(X)
-        M_c = M[control_units, :]
-        M_t = M[treated_units, :]
-        for i in w_pen_target_idx:
-            if model_type=="retrospective":
-                M_i = np.delete(M_c, i, axis=0)
-                features_i = (M_i*np.sqrt(V)).T #K* x (N0-1) 
-                targets_i = ((M_c[i,:]-M_i.mean(axis=0))*np.sqrt(V)).T #K*x1
-            elif model_type=="prospective":
-                if i < N0:
-                    M_i = np.delete(M_c, i, axis=0)
-                    features_i = (M_i*np.sqrt(V)).T #K* x (N0-1) 
-                    targets_i = ((M_c[i,:]-M_i.mean(axis=0))*np.sqrt(V)).T #K*x1
-                else:
-                    M_i = M_c
-                    features_i = (M_i*np.sqrt(V)).T #K* x (N0-1) 
-                    targets_i = ((M_t[i-N0,:]-M_i.mean(axis=0))*np.sqrt(V)).T #K*x1
-            elif model_type=="prospective-restricted:":
-                M_i = M_c
-                features_i = (M_i*np.sqrt(V)).T #K* x (N0-1) 
-                targets_i = ((M_t[i,:]-M_i.mean(axis=0))*np.sqrt(V)).T #K*x1
-            if i==0:
-                features = features_i
-                targets = targets_i
-            else:
-                features = scipy.linalg.block_diag(features, features_i)
-                targets = np.hstack((targets, targets_i))
-        ridgecvfit = RidgeCV(alphas=w_pens, fit_intercept=False).fit(features, targets) #Use the generalized cross-validation
-        best_w_pen = ridgecvfit.alpha_
+    MatchSpace, V, best_v_pen, m_sel = match_space_maker(X_v, Y_v, v_pens=v_pens)
+    if m_sel is not None:
+        V_full = np.full((X.shape[1]), 0.)
+        V_full[m_sel] = V
+    else:
+        V_full = V
+    #if mixed:
+        #raise NotImplementedError()
+        #lambdas = lassocvfit.alphas_
+        #scores = [] * len(lambdas)
+        #for l_i, l in enumerate(lambdas):
+            #lassofit = Lasso(normalize=True, alpha=l).fit(X_c,y_c_mean)
+            #params = lassocvfit.coef_
+            #remove constant if necessary
+            #scores[l_i] = scfit_pick_optimal_wpen(params, model_type=model_type)
+    if len(V) == 0:
+        return SparseSCFit(
+            X=X,
+            Y=Y,
+            control_units=control_units,
+            treated_units=treated_units,
+            model_type=model_type,
+            # fitting parameters
+            fitted_v_pen=None,
+            fitted_w_pen=None,
+            initial_w_pen=None,
+            initial_v_pen=None,
+            V=np.diag(V_full),
+            # Fitted Synthetic Controls
+            sc_weights=null_weights,
+            score=None, 
+            scores=None,
+            selected_score=None,
+        )
+    M = MatchSpace(X)
 
-        sc_weights = np.full((N,N0), 0.)
-        for i in range(N):
-            allowed = custom_donor_pool[i,:]
-            sc_weights[i,allowed] = _weights(V, M[i,:], M_c[allowed,:], best_w_pen).T
+    if model_type=="retrospective":
+        best_w_pen = _RidgeCVSolution(M, control_units, True, None, V, N0, w_pens)
+    elif model_type=="prospective":
+        best_w_pen = _RidgeCVSolution(M, control_units, True, treated_units, V, N0, w_pens)
+    elif model_type=="prospective-restricted:":
+        best_w_pen = _RidgeCVSolution(M, control_units, False, treated_units, V, N0, w_pens)
+    else: #model_type=="full"
+        best_w_pen = _RidgeCVSolution(M, control_units, True, None, V, N0, w_pens)
+
+    M_c = M[control_units,:]
+    sc_weights = np.full((N,N0), 0.)
+    for i in range(N):
+        allowed = custom_donor_pool[i,:]
+        sc_weights[i,allowed] = _weights(V, M[i,:], M_c[allowed,:], best_w_pen)
 
     return SparseSCFit(
         X=X,
