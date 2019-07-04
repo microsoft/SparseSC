@@ -779,6 +779,10 @@ class SparseSCFit(object):
         score,
         scores,
         selected_score,
+        #For transformaions of X->M
+        match_space_trans = None,
+        match_space = None,
+        match_space_desc = None
     ):
 
         # DATA
@@ -802,14 +806,20 @@ class SparseSCFit(object):
         self._sc_weights = sc_weights
 
         # IDENTIFY TRIVIAL UNITS
+        M=X
+        if match_space is not None:
+            M=match_space
         self.trivial_units = np.apply_along_axis(
-            lambda x: (x == 0).all(), 1, np.hstack([X[:, np.diag(V) != 0], Y])
+            lambda x: (x == 0).all(), 1, np.hstack([M[:, np.diag(V) != 0], Y])
         )
         if self.trivial_units.any():
             warn(
                 "Fitted Model contains %s trivial unit(s)" % self.trivial_units.sum(),
                 TrivialUnitsWarning,
             )
+        self.match_space_trans = match_space_trans
+        self.match_space = match_space
+        self.match_space_desc = match_space_desc
 
     @property
     def sc_weights(self):

@@ -14,7 +14,9 @@ def MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5):
     m_sel = (V!=0)
     def _MT_Match(X):
         return(X[:,m_sel])
-    return _MT_Match, V[m_sel], best_v_pen, m_sel
+    def _MT_Desc():
+        print(V)
+    return _MT_Match, V[m_sel], best_v_pen, _MT_Desc
     
 #def _FakeMTLassoCV_MatchSpace(X, Y, n_v_cv = 5, v_pens=None):
     #y_mean = Y.mean(axis=1)
@@ -123,12 +125,7 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
         elif model_type=="prospective-restricted:":
             X_v = X[treated_units, :]
             Y_v = Y[treated_units,:]
-    MatchSpace, V, best_v_pen, m_sel = match_space_maker(X_v, Y_v, v_pens=v_pens)
-    if m_sel is not None:
-        V_full = np.full((X.shape[1]), 0.)
-        V_full[m_sel] = V
-    else:
-        V_full = V
+    MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, v_pens=v_pens)
     #if mixed:
         #raise NotImplementedError()
         #lambdas = lassocvfit.alphas_
@@ -150,16 +147,19 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
             fitted_w_pen=None,
             initial_w_pen=None,
             initial_v_pen=None,
-            V=np.diag(V_full),
+            V=np.diag(V),
             # Fitted Synthetic Controls
             sc_weights=null_weights,
             score=None, 
             scores=None,
             selected_score=None,
+            match_space_trans = MatchSpace,
+            match_space_desc = MatchSpaceDesc
         )
     M = MatchSpace(X)
 
-    return(fit_fast_inner(M, Y, V, model_type, treated_units, w_pens, custom_donor_pool, X, V_full))
+    return(fit_fast_inner(X, M, Y, V, model_type, treated_units, best_v_pen, w_pens, custom_donor_pool, MatchSpace, MatchSpaceDesc))
+
 
 def _ensure_good_donor_pool(custom_donor_pool, control_units, N0):
     custom_donor_pool_c = custom_donor_pool[control_units,:]
@@ -217,15 +217,17 @@ def _sc_weights_trad(M, M_c, V, N, N0, custom_donor_pool, best_w_pen):
     return(sc_weights)
 
 def fit_fast_inner(
+    X, 
     M,
     Y,
     V,
     model_type="restrospective",
     treated_units=None,
+    best_v_pen = None,
     w_pens = np.logspace(start=-5, stop=5, num=40),
     custom_donor_pool=None,
-    X=None,
-    V_full=None,
+    match_space_trans = None,
+    match_space_desc = None
 ):
     if treated_units is not None:
         control_units = [u for u in range(Y.shape[0]) if u not in treated_units]
@@ -273,4 +275,7 @@ def fit_fast_inner(
         score=None, 
         scores=None,
         selected_score=None,
+        match_space_trans = match_space_trans,
+        match_space = M,
+        match_space_desc = match_space_desc
     )
