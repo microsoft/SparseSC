@@ -32,7 +32,7 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
     custom_donor_pool=None,  
     #mixed = False,
     match_space_maker = MTLassoCV_MatchSpace,
-    **kwargs
+    **kwargs #keep so that calls can switch easily between fit() and fit_fast()
 ):
     r"""
 
@@ -90,23 +90,6 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
     except ValueError:
         raise ValueError("Y is not coercible to a numpy float64")
 
-    def _weights(V , X_treated, X_control, w_pen):
-        V = np.diag(V) #make square
-        #weights = np.zeros((X_control.shape[0], X_treated.shape[0]))
-        w_pen_mat = 2 * w_pen * np.diag(np.ones(X_control.shape[0]))
-        A = X_control.dot(2 * V).dot(X_control.T) + w_pen_mat  # 5
-        B = (
-            X_treated.dot(2 * V).dot(X_control.T).T + 2 * w_pen / X_control.shape[0]
-        )  # 6
-        try:
-            b = np.linalg.solve(A, B)
-        except np.linalg.LinAlgError as exc:
-            print("Unique weights not possible.")
-            if w_pen == 0:
-                print("Try specifying a very small w_pen rather than 0.")
-            raise exc
-        return b
-
     if treated_units is not None:
         control_units = [u for u in range(Y.shape[0]) if u not in treated_units]
         N0 = len(control_units)
@@ -121,34 +104,7 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
         assert custom_donor_pool.shape == (N,N0)
     else:
         custom_donor_pool = np.full((N,N0), True)
-    custom_donor_pool_c = custom_donor_pool[control_units,:]
-    for i in range(N0):
-        custom_donor_pool_c[i, i] = False
-    custom_donor_pool[control_units,:] = custom_donor_pool_c
-    
-    def _RidgeCVSolution(M, control_units, controls_as_goals, extra_goals, V, N0, w_pens):
-        #Could return the weights too
-        M_c = M[control_units,:]
-        features = np.empty((0,0))
-        targets = np.empty((0,))
-        if controls_as_goals:
-            for i in range(len(control_units)):
-                M_c_i = np.delete(M_c, i, axis=0)
-                features_i = (M_c_i*np.sqrt(V)).T #K* x (N0-1) 
-                targets_i = ((M_c[i,:]-M_c_i.mean(axis=0))*np.sqrt(V)).T #K*x1
-
-                features = scipy.linalg.block_diag(features, features_i)
-                targets = np.hstack((targets, targets_i))
-        if extra_goals is not None:
-            for extra_goal in extra_goals:
-                features_i = (M_c*np.sqrt(V)).T #K* x (N0-1) 
-                targets_i = ((M[extra_goal,:]-M_c.mean(axis=0))*np.sqrt(V)).T #K*x1
-
-                features = scipy.linalg.block_diag(features, features_i)
-                targets = np.hstack((targets, targets_i))
-
-        ridgecvfit = RidgeCV(alphas=w_pens, fit_intercept=False).fit(features, targets) #Use the generalized cross-validation
-        return(ridgecvfit.alpha_)
+    custom_donor_pool = _ensure_good_donor_pool(custom_donor_pool, control_units, N0)
 
     if model_type=="full":
         null_weights = (np.ones((N0, N0)) - np.eye(N0))* (1/(N0-1))
@@ -203,6 +159,90 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
         )
     M = MatchSpace(X)
 
+    return(fit_fast_inner(M, Y, V, model_type, treated_units, w_pens, custom_donor_pool, X, V_full))
+
+def _ensure_good_donor_pool(custom_donor_pool, control_units, N0):
+    custom_donor_pool_c = custom_donor_pool[control_units,:]
+    for i in range(N0):
+        custom_donor_pool_c[i, i] = False
+    custom_donor_pool[control_units,:] = custom_donor_pool_c
+    return(custom_donor_pool)
+
+def _RidgeCVSolution(M, control_units, controls_as_goals, extra_goals, V, N0, w_pens):
+    #Could return the weights too
+    M_c = M[control_units,:]
+    features = np.empty((0,0))
+    targets = np.empty((0,))
+    if controls_as_goals:
+        for i in range(len(control_units)):
+            M_c_i = np.delete(M_c, i, axis=0)
+            features_i = (M_c_i*np.sqrt(V)).T #K* x (N0-1) 
+            targets_i = ((M_c[i,:]-M_c_i.mean(axis=0))*np.sqrt(V)).T #K*x1
+
+            features = scipy.linalg.block_diag(features, features_i)
+            targets = np.hstack((targets, targets_i))
+    if extra_goals is not None:
+        for extra_goal in extra_goals:
+            features_i = (M_c*np.sqrt(V)).T #K* x (N0-1) 
+            targets_i = ((M[extra_goal,:]-M_c.mean(axis=0))*np.sqrt(V)).T #K*x1
+
+            features = scipy.linalg.block_diag(features, features_i)
+            targets = np.hstack((targets, targets_i))
+
+    ridgecvfit = RidgeCV(alphas=w_pens, fit_intercept=False).fit(features, targets) #Use the generalized cross-validation
+    return(ridgecvfit.alpha_)
+
+def _weights(V , X_treated, X_control, w_pen):
+    V = np.diag(V) #make square
+    #weights = np.zeros((X_control.shape[0], X_treated.shape[0]))
+    w_pen_mat = 2 * w_pen * np.diag(np.ones(X_control.shape[0]))
+    A = X_control.dot(2 * V).dot(X_control.T) + w_pen_mat  # 5
+    B = (
+        X_treated.dot(2 * V).dot(X_control.T).T + 2 * w_pen / X_control.shape[0]
+    )  # 6
+    try:
+        b = np.linalg.solve(A, B)
+    except np.linalg.LinAlgError as exc:
+        print("Unique weights not possible.")
+        if w_pen == 0:
+            print("Try specifying a very small w_pen rather than 0.")
+        raise exc
+    return b
+
+def _sc_weights_trad(M, M_c, V, N, N0, custom_donor_pool, best_w_pen):
+    sc_weights = np.full((N,N0), 0.)
+    for i in range(N):
+        allowed = custom_donor_pool[i,:]
+        sc_weights[i,allowed] = _weights(V, M[i,:], M_c[allowed,:], best_w_pen)
+    return(sc_weights)
+
+def fit_fast_inner(
+    M,
+    Y,
+    V,
+    model_type="restrospective",
+    treated_units=None,
+    w_pens = np.logspace(start=-5, stop=5, num=40),
+    custom_donor_pool=None,
+    X=None,
+    V_full=None,
+):
+    if treated_units is not None:
+        control_units = [u for u in range(Y.shape[0]) if u not in treated_units]
+        N0 = len(control_units)
+        N1 = len(treated_units)
+    else:
+        control_units = [u for u in range(Y.shape[0])]
+        N0 = Y.shape[0]
+        N1 = 0
+    N = N0 + N1
+
+    if custom_donor_pool is not None:
+        assert custom_donor_pool.shape == (N,N0)
+    else:
+        custom_donor_pool = np.full((N,N0), True)
+    custom_donor_pool = _ensure_good_donor_pool(custom_donor_pool, control_units, N0)
+
     if model_type=="retrospective":
         best_w_pen = _RidgeCVSolution(M, control_units, True, None, V, N0, w_pens)
     elif model_type=="prospective":
@@ -213,10 +253,8 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
         best_w_pen = _RidgeCVSolution(M, control_units, True, None, V, N0, w_pens)
 
     M_c = M[control_units,:]
-    sc_weights = np.full((N,N0), 0.)
-    for i in range(N):
-        allowed = custom_donor_pool[i,:]
-        sc_weights[i,allowed] = _weights(V, M[i,:], M_c[allowed,:], best_w_pen)
+
+    sc_weights = _sc_weights_trad(M, M_c, V, N, N0, custom_donor_pool, best_w_pen)
 
     return SparseSCFit(
         X=X,
@@ -229,11 +267,10 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
         fitted_w_pen=best_w_pen,
         initial_w_pen=None,
         initial_v_pen=None,
-        V=np.diag(V_full),
+        V=np.diag(V),
         # Fitted Synthetic Controls
         sc_weights=sc_weights,
         score=None, 
         scores=None,
         selected_score=None,
     )
-
