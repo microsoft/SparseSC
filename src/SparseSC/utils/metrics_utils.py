@@ -23,9 +23,9 @@ class CI_int(object):
     def __init__(self, ci_low, ci_high, level):
         """
         :param ci_low: Low-bound
-        :type ci_low: scalar or vector
+        :type ci_low: scalar, vector, or pd.Series
         :param ci_high: High-bound
-        :type ci_high: scalar or vector
+        :type ci_high: scalar, vector, or pd.Series
         :param level: Level (1-alpha) for the CI interval
         :type level: float
         """
@@ -53,7 +53,7 @@ class EstResultCI(object):
     def __init__(self, effect, p, ci=None, placebos=None):
         """
         :param effect: Effect
-        :type effect: Scalar or vector
+        :type effect: scalar, vector, or pd.Series
         :param p: p-value 
         :type p: Scalar or vector
         :param ci: Confidence interval
@@ -124,6 +124,7 @@ def _gen_placebo_stats_from_diffs(
     ret_pl=False,
     ret_CI=False,
     level=0.95,
+    vec_index = None,
 ):
     """Generates placebo distribution to compare effects against. 
     For a single treated unit, this is just the control effects.
@@ -137,10 +138,13 @@ def _gen_placebo_stats_from_diffs(
     :param ret_pl:
     :param ret_CI:
     :param level:
+    :param vec_index:
 
     Returns: 
         PlaceboResults: The Placebo test results
     """
+    if vec_index is not None:
+        import pandas as pd
     N1 = effect_vecs.shape[0]
     N0 = control_effect_vecs.shape[0]
     T1 = effect_vecs.shape[1]
@@ -242,7 +246,10 @@ def _gen_placebo_stats_from_diffs(
         CI_vec = np.empty((2, T1))
         for t in range(T1):
             CI_vec[:, t] = _gen_CI(placebo_effect_vecs[:, t], alpha_ind, effect_vec[t])
-        CI_vec = CI_int(CI_vec[0, :], CI_vec[1, :], level)
+        if vec_index is not None:
+            CI_vec = CI_int(pd.Series(CI_vec[0, :], index=vec_index), pd.Series(CI_vec[1, :], index=vec_index), level)
+        else:
+            CI_vec = CI_int(CI_vec[0, :], CI_vec[1, :], level)
 
         CI_avg = _gen_CI(placebo_avg_joint_effects, alpha_ind, avg_joint_effect)
         CI_avg = CI_int(CI_avg[0], CI_avg[1], level)
@@ -255,6 +262,10 @@ def _gen_placebo_stats_from_diffs(
         CI_vec = None
         CI_avg = None
         CI_rms = None
+
+    if vec_index is not None:
+        effect_vec = pd.Series(effect_vec, index=vec_index)
+        vec_p = pd.Series(vec_p, index=vec_index)
 
     ret_struct = PlaceboResults(
         EstResultCI(effect_vec, vec_p, CI_vec, placebo_effect_vecs),

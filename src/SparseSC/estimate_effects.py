@@ -2,6 +2,7 @@
 Effect estimation routines
 """
 import numpy as np
+import pandas as pd
 from .utils.metrics_utils import _gen_placebo_stats_from_diffs, CI_int
 from .fit import fit
 from .fit_fast import fit_fast
@@ -42,6 +43,10 @@ def estimate_effects(
 
     :Keyword Args: Passed on to fit()
     """
+    Y_df = None
+    if isinstance(Y, pd.DataFrame):
+        Y_df = Y
+        Y = Y.values
     N,T = Y.shape
     if T0 is None:
         T0 = min(unit_treatment_periods[unit_treatment_periods>=1])
@@ -82,6 +87,10 @@ def estimate_effects(
         #Get the local values
         c_units_mask_full, t_units_mask_full, ct_units_mask_full = get_sample_masks(unit_treatment_periods, treatment_period, T1)
         Y_local = Y[ct_units_mask_full,(treatment_period-T0):(treatment_period+T1)]
+        if Y_df is not None:
+            col_index = Y_df.columns[(treatment_period-T0):(treatment_period+T1)]
+        else:
+            col_index = None
         treated_units = t_units_mask_full[ct_units_mask_full].nonzero()[0]
         control_units = c_units_mask_full[ct_units_mask_full].nonzero()[0]
 
@@ -123,8 +132,9 @@ def estimate_effects(
         if ret_CI:
             Y_sc_full = fits[treatment_period].predict(Y[ct_units_mask_full,:])
             diffs_full = Y[ct_units_mask_full,:] - Y_sc_full
-            ind_CI[treatment_period] = _gen_placebo_stats_from_diffs(diffs_full[control_units,:], np.zeros((1,diffs_full.shape[1])),
-                                                                     max_n_pl, False, True, level).effect_vec.ci
+            ind_ci_vals = _gen_placebo_stats_from_diffs(diffs_full[control_units,:], np.zeros((1,diffs_full.shape[1])),
+                                                                     max_n_pl, False, True, level, vec_index=col_index).effect_vec.ci
+            ind_CI[treatment_period] = ind_ci_vals
 
     # diagnostics
     pl_res_pre = _gen_placebo_stats_from_diffs(
