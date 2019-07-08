@@ -1,11 +1,12 @@
+import numpy as np
+import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
-import numpy as np
 
 
-def raw_plots(Y, treated_units, control_units, T0):
+def raw_plots(Y, treated_units_idx, control_units_idx, treatment_period):
     # Individual controls & treated
-    if len(treated_units) > 1:
+    if len(treated_units_idx) > 1:
         lbl_t = "Treateds"
         lbl_mt = "Mean Treated"
     else:
@@ -15,19 +16,31 @@ def raw_plots(Y, treated_units, control_units, T0):
     istat = matplotlib.is_interactive()
     plt.ioff()
     raw_all_fig, raw_all_ax = plt.subplots(num="raw_all")
-    raw_all_ax.axvline(x=T0, linestyle="--")
-    raw_all_ax.plot(np.transpose(Y[control_units, :]), color="gray")
-    raw_all_ax.plot(Y[control_units[0], :], color="gray", label="Controls")
-    raw_all_ax.plot(np.transpose(Y[treated_units, :]), color="black")
-    raw_all_ax.plot(Y[treated_units[0], :], color="black", label=lbl_t)
+    if isinstance(Y, pd.DataFrame):
+        raw_all_ax.plot(np.transpose(Y.iloc[control_units_idx, :]), color="gray")
+        raw_all_ax.plot(Y.iloc[control_units_idx[0], :], color="gray", label="Controls")
+        raw_all_ax.axvline(x=treatment_period, linestyle="--")
+        raw_all_ax.plot(np.transpose(Y.iloc[treated_units_idx, :]), color="black")
+        raw_all_ax.plot(Y.iloc[treated_units_idx[0], :], color="black", label=lbl_t)
+    else:
+        raw_all_ax.plot(np.transpose(Y[control_units_idx, :]), color="gray")
+        raw_all_ax.plot(Y[control_units_idx[0], :], color="gray", label="Controls")
+        raw_all_ax.axvline(x=treatment_period, linestyle="--")
+        raw_all_ax.plot(np.transpose(Y[treated_units_idx, :]), color="black")
+        raw_all_ax.plot(Y[treated_units_idx[0], :], color="black", label=lbl_t)
     raw_all_ax.set_xlabel("Time")
     raw_all_ax.set_ylabel("Outcome")
     raw_all_ax.legend(loc=1)
+
     # Means controls & treated
     raw_means_fig, raw_means_ax = plt.subplots(num="raw_means")
-    raw_means_ax.axvline(x=T0, linestyle="--")
-    raw_means_ax.plot(np.mean(Y[control_units, :], axis=0), color="gray", label="Mean Control")
-    raw_means_ax.plot(np.mean(Y[treated_units, :], axis=0), color="black", label=lbl_mt)
+    raw_means_ax.axvline(x=treatment_period, linestyle="--")
+    if isinstance(Y, pd.DataFrame):
+        raw_means_ax.plot(np.mean(Y.iloc[control_units_idx, :], axis=0), color="gray", label="Mean Control")
+        raw_means_ax.plot(np.mean(Y.iloc[treated_units_idx, :], axis=0), color="black", label=lbl_mt)
+    else:
+        raw_means_ax.plot(np.mean(Y[control_units_idx, :], axis=0), color="gray", label="Mean Control")
+        raw_means_ax.plot(np.mean(Y[treated_units_idx, :], axis=0), color="black", label=lbl_mt)
     raw_means_ax.set_xlabel("Time")
     raw_means_ax.set_ylabel("Outcome")
     raw_means_ax.legend(loc=1)
@@ -35,8 +48,52 @@ def raw_plots(Y, treated_units, control_units, T0):
         plt.ion()
     return [raw_all_fig, raw_means_fig]
 
+def raw_all(Y, treated_units_idx, control_units_idx, treatment_period):
+    # Individual controls & treated
+    if len(treated_units_idx) > 1:
+        lbl_t = "Treateds"
+    else:
+        lbl_t = "Treated"
+        
+    if isinstance(Y, pd.DataFrame):
+        plt.plot(np.transpose(Y.iloc[control_units_idx, :]), color="gray")
+        plt.plot(Y.iloc[control_units_idx[0], :], color="gray", label="Controls")
+        plt.axvline(x=treatment_period, linestyle="--")
+        plt.plot(np.transpose(Y.iloc[treated_units_idx, :]), color="black")
+        plt.plot(Y.iloc[treated_units_idx[0], :], color="black", label=lbl_t)
+    else:
+        plt.plot(np.transpose(Y[control_units_idx, :]), color="gray")
+        plt.plot(Y[control_units_idx[0], :], color="gray", label="Controls")
+        plt.axvline(x=treatment_period, linestyle="--")
+        plt.plot(np.transpose(Y[treated_units_idx, :]), color="black")
+        plt.plot(Y[treated_units_idx[0], :], color="black", label=lbl_t)
+    plt.xlabel("Time")
+    plt.ylabel("Outcome")
+    plt.legend(loc=1)
 
-#def ind_sc_plots(Y, Y_sc, T0, ind_ci=None):
+
+
+def raw_means(Y, treated_units_idx, control_units_idx, treatment_period):
+    # Individual controls & treated
+    if len(treated_units_idx) > 1:
+        lbl_mt = "Mean Treated"
+    else:
+        lbl_mt = "Treated"
+        
+    plt.axvline(x=treatment_period, linestyle="--")
+    if isinstance(Y, pd.DataFrame):
+        plt.plot(np.mean(Y.iloc[control_units_idx, :], axis=0), color="gray", label="Mean Control")
+        plt.plot(np.mean(Y.iloc[treated_units_idx, :], axis=0), color="black", label=lbl_mt)
+    else:
+        plt.plot(np.mean(Y[control_units_idx, :], axis=0), color="gray", label="Mean Control")
+        plt.plot(np.mean(Y[treated_units_idx, :], axis=0), color="black", label=lbl_mt)
+    plt.xlabel("Time")
+    plt.ylabel("Outcome")
+    plt.legend(loc=1)
+
+
+
+
 def ind_sc_plots(est_ret, treatment_date, unit):
     Y = est_ret.Y[unit,:]
     Y_sc_full = est_ret.get_sc(treatment_date)
@@ -83,6 +140,51 @@ def ind_sc_plots(est_ret, treatment_date, unit):
     if istat:
         plt.ion()
     return [sc_raw_fig, sc_diff_fig]
+
+def sc_diff(est_ret, treatment_date, unit):
+    Y = est_ret.Y[unit,:]
+    Y_sc_full = est_ret.get_sc(treatment_date)
+    Y_sc = Y_sc_full[unit,:]
+    T0 = est_ret.T0
+
+    diff = Y - Y_sc
+    if ind_ci is not None:
+        ind_ci = est_ret.ind_CI[treatment_date]
+        plt.fill_between(
+            range(len(ind_ci.ci_low)),
+            diff + ind_ci.ci_low,
+            diff + ind_ci.ci_high,
+            facecolor="gray",
+            label="CI",
+        )
+    plt.axhline(y=0, linestyle="--")
+    plt.plot(diff, "kx--", label="Unit Diff")
+    plt.axvline(x=T0, linestyle="--")
+    plt.xlabel("Time")
+    plt.ylabel("Real-SC Outcome Difference")
+    plt.legend(loc=1)
+
+def sc_raw(est_ret, treatment_date, unit):
+    Y = est_ret.Y[unit,:]
+    Y_sc_full = est_ret.get_sc(treatment_date)
+    Y_sc = Y_sc_full[unit,:]
+    T0 = est_ret.T0
+
+    if ind_ci is not None:
+        ind_ci = est_ret.ind_CI[treatment_date]
+        plt.fill_between(
+            range(len(Y_sc)),
+            Y_sc + ind_ci.ci_low,
+            Y_sc + ind_ci.ci_high,
+            facecolor="gray",
+            label="CI",
+        )
+    plt.axvline(x=T0, linestyle="--")
+    plt.plot(Y, "bx-", label="Unit")
+    plt.plot(Y_sc, "gx--", label="SC")
+    plt.xlabel("Time")
+    plt.ylabel("Outcome")
+    plt.legend(loc=1)
 
 
 def te_plot(est_ret):

@@ -165,6 +165,8 @@ def estimate_effects(
         level,
     )
 
+    if Y_df is not None:
+        Y = Y_df
 
     return SparseSCEstResults(
         Y, fits, unit_treatment_periods, T0, T1, pl_res_pre, pl_res_post, pl_res_post_scaled, X, ind_CI
@@ -234,13 +236,22 @@ class SparseSCEstResults(object):
         """
         return self.pl_res_post.avg_joint_effect
 
-    def get_sc(self, treatment_period):
+    def get_sc(self, treatment_period=None):
         """Returns and NxT matrix of synthetic controls. For units not eligible (those previously treated or between treatment_period and treatment_period+T1)
         The results is left empty.
         """
-        Y_sc = np.empty(self.Y.shape)
+        if treatment_period is None:
+            t_periods = self.fits.keys()
+            if len(t_periods) ==1:
+                treatment_period = list(t_periods)[0]
+            else:
+                import exception
+                raise exception.ValueError("Need to pass in treatment_period when there are multiple")
+        Y_sc = np.full(self.Y.shape, np.NaN)
         _, _, ct_units_mask = get_sample_masks(self.unit_treatment_periods, treatment_period, self.T1)
         Y_sc[ct_units_mask,:] = self.fits[treatment_period].predict(self.Y[ct_units_mask, :])
+        if isinstance(self.Y, pd.DataFrame):
+            Y_sc = pd.DataFrame(Y_sc, index = self.Y.index, columns=self.Y.columns)
         return Y_sc
 
     def __str__(self):
