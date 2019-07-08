@@ -74,15 +74,15 @@ class EstResultCI(object):
             iter(self.effect)
         except TypeError:
             ret_str = __ind_effect_str(self.effect, self.p)
-            if self.ci is not None:
-                ret_str = ret_str + " " + str(self.ci)
+            #if self.ci is not None:
+            #    ret_str = ret_str + " " + str(self.ci)
             return ret_str
         else:
             ret_str = ""
             for i in range(len(self.effect)):
                 ret_str = ret_str + __ind_effect_str(self.effect[i], self.p[i])
-                if self.ci is not None:
-                    ret_str = ret_str + " " + str(self.ci)
+                #if self.ci is not None:
+                #    ret_str = ret_str + " " + str(self.ci)
                 ret_str = ret_str + "\n"
             return ret_str
 
