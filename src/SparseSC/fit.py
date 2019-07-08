@@ -784,6 +784,7 @@ class SparseSCFit(object):
         match_space = None,
         match_space_desc = None
     ):
+        #If match_space===None then V is over match_space (rather than X) and look at match_space_desc for relation to X
 
         # DATA
         self.X = X

@@ -14,9 +14,7 @@ def MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5):
     m_sel = (V!=0)
     def _MT_Match(X):
         return(X[:,m_sel])
-    def _MT_Desc():
-        print(V)
-    return _MT_Match, V[m_sel], best_v_pen, _MT_Desc
+    return _MT_Match, V[m_sel], best_v_pen, V
     
 #def _FakeMTLassoCV_MatchSpace(X, Y, n_v_cv = 5, v_pens=None):
     #y_mean = Y.mean(axis=1)

@@ -32,7 +32,7 @@ class TestDGPs(unittest.TestCase):
     def simple_summ(fit, Y):
         #print("V_pen=%s, W_pen=%s" % (fit.fitted_v_pen, fit.fitted_w_pen))
         if fit.match_space_desc is not None:
-            fit.match_space_desc()
+            print(fit.match_space_desc)
         else:
             print("V=%s" % np.diag(fit.V))
         print("Treated weights: sim=%s, uns=%s, sum=%s" % ( fit.sc_weights[0, 49], fit.sc_weights[0, 99], sum(fit.sc_weights[0, :]),))

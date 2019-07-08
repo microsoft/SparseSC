@@ -193,7 +193,6 @@ class SparseSCEstResults(object):
         :param ind_CI: Confidence intervals for SC predictions at the unit
                 level (not averaged over N1).  Used for graphing rather than
                 treatment effect statistics
-        :type ind_CI: CI_int
         :type ind_CI: dictionary of period->CI_int. Each CI_int is for the full sample (not necessarily T0+T1)
         """
         self.Y = Y
@@ -254,7 +253,7 @@ class SparseSCEstResults(object):
             str(self.pl_res_post.effect_vec),
         )
 
-_SparseSCEstResults_template = """Pre-period fit diagnostic: Were we the treated harder to match in the pre-period than the controls were.
+_SparseSCEstResults_template = """Pre-period fit diagnostic: Were the treated harder to match in the pre-period than the controls were.
 Average difference in outcome for pre-period between treated and SC unit (concerning if p-value %s ): 
 %s
 
