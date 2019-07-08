@@ -14,9 +14,9 @@ from dgp.factor_model import factor_dgp
 
 # import matplotlib.pyplot as plt
 
-exec(  # pylint: disable=exec-used
-    open(join(dirname(abspath(__file__)), "..", "examples", "example_graphs.py")).read()
-)  # if we don't want an __init__.py
+import sys
+sys.path.insert(0, join(dirname(abspath(__file__)), "..", "examples"))
+from example_graphs import *
 
 
 # pylint: disable=no-self-use
