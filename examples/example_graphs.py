@@ -141,17 +141,19 @@ def ind_sc_plots(est_ret, treatment_date, unit):
         plt.ion()
     return [sc_raw_fig, sc_diff_fig]
 
-def sc_diff(est_ret, treatment_date, unit):
-    Y = est_ret.Y[unit,:]
-    Y_sc_full = est_ret.get_sc(treatment_date)
-    Y_sc = Y_sc_full[unit,:]
-    T0 = est_ret.T0
+def sc_diff(est_ret, treatment_date_idx, unit_idx, treatment_date):
+    Y_target = est_ret.Y[unit_idx,:]
+    Y_target_sc = est_ret.get_sc(treatment_date_idx)[unit_idx,:]
 
-    diff = Y - Y_sc
+    diff = Y_target - Y_target_sc
     if ind_ci is not None:
-        ind_ci = est_ret.ind_CI[treatment_date]
+        ind_ci = est_ret.ind_CI[treatment_date_idx]
+        if isinstance(est_ret.Y, pd.DataFrame):
+            fb_index = Y_target.index
+        else:
+            fb_index = range(len(ind_ci.ci_low))
         plt.fill_between(
-            range(len(ind_ci.ci_low)),
+            fb_index,
             diff + ind_ci.ci_low,
             diff + ind_ci.ci_high,
             facecolor="gray",
@@ -159,29 +161,31 @@ def sc_diff(est_ret, treatment_date, unit):
         )
     plt.axhline(y=0, linestyle="--")
     plt.plot(diff, "kx--", label="Unit Diff")
-    plt.axvline(x=T0, linestyle="--")
+    plt.axvline(x=treatment_date, linestyle="--")
     plt.xlabel("Time")
     plt.ylabel("Real-SC Outcome Difference")
     plt.legend(loc=1)
 
-def sc_raw(est_ret, treatment_date, unit):
-    Y = est_ret.Y[unit,:]
-    Y_sc_full = est_ret.get_sc(treatment_date)
-    Y_sc = Y_sc_full[unit,:]
-    T0 = est_ret.T0
+def sc_raw(est_ret, treatment_date_idx, unit_idx, treatment_date):
+    Y_target = est_ret.Y[unit_idx,:]
+    Y_target_sc = est_ret.get_sc(treatment_date_idx)[unit_idx,:]
 
     if ind_ci is not None:
-        ind_ci = est_ret.ind_CI[treatment_date]
+        ind_ci = est_ret.ind_CI[treatment_date_idx]
+        if isinstance(est_ret.Y, pd.DataFrame):
+            fb_index = Y_target.index
+        else:
+            fb_index = range(len(Y_target_sc))
         plt.fill_between(
-            range(len(Y_sc)),
-            Y_sc + ind_ci.ci_low,
-            Y_sc + ind_ci.ci_high,
+            fb_index,
+            Y_target_sc + ind_ci.ci_low,
+            Y_target_sc + ind_ci.ci_high,
             facecolor="gray",
             label="CI",
         )
-    plt.axvline(x=T0, linestyle="--")
-    plt.plot(Y, "bx-", label="Unit")
-    plt.plot(Y_sc, "gx--", label="SC")
+    plt.axvline(x=treatment_date, linestyle="--")
+    plt.plot(Y_target, "bx-", label="Unit")
+    plt.plot(Y_target_sc, "gx--", label="SC")
     plt.xlabel("Time")
     plt.ylabel("Outcome")
     plt.legend(loc=1)
@@ -222,6 +226,36 @@ def te_plot(est_ret):
         plt.ion()
     return [te_fig]
 
+def te_plot2(est_ret, treatment_date):
+    import numpy as np
+
+    if isinstance(est_ret.pl_res_pre.effect_vec.effect, pd.DataFrame):
+        effect_vec = pd.concat((est_ret.pl_res_pre.effect_vec.effect, 
+                                est_ret.pl_res_post.effect_vec.effect))
+    else:
+        effect_vec = np.concatenate((est_ret.pl_res_pre.effect_vec.effect, 
+                                     est_ret.pl_res_post.effect_vec.effect))
+    if est_ret.pl_res_pre.effect_vec.ci is not None:
+        if isinstance(est_ret.pl_res_pre.effect_vec.ci.ci_low, pd.DataFrame):
+            ci0 = pd.concat((est_ret.pl_res_pre.effect_vec.ci.ci_low, 
+                             est_ret.pl_res_post.effect_vec.ci.ci_low))
+            ci1 = pd.concat((est_ret.pl_res_pre.effect_vec.ci.ci_high,
+                             est_ret.pl_res_post.effect_vec.ci.ci_high))
+            plt.fill_between(ci0.index, ci0, ci1, facecolor="gray", label="CI")
+        else:
+            ci0 = np.concatenate((est_ret.pl_res_pre.effect_vec.ci.ci_low, 
+                                  est_ret.pl_res_post.effect_vec.ci.ci_low))
+            ci1 = np.concatenate((est_ret.pl_res_pre.effect_vec.ci.ci_high,
+                                  est_ret.pl_res_post.effect_vec.ci.ci_high))
+            plt.fill_between(range(len(ci0)), ci0, ci1, facecolor="gray", label="CI")
+
+    plt.plot(effect_vec, "kx--", label="Treated Diff")
+    plt.axvline(x=treatment_date, linestyle="--")
+    plt.axhline(y=0, linestyle="--")
+    plt.xlabel("Time")
+    plt.ylabel("Real-SC Outcome Difference")
+    plt.legend(loc=1)
+
 
 def diffs_plot(diffs, treated_units, control_units):
     if len(treated_units) > 1:
@@ -242,3 +276,17 @@ def diffs_plot(diffs, treated_units, control_units):
     if istat:
         plt.ion()
     return diffs_plt
+
+def diffs_plot2(diffs, treated_units, control_units):
+    if len(treated_units) > 1:
+        lbl_t = "Treated Diffs"
+    else:
+        lbl_t = "Treated Diff"
+    plt.axvline(x=T0, linestyle="--")
+    plt.plot(np.transpose(diffs[control_units, :]), alpha=0.5, color="gray")
+    plt.plot(diffs[control_units[0], :], alpha=0.5, color="gray", label="Control Diffs")
+    plt.plot(np.transpose(diffs[treated_units, :]), color="black")
+    plt.plot(diffs[treated_units[0], :], color="black", label=lbl_t)
+    plt.xlabel("Time")
+    plt.ylabel("Real-SC Outcome Difference")
+    plt.legend(loc=1)
