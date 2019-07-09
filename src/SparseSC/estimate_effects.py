@@ -136,6 +136,11 @@ def estimate_effects(
                                                                      max_n_pl, False, True, level, vec_index=col_index).effect_vec.ci
             ind_CI[treatment_period] = ind_ci_vals
 
+    if len(treatment_periods) == 1 and Y_df is not None:
+        pre_index = Y_df.columns[(treatment_period-T0):treatment_period]
+        post_index = Y_df.columns[treatment_period:(treatment_period+T1)]
+    else:
+        pre_index, post_index = None, None
     # diagnostics
     pl_res_pre = _gen_placebo_stats_from_diffs(
         diffs_pre_c,
@@ -144,6 +149,7 @@ def estimate_effects(
         ret_pl,
         ret_CI,
         level,
+        vec_index = pre_index
     )
 
     # effects
@@ -154,6 +160,7 @@ def estimate_effects(
         ret_pl,
         ret_CI,
         level,
+        vec_index = post_index
     )
 
     pl_res_post_scaled = _gen_placebo_stats_from_diffs(
@@ -163,6 +170,7 @@ def estimate_effects(
         ret_pl,
         ret_CI,
         level,
+        vec_index = post_index
     )
 
     if Y_df is not None:
@@ -236,6 +244,48 @@ class SparseSCEstResults(object):
         """
         return self.pl_res_post.avg_joint_effect
 
+    def get_W(self, treatment_period=None):
+        if treatment_period is None:
+            t_periods = self.fits.keys()
+            if len(t_periods) ==1:
+                treatment_period = list(t_periods)[0]
+            else:
+                raise ValueError("Need to pass in treatment_period when there are multiple")
+        fit = self.fits[treatment_period]
+        if isinstance(self.Y, pd.DataFrame):
+            c_units_mask, _, ct_units_mask = get_sample_masks(self.unit_treatment_periods, treatment_period, self.T1)
+            return pd.DataFrame(fit.sc_weights, index=self.Y.iloc[ct_units_mask,:].index, columns = self.Y.iloc[c_units_mask,:].index)
+        else:
+            return fit.sc_weights
+
+    def get_V(self, treatment_period=None):
+        if treatment_period is None:
+            t_periods = self.fits.keys()
+            if len(t_periods) ==1:
+                treatment_period = list(t_periods)[0]
+            else:
+                raise ValueError("Need to pass in treatment_period when there are multiple")
+        fit = self.fits[treatment_period]
+        V = np.diag(fit.V)
+        if fit.match_space is not None:
+           if isinstance(fit.match_space_desc, np.ndarray):
+                V = fit.match_space_desc
+           else:
+               return V
+
+        if self.X is None:
+            V_X, V_Y = None, V 
+        else:
+            X_k = self.X.shape[1]
+            V_X, V_Y = V[:X_k], V[X_k:]
+
+        if isinstance(self.X, pd.DataFrame):
+            V_X = pd.Series(V_X, index=self.X.columns)
+        if isinstance(self.Y, pd.DataFrame):
+            V_Y = pd.Series(V_Y, index=self.Y.columns[(treatment_period-self.T0):treatment_period])
+
+        return V_Y, V_X
+
     def get_sc(self, treatment_period=None):
         """Returns and NxT matrix of synthetic controls. For units not eligible (those previously treated or between treatment_period and treatment_period+T1)
         The results is left empty.
@@ -245,13 +295,14 @@ class SparseSCEstResults(object):
             if len(t_periods) ==1:
                 treatment_period = list(t_periods)[0]
             else:
-                import exception
-                raise exception.ValueError("Need to pass in treatment_period when there are multiple")
+                raise ValueError("Need to pass in treatment_period when there are multiple")
         Y_sc = np.full(self.Y.shape, np.NaN)
         _, _, ct_units_mask = get_sample_masks(self.unit_treatment_periods, treatment_period, self.T1)
-        Y_sc[ct_units_mask,:] = self.fits[treatment_period].predict(self.Y[ct_units_mask, :])
         if isinstance(self.Y, pd.DataFrame):
+            Y_sc[ct_units_mask,:] = self.fits[treatment_period].predict(self.Y.iloc[ct_units_mask, :].values)
             Y_sc = pd.DataFrame(Y_sc, index = self.Y.index, columns=self.Y.columns)
+        else:
+            Y_sc[ct_units_mask,:] = self.fits[treatment_period].predict(self.Y[ct_units_mask, :])
         return Y_sc
 
     def __str__(self):
