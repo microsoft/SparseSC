@@ -320,7 +320,7 @@ class SparseSCEstResults(object):
 
         return _SparseSCEstResults_template % (
             level_str,
-            str(self.pl_res_pre.avg_joint_effect),
+            str(self.pl_res_pre.rms_joint_effect),
             str(self.pl_res_post.avg_joint_effect),
             str(self.pl_res_post.effect_vec),
         )
