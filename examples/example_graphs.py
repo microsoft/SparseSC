@@ -142,11 +142,15 @@ def ind_sc_plots(est_ret, treatment_date, unit):
     return [sc_raw_fig, sc_diff_fig]
 
 def sc_diff(est_ret, treatment_date_idx, unit_idx, treatment_date):
-    Y_target = est_ret.Y[unit_idx,:]
-    Y_target_sc = est_ret.get_sc(treatment_date_idx)[unit_idx,:]
+    if isinstance(est_ret.Y, pd.DataFrame):
+        Y_target = est_ret.Y.iloc[unit_idx,:]
+        Y_target_sc = est_ret.get_sc(treatment_date_idx).iloc[unit_idx,:]
+    else:
+        Y_target = est_ret.Y[unit_idx,:]
+        Y_target_sc = est_ret.get_sc(treatment_date_idx)[unit_idx,:]
 
     diff = Y_target - Y_target_sc
-    if ind_ci is not None:
+    if est_ret.ind_CI is not None:
         ind_ci = est_ret.ind_CI[treatment_date_idx]
         if isinstance(est_ret.Y, pd.DataFrame):
             fb_index = Y_target.index
@@ -167,10 +171,14 @@ def sc_diff(est_ret, treatment_date_idx, unit_idx, treatment_date):
     plt.legend(loc=1)
 
 def sc_raw(est_ret, treatment_date_idx, unit_idx, treatment_date):
-    Y_target = est_ret.Y[unit_idx,:]
-    Y_target_sc = est_ret.get_sc(treatment_date_idx)[unit_idx,:]
+    if isinstance(est_ret.Y, pd.DataFrame):
+        Y_target = est_ret.Y.iloc[unit_idx,:]
+        Y_target_sc = est_ret.get_sc(treatment_date_idx).iloc[unit_idx,:]
+    else:
+        Y_target = est_ret.Y[unit_idx,:]
+        Y_target_sc = est_ret.get_sc(treatment_date_idx)[unit_idx,:]
 
-    if ind_ci is not None:
+    if est_ret.ind_CI is not None:
         ind_ci = est_ret.ind_CI[treatment_date_idx]
         if isinstance(est_ret.Y, pd.DataFrame):
             fb_index = Y_target.index
@@ -229,14 +237,14 @@ def te_plot(est_ret):
 def te_plot2(est_ret, treatment_date):
     import numpy as np
 
-    if isinstance(est_ret.pl_res_pre.effect_vec.effect, pd.DataFrame):
+    if isinstance(est_ret.pl_res_pre.effect_vec.effect, pd.Series):
         effect_vec = pd.concat((est_ret.pl_res_pre.effect_vec.effect, 
                                 est_ret.pl_res_post.effect_vec.effect))
     else:
         effect_vec = np.concatenate((est_ret.pl_res_pre.effect_vec.effect, 
                                      est_ret.pl_res_post.effect_vec.effect))
     if est_ret.pl_res_pre.effect_vec.ci is not None:
-        if isinstance(est_ret.pl_res_pre.effect_vec.ci.ci_low, pd.DataFrame):
+        if isinstance(est_ret.pl_res_pre.effect_vec.ci.ci_low, pd.Series):
             ci0 = pd.concat((est_ret.pl_res_pre.effect_vec.ci.ci_low, 
                              est_ret.pl_res_post.effect_vec.ci.ci_low))
             ci1 = pd.concat((est_ret.pl_res_pre.effect_vec.ci.ci_high,
@@ -277,16 +285,23 @@ def diffs_plot(diffs, treated_units, control_units):
         plt.ion()
     return diffs_plt
 
-def diffs_plot2(diffs, treated_units, control_units):
-    if len(treated_units) > 1:
+def diffs_plot2(diffs, treated_units_idx, control_units_idx, treatment_date):
+    if len(treated_units_idx) > 1:
         lbl_t = "Treated Diffs"
     else:
         lbl_t = "Treated Diff"
-    plt.axvline(x=T0, linestyle="--")
-    plt.plot(np.transpose(diffs[control_units, :]), alpha=0.5, color="gray")
-    plt.plot(diffs[control_units[0], :], alpha=0.5, color="gray", label="Control Diffs")
-    plt.plot(np.transpose(diffs[treated_units, :]), color="black")
-    plt.plot(diffs[treated_units[0], :], color="black", label=lbl_t)
+    plt.axvline(x=treatment_date, linestyle="--")
+    
+    if isinstance(diffs, pd.DataFrame):
+        plt.plot(diffs.iloc[control_units_idx, :].T, alpha=0.5, color="gray")
+        plt.plot(diffs.iloc[control_units_idx[0], :], alpha=0.5, color="gray", label="Control Diffs")
+        plt.plot(diffs.iloc[treated_units_idx, :].T, color="black")
+        plt.plot(diffs.iloc[treated_units_idx[0], :], color="black", label=lbl_t)
+    else:
+        plt.plot(np.transpose(diffs[control_units_idx, :]), alpha=0.5, color="gray")
+        plt.plot(diffs[control_units_idx[0], :], alpha=0.5, color="gray", label="Control Diffs")
+        plt.plot(np.transpose(diffs[treated_units_idx, :]), color="black")
+        plt.plot(diffs[treated_units_idx[0], :], color="black", label=lbl_t)
     plt.xlabel("Time")
     plt.ylabel("Real-SC Outcome Difference")
     plt.legend(loc=1)
