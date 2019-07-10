@@ -48,50 +48,36 @@ def raw_plots(Y, treated_units_idx, control_units_idx, treatment_period):
         plt.ion()
     return [raw_all_fig, raw_means_fig]
 
-def raw_all(Y, treated_units_idx, control_units_idx, treatment_period):
+def raw(Y, treated_units_idx, control_units_idx, treatment_period):
     # Individual controls & treated
     if len(treated_units_idx) > 1:
         lbl_t = "Treateds"
+        lbl_mt = "Mean Treated"
     else:
         lbl_t = "Treated"
+        lbl_mt = "Treated"
         
     if isinstance(Y, pd.DataFrame):
-        plt.plot(np.transpose(Y.iloc[control_units_idx, :]), color="gray")
-        plt.plot(Y.iloc[control_units_idx[0], :], color="gray", label="Controls")
+        plt.plot(np.transpose(Y.iloc[control_units_idx, :]), color="lightgray")
+        plt.plot(Y.iloc[control_units_idx[0], :], color="lightgray", label="Controls")
+        plt.plot(np.mean(Y.iloc[control_units_idx, :], axis=0), "kx--", color="dimgray", label="Mean Control")
         plt.axvline(x=treatment_period, linestyle="--")
         plt.plot(np.transpose(Y.iloc[treated_units_idx, :]), color="black")
         plt.plot(Y.iloc[treated_units_idx[0], :], color="black", label=lbl_t)
+        if len(treated_units_idx) > 1:
+            plt.plot(np.mean(Y.iloc[treated_units_idx, :], axis=0), color="black", label=lbl_mt)
     else:
-        plt.plot(np.transpose(Y[control_units_idx, :]), color="gray")
-        plt.plot(Y[control_units_idx[0], :], color="gray", label="Controls")
+        plt.plot(np.transpose(Y[control_units_idx, :]), color="lightgray")
+        plt.plot(Y[control_units_idx[0], :], color="lightgray", label="Controls")
+        plt.plot(np.mean(Y[control_units_idx, :], axis=0), "kx--", color="dimgray", label="Mean Control")
         plt.axvline(x=treatment_period, linestyle="--")
         plt.plot(np.transpose(Y[treated_units_idx, :]), color="black")
         plt.plot(Y[treated_units_idx[0], :], color="black", label=lbl_t)
+        if len(treated_units_idx) > 1:
+            plt.plot(np.mean(Y[treated_units_idx, :], axis=0), "kx--", color="black", label=lbl_mt)
     plt.xlabel("Time")
     plt.ylabel("Outcome")
     plt.legend(loc=1)
-
-
-
-def raw_means(Y, treated_units_idx, control_units_idx, treatment_period):
-    # Individual controls & treated
-    if len(treated_units_idx) > 1:
-        lbl_mt = "Mean Treated"
-    else:
-        lbl_mt = "Treated"
-        
-    plt.axvline(x=treatment_period, linestyle="--")
-    if isinstance(Y, pd.DataFrame):
-        plt.plot(np.mean(Y.iloc[control_units_idx, :], axis=0), color="gray", label="Mean Control")
-        plt.plot(np.mean(Y.iloc[treated_units_idx, :], axis=0), color="black", label=lbl_mt)
-    else:
-        plt.plot(np.mean(Y[control_units_idx, :], axis=0), color="gray", label="Mean Control")
-        plt.plot(np.mean(Y[treated_units_idx, :], axis=0), color="black", label=lbl_mt)
-    plt.xlabel("Time")
-    plt.ylabel("Outcome")
-    plt.legend(loc=1)
-
-
 
 
 def ind_sc_plots(est_ret, treatment_date, unit):
