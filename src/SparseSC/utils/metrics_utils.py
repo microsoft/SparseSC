@@ -298,3 +298,45 @@ def _calculate_p_value(npl_at_least_as_large, npl, incl_actual_in_set=True):
     """
     addition = int(incl_actual_in_set)
     return (npl_at_least_as_large + addition) / (npl + addition)
+
+def did_info(Y, treated_units, control_units, T0):
+    from sklearn.metrics import r2_score
+
+    if isinstance(Y, pd.DataFrame):
+        Y_df = Y
+        Y = Y.values
+    Y_sc = did_sc(Y, treated_units, control_units, T0)
+    r2_c_post = r2_score(Y[control_units,T0:].flatten(), Y_sc[control_units,T0:].flatten())
+    if Y_df is not None:
+        Y_sc = pd.DataFrame(Y_sc, index = Y_df.index, columns = Y_df.columns)
+    return Y_sc, r2_c_post
+
+def did_sc(Y, treated_units, control_units, T0):
+    #treated_units should be list
+    N, T = Y.shape
+    Y_c = Y[control_units,:]
+    Y_t = Y[treated_units, :]
+
+    N0 = len(control_units)
+    Y_c_sc = np.full((N0, T), np.nan)
+    for i in range(N0):
+        Y_c_sc[i,:] = _did_sc(Y_c[i,:], Y_c[np.array(range(N0))!=i,:], T0)
+        
+    N1 = len(treated_units)
+    Y_t_sc = np.full((N1, T), np.nan)
+    for i in range(N1):
+        Y_t_sc[i,:] = _did_sc(Y_t[i,:], Y_c, T0)
+
+    Y_sc = np.empty((N,T))
+    Y_sc[control_units,:] = Y_c_sc
+    Y_sc[treated_units,:] = Y_t_sc
+    return Y_sc
+
+def _did_sc(Y_target, Y_donors, T0):
+    N0 = Y_donors.shape[0]
+    pre_mean_shift = np.mean(Y_target[:T0]) - np.mean(Y_donors[:,:T0])
+    did_weights = np.full((N0), 1/N0)
+    did_sc = np.mean(np.transpose(np.transpose(Y_donors) * did_weights), axis=0) + pre_mean_shift
+    return did_sc
+
+
