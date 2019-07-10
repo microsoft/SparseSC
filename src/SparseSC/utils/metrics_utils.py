@@ -125,6 +125,7 @@ def _gen_placebo_stats_from_diffs(
     ret_CI=False,
     level=0.95,
     vec_index = None,
+    sym_CI=True,
 ):
     """Generates placebo distribution to compare effects against. 
     For a single treated unit, this is just the control effects.
@@ -223,38 +224,44 @@ def _gen_placebo_stats_from_diffs(
         assert 0 < level < 1 and level > 0, "Use a level in [0,1]"
         alpha = 1 - level
         p2min = 2 / n_pl
-        alpha_ind = max((1, round(alpha / p2min)))
+        alpha_ind = max((1, round(alpha / p2min))) - 1
         alpha = alpha_ind * p2min
 
-        def _gen_CI(placebo_effects, alpha_ind, effect, null_is_zero=True):
+        def _gen_CI(placebo_effects, alpha_ind, effect, null_is_zero=True, sym_CI=True):
+            #sym_CI makes symmetric CIs by looking as the absolute values of placebo_effect (like Fishcer 2-sided p-values)
             npl = placebo_effects.shape[0]
-            sorted_eff = np.sort(placebo_effects)
-            low_avg_effect = sorted_eff[alpha_ind]
-            high_avg_effect = sorted_eff[(npl + 1) - alpha_ind]
-            if (
-                null_is_zero
-                and np.sign(low_avg_effect) == np.sign(high_avg_effect)
-                and low_avg_effect != 0
-                and high_avg_effect != 0
-            ):
-                warn(
-                    "CI doesn't contain 0. You might not have enough placebo effects.",
-                    SparseSCWarning
-                )
-            return (effect - high_avg_effect, effect - low_avg_effect)
+            if sym_CI:
+                sorted_abs_eff = np.sort(np.abs(placebo_effects))
+                outside_avg_effect = sorted_abs_eff[(npl - 1) - 2*alpha_ind]
+                return (effect - outside_avg_effect, effect + outside_avg_effect)
+            else:
+                sorted_eff = np.sort(placebo_effects)
+                low_avg_effect = sorted_eff[alpha_ind]
+                high_avg_effect = sorted_eff[(npl - 1) - alpha_ind]
+                if (
+                    null_is_zero
+                    and np.sign(low_avg_effect) == np.sign(high_avg_effect)
+                    and low_avg_effect != 0
+                    and high_avg_effect != 0
+                ):
+                    warn(
+                        "CI doesn't contain 0. You might not have enough placebo effects.",
+                        SparseSCWarning
+                    )
+                return (effect - high_avg_effect, effect - low_avg_effect)
 
         CI_vec = np.empty((2, T1))
         for t in range(T1):
-            CI_vec[:, t] = _gen_CI(placebo_effect_vecs[:, t], alpha_ind, effect_vec[t])
+            CI_vec[:, t] = _gen_CI(placebo_effect_vecs[:, t], alpha_ind, effect_vec[t], sym_CI=sym_CI)
         if vec_index is not None:
             CI_vec = CI_int(pd.Series(CI_vec[0, :], index=vec_index), pd.Series(CI_vec[1, :], index=vec_index), level)
         else:
             CI_vec = CI_int(CI_vec[0, :], CI_vec[1, :], level)
 
-        CI_avg = _gen_CI(placebo_avg_joint_effects, alpha_ind, avg_joint_effect)
+        CI_avg = _gen_CI(placebo_avg_joint_effects, alpha_ind, avg_joint_effect, sym_CI=sym_CI)
         CI_avg = CI_int(CI_avg[0], CI_avg[1], level)
         CI_rms = _gen_CI(
-            placebo_rms_joint_effects, alpha_ind, rms_joint_effect, null_is_zero=False
+            placebo_rms_joint_effects, alpha_ind, rms_joint_effect, null_is_zero=False, sym_CI=sym_CI
         )
         CI_rms = CI_int(CI_rms[0], CI_rms[1], level)
 
@@ -300,13 +307,14 @@ def _calculate_p_value(npl_at_least_as_large, npl, incl_actual_in_set=True):
     return (npl_at_least_as_large + addition) / (npl + addition)
 
 def did_info(Y, treated_units, control_units, T0):
-    from sklearn.metrics import r2_score
+    import sklearn
+    import pandas as pd
 
     if isinstance(Y, pd.DataFrame):
         Y_df = Y
         Y = Y.values
     Y_sc = did_sc(Y, treated_units, control_units, T0)
-    r2_c_post = r2_score(Y[control_units,T0:].flatten(), Y_sc[control_units,T0:].flatten())
+    r2_c_post = sklearn.metrics.r2_score(Y[control_units,T0:].flatten(), Y_sc[control_units,T0:].flatten())
     if Y_df is not None:
         Y_sc = pd.DataFrame(Y_sc, index = Y_df.index, columns = Y_df.columns)
     return Y_sc, r2_c_post
