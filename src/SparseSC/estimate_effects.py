@@ -83,6 +83,7 @@ def estimate_effects(
     diffs_post_t = np.empty((0,T1))
     diffs_post_scaled_c = np.empty((0,T1))
     diffs_post_scaled_t = np.empty((0,T1))
+
     for treatment_period in treatment_periods:
         #Get the local values
         c_units_mask_full, t_units_mask_full, ct_units_mask_full = get_sample_masks(unit_treatment_periods, treatment_period, T1)
@@ -118,6 +119,16 @@ def estimate_effects(
                 **kwargs
             )
 
+            M = fits[treatment_period].match_space
+            M_diffs_2 = np.square(M - fits[treatment_period].predict(M))
+            #rmspe_M_unw = np.sqrt(np.mean(M_diff_2, axis=1))
+            V_fit = np.diag(fits[treatment_period].V)
+            V_fit_norm = V_fit / np.sum(V_fit)
+            rmspe_M_w = np.sqrt(np.mean(M_diffs_2 * V_fit_norm, axis=1))
+
+            rmspe_M_w_p = _gen_placebo_stats_from_diffs(rmspe_M_w[control_units,None], rmspe_M_w[treated_units,None], max_n_pl, False, True).rms_joint_effect.p
+            setattr(fits[treatment_period], 'rmspe_M_w_p', rmspe_M_w_p)
+
         Y_sc = fits[treatment_period].predict(Y_local)
         diffs = Y_local - Y_sc
         diffs_pre_c = np.vstack((diffs_pre_c,diffs[control_units,:T0]))
@@ -142,6 +153,16 @@ def estimate_effects(
     else:
         pre_index, post_index = None, None
     # diagnostics
+    pl_res_pre = _gen_placebo_stats_from_diffs(
+        diffs_pre_c,
+        diffs_pre_t,
+        max_n_pl,
+        ret_pl,
+        ret_CI,
+        level,
+        vec_index = pre_index
+    )
+
     pl_res_pre = _gen_placebo_stats_from_diffs(
         diffs_pre_c,
         diffs_pre_t,
@@ -304,6 +325,15 @@ class SparseSCEstResults(object):
         else:
             Y_sc[ct_units_mask,:] = self.fits[treatment_period].predict(self.Y[ct_units_mask, :])
         return Y_sc
+    
+    @property
+    def fit(self):
+        t_periods = self.fits.keys()
+        if len(t_periods) ==1:
+            treatment_period = list(t_periods)[0]
+            return(self.fits[treatment_period])
+        else:
+            raise ValueError("fit property ambiguous")
 
     def __str__(self):
         """

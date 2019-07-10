@@ -271,7 +271,8 @@ def diffs_plot(diffs, treated_units, control_units):
         plt.ion()
     return diffs_plt
 
-def diffs_plot2(diffs, treated_units_idx, control_units_idx, treatment_date):
+def diffs_plot2(diffs, treated_units_idx, control_units_idx, treatment_date, est_ret=None):
+    #include est_ret for CI (usefull for combining Diff and TE graphs when 1 treated unit)
     if len(treated_units_idx) > 1:
         lbl_t = "Treated Diffs"
     else:
@@ -279,13 +280,32 @@ def diffs_plot2(diffs, treated_units_idx, control_units_idx, treatment_date):
     plt.axvline(x=treatment_date, linestyle="--")
     
     if isinstance(diffs, pd.DataFrame):
-        plt.plot(diffs.iloc[control_units_idx, :].T, alpha=0.5, color="gray")
-        plt.plot(diffs.iloc[control_units_idx[0], :], alpha=0.5, color="gray", label="Control Diffs")
+        plt.plot(diffs.iloc[control_units_idx, :].T, alpha=0.5, color="lightgray")
+        plt.plot(diffs.iloc[control_units_idx[0], :], alpha=0.5, color="lightgray", label="Control Diffs")
+
+        if est_ret is not None:
+            ci0 = pd.concat((est_ret.pl_res_pre.effect_vec.ci.ci_low, 
+                                est_ret.pl_res_post.effect_vec.ci.ci_low))
+            ci1 = pd.concat((est_ret.pl_res_pre.effect_vec.ci.ci_high,
+                                est_ret.pl_res_post.effect_vec.ci.ci_high))
+            plt.plot(ci0, color="dimgray")
+            plt.plot(ci1, color="dimgray", label="CI")
+
         plt.plot(diffs.iloc[treated_units_idx, :].T, color="black")
         plt.plot(diffs.iloc[treated_units_idx[0], :], color="black", label=lbl_t)
     else:
-        plt.plot(np.transpose(diffs[control_units_idx, :]), alpha=0.5, color="gray")
-        plt.plot(diffs[control_units_idx[0], :], alpha=0.5, color="gray", label="Control Diffs")
+        plt.plot(np.transpose(diffs[control_units_idx, :]), alpha=0.5, color="lightgray")
+        plt.plot(diffs[control_units_idx[0], :], alpha=0.5, color="lightgray", label="Control Diffs")
+        
+        if est_ret is not None:
+            ci0 = np.concatenate((est_ret.pl_res_pre.effect_vec.ci.ci_low, 
+                                    est_ret.pl_res_post.effect_vec.ci.ci_low))
+            ci1 = np.concatenate((est_ret.pl_res_pre.effect_vec.ci.ci_high,
+                                    est_ret.pl_res_post.effect_vec.ci.ci_high))
+            plt.plot(range(len(ci0)), ci0, color="dimgray")
+            plt.plot(range(len(ci0)), ci1, color="dimgray", label="CI")
+
+        
         plt.plot(np.transpose(diffs[treated_units_idx, :]), color="black")
         plt.plot(diffs[treated_units_idx[0], :], color="black", label=lbl_t)
     plt.xlabel("Time")
