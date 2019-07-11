@@ -768,17 +768,18 @@ class SparseSCFit(object):
         control_units,
         treated_units,
         model_type,
-        # fitting parameters:
-        fitted_v_pen,
-        fitted_w_pen,
-        initial_v_pen,
-        initial_w_pen,
+        # primary fit parameters
         V,
-        # Fitted Synthetic Controls:
         sc_weights,
-        score,
-        scores,
-        selected_score,
+        # fitting parameters:
+        fitted_v_pen = None,
+        fitted_w_pen = None,
+        initial_v_pen = None,
+        initial_w_pen = None,
+        # Fitted Synthetic Controls:
+        score = None,
+        scores = None,
+        selected_score = None,
         #For transformaions of X->M
         match_space_trans = None,
         match_space = None,

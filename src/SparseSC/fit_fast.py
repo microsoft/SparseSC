@@ -15,6 +15,23 @@ def MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5):
     def _MT_Match(X):
         return(X[:,m_sel])
     return _MT_Match, V[m_sel], best_v_pen, V
+
+def MTLassoMixed_MatchSpace(X_v, Y_v, X, Y, model_type, treated_units, w_pens, v_pens=None, n_v_cv = 5, custom_donor_pool=None):
+    varselectorfit = MultiTaskLassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X_v, Y_v)
+    alphas = varselectorfit.alphas_
+    scores = np.zeros((len(alphas)))
+    for i, alpha in enumerate(alphas):
+        coefs = varselectorfit.coef_[:,:,i]
+        V = np.sqrt(np.sum(coefs**2, axis=0)) #n_tasks x n_features -> n_feature
+        m_sel = (V!=0)
+        scores[i] = fit_fast_inner(X, X[:,m_sel], Y, V[:,m_sel], model_type, treated_units, alpha, w_pens, custom_donor_pool).score
+    i_best = np.argmin(scores)
+    V = np.sqrt(np.sum(varselectorfit.coef_[:,:,i]**2, axis=0))
+    best_v_pen = alphas[i]
+    m_sel = (V!=0)
+    def _MT_Match(X):
+        return(X[:,m_sel])
+    return _MT_Match, V[m_sel], best_v_pen, V
     
 #def _FakeMTLassoCV_MatchSpace(X, Y, n_v_cv = 5, v_pens=None):
     #y_mean = Y.mean(axis=1)
@@ -27,10 +44,8 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
     Y,
     model_type="restrospective",
     treated_units=None,
-    v_pens = None,
     w_pens = np.logspace(start=-5, stop=5, num=40),
     custom_donor_pool=None,  
-    #mixed = False,
     match_space_maker = MTLassoCV_MatchSpace,
     **kwargs #keep so that calls can switch easily between fit() and fit_fast()
 ):
@@ -50,9 +65,6 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
     :param treated_units:  An iterable indicating the rows
         of `X` and `Y` which contain data from treated units.
     :type treated_units: int[], Optional
-    
-    :param v_pens:  Penalization values to try when searching for variable weights.
-    :type v_pens: float[], default=None (let sklearn.LassoCV pick list automatically)
     
     :param w_pens:  Penalization values to try when searching for unit weights.
     :type w_pens: float[], default=None (let sklearn.LassoCV pick list automatically)
@@ -123,16 +135,11 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
         elif model_type=="prospective-restricted:":
             X_v = X[treated_units, :]
             Y_v = Y[treated_units,:]
-    MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, v_pens=v_pens)
-    #if mixed:
-        #raise NotImplementedError()
-        #lambdas = lassocvfit.alphas_
-        #scores = [] * len(lambdas)
-        #for l_i, l in enumerate(lambdas):
-            #lassofit = Lasso(normalize=True, alpha=l).fit(X_c,y_c_mean)
-            #params = lassocvfit.coef_
-            #remove constant if necessary
-            #scores[l_i] = scfit_pick_optimal_wpen(params, model_type=model_type)
+    try:
+        MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, X, Y, model_type, treated_units, w_pens, custom_donor_pool=custom_donor_pool)
+    except:
+        MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v)
+
     if len(V) == 0:
         return SparseSCFit(
             X=X,
@@ -140,17 +147,8 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
             control_units=control_units,
             treated_units=treated_units,
             model_type=model_type,
-            # fitting parameters
-            fitted_v_pen=None,
-            fitted_w_pen=None,
-            initial_w_pen=None,
-            initial_v_pen=None,
             V=np.diag(V),
-            # Fitted Synthetic Controls
             sc_weights=null_weights,
-            score=None, 
-            scores=None,
-            selected_score=None,
             match_space_trans = MatchSpace,
             match_space_desc = MatchSpaceDesc
         )
@@ -227,6 +225,7 @@ def fit_fast_inner(
     match_space_trans = None,
     match_space_desc = None
 ):
+    #returns in-sample score
     if treated_units is not None:
         control_units = [u for u in range(Y.shape[0]) if u not in treated_units]
         N0 = len(control_units)
@@ -255,6 +254,15 @@ def fit_fast_inner(
     M_c = M[control_units,:]
 
     sc_weights = _sc_weights_trad(M, M_c, V, N, N0, custom_donor_pool, best_w_pen)
+    Y_sc = sc_weights.dot(Y[self.control_units, :])
+    if model_type=="retrospective":
+        mscore = np.sum(np.square(Y[control_units,:] - Y_sc[control_units,:]))
+    elif model_type=="prospective":
+        mscore = np.sum(np.square(Y - Y_sc))
+    elif model_type=="prospective-restricted:":
+        mscore = np.sum(np.square(Y[treated_units,:] - Y_sc[treated_units,:]))
+    else: #model_type=="full"
+        mscore = np.sum(np.square(Y - Y_sc))
 
     return SparseSCFit(
         X=X,
@@ -262,17 +270,11 @@ def fit_fast_inner(
         control_units=control_units,
         treated_units=treated_units,
         model_type=model_type,
-        # fitting parameters
         fitted_v_pen=best_v_pen,
         fitted_w_pen=best_w_pen,
-        initial_w_pen=None,
-        initial_v_pen=None,
         V=np.diag(V),
-        # Fitted Synthetic Controls
         sc_weights=sc_weights,
-        score=None, 
-        scores=None,
-        selected_score=None,
+        score=mscore, 
         match_space_trans = match_space_trans,
         match_space = M,
         match_space_desc = match_space_desc
