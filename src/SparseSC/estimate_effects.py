@@ -19,13 +19,14 @@ def estimate_effects(
     ret_CI=False,
     level=0.95,
     fast = False,
+    T_prosp_train = None,
     **kwargs
 ):
     r"""
     Determines statistical significance for average and individual effects
 
     :param Y: N x T matrix of outcomes
-    :param unit_treatment_periods: N -vector of treatment periods (use value <0 if never treated in sample)
+    :param unit_treatment_periods: N -vector of treatment periods (use value np.nan if never treated in sample)
     :param T0: pre-history length to match over. Default is pre-period for first treatment
     :param T1: post-history length to evaluate over. Default is post-period for last treatment
     :param X: N x K (or None)
@@ -48,10 +49,11 @@ def estimate_effects(
         Y_df = Y
         Y = Y.values
     N,T = Y.shape
+    fin_t_periods = unit_treatment_periods[np.isfinite(unit_treatment_periods)]
     if T0 is None:
-        T0 = min(unit_treatment_periods[unit_treatment_periods>=1])
+        T0 = min(fin_t_periods[fin_t_periods>=1])
     if T1 is None:
-        T1 = T-max(unit_treatment_periods[unit_treatment_periods<=(T-1)])
+        T1 = T-max(fin_t_periods[fin_t_periods<=(T-1)])
 
     #Set default parameters for fit()
     if 'model_type' in kwargs and kwargs['model_type'] != 'retrospective': 
@@ -71,7 +73,7 @@ def estimate_effects(
     if 'constrain' not in kwargs:
         kwargs['constrain'] = 'simplex'
 
-    treatment_periods = np.unique(unit_treatment_periods[np.logical_and(unit_treatment_periods>=T0,unit_treatment_periods<=(T-T1))]) #sorts
+    treatment_periods = np.unique(fin_t_periods[np.logical_and(fin_t_periods>=T0,fin_t_periods<=(T-T1))]) #sorts
     fits = {}
     if ret_CI:
         ind_CI = {}
@@ -202,7 +204,10 @@ def estimate_effects(
     )
 
 def get_sample_masks(unit_treatment_periods, treatment_period, T1):
-    c_units_mask = np.logical_or(unit_treatment_periods<0,unit_treatment_periods>(treatment_period+T1))
+    is_fin_mask = np.isfinite(unit_treatment_periods)
+    c_units_mask = np.logical_not(is_fin_mask)
+    c_units_mask[is_fin_mask] = unit_treatment_periods[is_fin_mask]>(treatment_period+T1)
+    #c_units_mask = np.logical_or(np.isnan(unit_treatment_periods),unit_treatment_periods>(treatment_period+T1))
     t_units_mask = (unit_treatment_periods == treatment_period)
     ct_units_mask = np.logical_or(c_units_mask, t_units_mask)
     return c_units_mask, t_units_mask, ct_units_mask
@@ -218,7 +223,7 @@ class SparseSCEstResults(object):
         :param Y: Outcome for the whole sample
         :param fits: The fit() return objects
         :type fits: dictionary of period->SparseSCFit
-        :param unit_treatment_periods: N -vector of treatment periods (use value >=T if never treated in sample)
+        :param unit_treatment_periods: N -vector of treatment periods (use np.nan if never treated in sample)
         :param T0: Pre-history to match over
         :param T1: post-history to evaluate over
         :param pl_res_pre: Statistics for the average fit of the treated units

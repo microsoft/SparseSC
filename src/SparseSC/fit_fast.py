@@ -2,7 +2,7 @@
 
 """
 import numpy as np
-from sklearn.linear_model import LassoCV, MultiTaskLassoCV, RidgeCV #Lasso, 
+from sklearn.linear_model import LassoCV, MultiTaskLasso, MultiTaskLassoCV, RidgeCV #Lasso, 
 import scipy
 
 from .fit import SparseSCFit
@@ -16,18 +16,29 @@ def MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5):
         return(X[:,m_sel])
     return _MT_Match, V[m_sel], best_v_pen, V
 
-def MTLassoMixed_MatchSpace(X_v, Y_v, X, Y, model_type, treated_units, w_pens, v_pens=None, n_v_cv = 5, custom_donor_pool=None):
-    varselectorfit = MultiTaskLassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X_v, Y_v)
+def MTLassoMixed_MatchSpace(X, Y, score_model_fn, v_pens=None, n_v_cv = 5):
+    varselectorfit = MultiTaskLassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X, Y)
     alphas = varselectorfit.alphas_
     scores = np.zeros((len(alphas)))
-    for i, alpha in enumerate(alphas):
-        coefs = varselectorfit.coef_[:,:,i]
-        V = np.sqrt(np.sum(coefs**2, axis=0)) #n_tasks x n_features -> n_feature
-        m_sel = (V!=0)
-        scores[i] = fit_fast_inner(X, X[:,m_sel], Y, V[:,m_sel], model_type, treated_units, alpha, w_pens, custom_donor_pool).score
+    path_ret = MultiTaskLasso.path(X, Y, alphas=alphas) #same as MultiTaskLassoCV.path
+    if isinstance(path_ret, tuple):
+        coefs = path_ret[1]
+    else:
+        coefs = path_ret.coefs
+    for i in range(len(alphas)):
+        coef_i = coefs[:,:,i]
+        V = np.sqrt(np.sum(coef_i**2, axis=0)) #n_tasks x n_features -> n_feature
+        m_sel = (V!=0)     
+        def _MT_Match(X):
+            return(X[:,m_sel])
+        scores[i] = score_model_fn(_MT_Match, V[m_sel])
     i_best = np.argmin(scores)
-    V = np.sqrt(np.sum(varselectorfit.coef_[:,:,i]**2, axis=0))
-    best_v_pen = alphas[i]
+    alpha_best = alphas[i_best]
+    alpha_cv = varselectorfit.alpha_
+    i_cv = np.where(alphas==alpha_cv)[0][0]
+    print("CV alpha: " + str(alpha_cv) + " (" + str(scores[i_cv]) + "). Best alpha: " + str(alpha_best) + " (" + str(scores[i_best]) + ") .")
+    V = np.sqrt(np.sum(coefs[:,:,i_best]**2, axis=0))
+    best_v_pen = alphas[i_best]
     m_sel = (V!=0)
     def _MT_Match(X):
         return(X[:,m_sel])
@@ -135,10 +146,12 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
         elif model_type=="prospective-restricted:":
             X_v = X[treated_units, :]
             Y_v = Y[treated_units,:]
-    try:
-        MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, X, Y, model_type, treated_units, w_pens, custom_donor_pool=custom_donor_pool)
-    except:
-        MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v)
+    #try:
+    def _score_model(MatchSpace, V):
+        return fit_fast_inner(X, MatchSpace(X), Y, V, model_type, treated_units, w_pens=w_pens, custom_donor_pool=custom_donor_pool).score
+    MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, score_model_fn=_score_model)
+    #except:
+    #    MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v)
 
     if len(V) == 0:
         return SparseSCFit(
@@ -254,7 +267,7 @@ def fit_fast_inner(
     M_c = M[control_units,:]
 
     sc_weights = _sc_weights_trad(M, M_c, V, N, N0, custom_donor_pool, best_w_pen)
-    Y_sc = sc_weights.dot(Y[self.control_units, :])
+    Y_sc = sc_weights.dot(Y[control_units, :])
     if model_type=="retrospective":
         mscore = np.sum(np.square(Y[control_units,:] - Y_sc[control_units,:]))
     elif model_type=="prospective":
