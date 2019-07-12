@@ -1,13 +1,22 @@
-""" Experimental but fast API providing a single call for fitting SC Models
+""" Fast API providing a single call for fitting SC Models
 
 """
 import numpy as np
-from sklearn.linear_model import LassoCV, MultiTaskLasso, MultiTaskLassoCV, RidgeCV #Lasso, 
-import scipy
+from sklearn.linear_model import LassoCV, MultiTaskLassoCV, RidgeCV #Lasso, 
+import scipy.linalg #superset of np.linalg and also optimized compiled
 
 from .fit import SparseSCFit
 
 def MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5):
+    """
+    Fit a MultiTaskLassoCV for Y ~ X
+
+    :param X: Features N X K
+    :param Y: Targets N X G (# of goals)
+    :param v_pens: Penalties to evaluate (default is to automatically determince)
+    :param n_v_cv: Number of Cross-Validation folds
+    :returns: MatchSpace fn, V vector, best_v_pen, V
+    """
     varselectorfit = MultiTaskLassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X, Y)
     V = np.sqrt(np.sum(varselectorfit.coef_**2, axis=0)) #n_tasks x n_features -> n_feature
     best_v_pen = varselectorfit.alpha_
@@ -15,12 +24,32 @@ def MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5):
     def _MT_Match(X):
         return(X[:,m_sel])
     return _MT_Match, V[m_sel], best_v_pen, V
+    
+def _FakeMTLassoCV_MatchSpace(X, Y, n_v_cv = 5, v_pens=None):
+    y_mean = Y.mean(axis=1)
+    varselectorfit = LassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X, y_mean)
+    V = varselectorfit.coef_
+    best_v_pen = varselectorfit.alpha_
+    m_sel = (V!=0)
+    def _MT_Match(X):
+        return(X[:,m_sel])
+    return _MT_Match, V[m_sel], best_v_pen, V
 
-def MTLassoMixed_MatchSpace(X, Y, score_model_fn, v_pens=None, n_v_cv = 5):
+def MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=None, n_v_cv = 5):
+    """
+    Fit a MultiTaskLasso for Y ~ X, but evaluate each penalization based on using that to fit a SparseSC model (downstream estimation)
+
+    :param X: Features N X K
+    :param Y: Targets N X G (# of goals)
+    :param fit_model_wrapper: Function that takes MatchSpace function and V vector and returns SparseSCFit object
+    :param v_pens: Penalties to evaluate (default is to automatically determince)
+    :param n_v_cv: Number of Cross-Validation folds
+    :returns: MatchSpace fn, V vector, best_v_pen, V
+    """
     varselectorfit = MultiTaskLassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X, Y)
     alphas = varselectorfit.alphas_
     scores = np.zeros((len(alphas)))
-    path_ret = MultiTaskLasso.path(X, Y, alphas=alphas) #same as MultiTaskLassoCV.path
+    path_ret = MultiTaskLassoCV.path(X, Y, alphas=alphas) #same as MultiTaskLasso.path
     if isinstance(path_ret, tuple):
         coefs = path_ret[1]
     else:
@@ -29,9 +58,10 @@ def MTLassoMixed_MatchSpace(X, Y, score_model_fn, v_pens=None, n_v_cv = 5):
         coef_i = coefs[:,:,i]
         V = np.sqrt(np.sum(coef_i**2, axis=0)) #n_tasks x n_features -> n_feature
         m_sel = (V!=0)     
-        def _MT_Match(X):
-            return(X[:,m_sel])
-        scores[i] = score_model_fn(_MT_Match, V[m_sel])
+        def _MT_Match(X): #looks up m_sel when executed, not when defined. So only use if called right away 
+            return(X[:,m_sel]) #pylint: disable=cell-var-from-loop
+        sc_fit = fit_model_wrapper(_MT_Match, V[m_sel])
+        scores[i] = sc_fit.score
     i_best = np.argmin(scores)
     alpha_best = alphas[i_best]
     alpha_cv = varselectorfit.alpha_
@@ -41,16 +71,10 @@ def MTLassoMixed_MatchSpace(X, Y, score_model_fn, v_pens=None, n_v_cv = 5):
     best_v_pen = alphas[i_best]
     m_sel = (V!=0)
     def _MT_Match(X):
-        return(X[:,m_sel])
+        return X[:,m_sel]
     return _MT_Match, V[m_sel], best_v_pen, V
-    
-#def _FakeMTLassoCV_MatchSpace(X, Y, n_v_cv = 5, v_pens=None):
-    #y_mean = Y.mean(axis=1)
-    #y_mean_c = y_mean[control_units]
-    #varselectorfit = LassoCV(normalize=True).fit(X_c, y_mean_c, cv=n_cv)
-    #V = varselectorfit.coef_
 
-def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
+def fit_fast(  # pylint: disable=unused-argument
     X,
     Y,
     model_type="restrospective",
@@ -97,6 +121,10 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
         Note: These are not used in the fitting stage (of V and penalties) just
         in final unit weight determination.
     :type custom_donor_pool: boolean, default = ``None``
+
+    :param match_space_maker: Function that returns MatchSpace fn and V vector
+
+    :param kwargs: Additional parameters so that one can easily switch between fit() and fit_fast()
 
     :returns: A :class:`SparseSCFit` object containing details of the fitted model.
     :rtype: :class:`SparseSCFit`
@@ -146,12 +174,15 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
         elif model_type=="prospective-restricted:":
             X_v = X[treated_units, :]
             Y_v = Y[treated_units,:]
-    #try:
-    def _score_model(MatchSpace, V):
-        return fit_fast_inner(X, MatchSpace(X), Y, V, model_type, treated_units, w_pens=w_pens, custom_donor_pool=custom_donor_pool).score
-    MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, score_model_fn=_score_model)
-    #except:
-    #    MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v)
+    try:
+        def _score_model(MatchSpace, V):
+            return _fit_fast_inner(X, MatchSpace(X), Y, V, model_type, treated_units, w_pens=w_pens, custom_donor_pool=custom_donor_pool)
+        MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, fit_model_wrapper=_score_model)
+    except TypeError as te:
+        MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v)
+    except Exception as e:
+        print(e)
+        raise e
 
     if len(V) == 0:
         return SparseSCFit(
@@ -167,7 +198,7 @@ def fit_fast(  # pylint: disable=differing-type-doc, differing-param-doc
         )
     M = MatchSpace(X)
 
-    return(fit_fast_inner(X, M, Y, V, model_type, treated_units, best_v_pen, w_pens, custom_donor_pool, MatchSpace, MatchSpaceDesc))
+    return _fit_fast_inner(X, M, Y, V, model_type, treated_units, best_v_pen, w_pens, custom_donor_pool, MatchSpace, MatchSpaceDesc)
 
 
 def _ensure_good_donor_pool(custom_donor_pool, control_units, N0):
@@ -175,9 +206,9 @@ def _ensure_good_donor_pool(custom_donor_pool, control_units, N0):
     for i in range(N0):
         custom_donor_pool_c[i, i] = False
     custom_donor_pool[control_units,:] = custom_donor_pool_c
-    return(custom_donor_pool)
+    return custom_donor_pool
 
-def _RidgeCVSolution(M, control_units, controls_as_goals, extra_goals, V, N0, w_pens):
+def _RidgeCVSolution(M, control_units, controls_as_goals, extra_goals, V, w_pens):
     #Could return the weights too
     M_c = M[control_units,:]
     features = np.empty((0,0))
@@ -188,18 +219,18 @@ def _RidgeCVSolution(M, control_units, controls_as_goals, extra_goals, V, N0, w_
             features_i = (M_c_i*np.sqrt(V)).T #K* x (N0-1) 
             targets_i = ((M_c[i,:]-M_c_i.mean(axis=0))*np.sqrt(V)).T #K*x1
 
-            features = scipy.linalg.block_diag(features, features_i)
+            features = scipy.linalg.block_diag(features, features_i) #pylint: disable=no-member
             targets = np.hstack((targets, targets_i))
     if extra_goals is not None:
         for extra_goal in extra_goals:
             features_i = (M_c*np.sqrt(V)).T #K* x (N0-1) 
             targets_i = ((M[extra_goal,:]-M_c.mean(axis=0))*np.sqrt(V)).T #K*x1
 
-            features = scipy.linalg.block_diag(features, features_i)
+            features = scipy.linalg.block_diag(features, features_i) #pylint: disable=no-member
             targets = np.hstack((targets, targets_i))
 
     ridgecvfit = RidgeCV(alphas=w_pens, fit_intercept=False).fit(features, targets) #Use the generalized cross-validation
-    return(ridgecvfit.alpha_)
+    return ridgecvfit.alpha_
 
 def _weights(V , X_treated, X_control, w_pen):
     V = np.diag(V) #make square
@@ -223,9 +254,9 @@ def _sc_weights_trad(M, M_c, V, N, N0, custom_donor_pool, best_w_pen):
     for i in range(N):
         allowed = custom_donor_pool[i,:]
         sc_weights[i,allowed] = _weights(V, M[i,:], M_c[allowed,:], best_w_pen)
-    return(sc_weights)
+    return sc_weights
 
-def fit_fast_inner(
+def _fit_fast_inner(
     X, 
     M,
     Y,
@@ -256,13 +287,13 @@ def fit_fast_inner(
     custom_donor_pool = _ensure_good_donor_pool(custom_donor_pool, control_units, N0)
 
     if model_type=="retrospective":
-        best_w_pen = _RidgeCVSolution(M, control_units, True, None, V, N0, w_pens)
+        best_w_pen = _RidgeCVSolution(M, control_units, True, None, V, w_pens)
     elif model_type=="prospective":
-        best_w_pen = _RidgeCVSolution(M, control_units, True, treated_units, V, N0, w_pens)
+        best_w_pen = _RidgeCVSolution(M, control_units, True, treated_units, V, w_pens)
     elif model_type=="prospective-restricted:":
-        best_w_pen = _RidgeCVSolution(M, control_units, False, treated_units, V, N0, w_pens)
+        best_w_pen = _RidgeCVSolution(M, control_units, False, treated_units, V, w_pens)
     else: #model_type=="full"
-        best_w_pen = _RidgeCVSolution(M, control_units, True, None, V, N0, w_pens)
+        best_w_pen = _RidgeCVSolution(M, control_units, True, None, V, w_pens)
 
     M_c = M[control_units,:]
 

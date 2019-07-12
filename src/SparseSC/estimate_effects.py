@@ -3,7 +3,7 @@ Effect estimation routines
 """
 import numpy as np
 import pandas as pd
-from .utils.metrics_utils import _gen_placebo_stats_from_diffs, CI_int
+from .utils.metrics_utils import _gen_placebo_stats_from_diffs
 from .fit import fit
 from .fit_fast import fit_fast
 
@@ -19,45 +19,81 @@ def estimate_effects(
     ret_CI=False,
     level=0.95,
     fast = False,
-    T_prosp_train = None,
+    model_type = "retrospective",
+    T2 = None,
     **kwargs
 ):
     r"""
     Determines statistical significance for average and individual effects
 
-    :param Y: N x T matrix of outcomes
-    :param unit_treatment_periods: N -vector of treatment periods (use value np.nan if never treated in sample)
-    :param T0: pre-history length to match over. Default is pre-period for first treatment
-    :param T1: post-history length to evaluate over. Default is post-period for last treatment
-    :param X: N x K (or None)
+    :param Y: Outcomes
+    :type Y: np.array or pd.DataFrame with shape (N,T)
+    :param unit_treatment_periods: Vector or treatment periods (use value np.nan if never treated in sample)
+    :type unit_treatment_periods: np.array or pd.Series with shape (N)
+    :param T0: pre-history length to match over. 
+    :type T0: int, Optional (default is pre-period for first treatment)
+    :param T1: post-history length to fit over. 
+    :type T1: int, Optional (Default is post-period for last treatment)
+    :param X: Additional pre-treatment features
+    :type X: np.array or pd.DataFrame with shape (N,K), Optional
     :param max_n_pl: The full number of placebos is choose(N0,N1). If N1=1
             then this is N0. This number grows quickly with N1 so we can
             set a maximum that we compute and this is drawn at random.
+    :type max_n_pl: int, Optional
     :param ret_pl: Return the matrix of placebos (different from the SC of
             the controls when N1>1)
-    :param ret_CI:
-    :param level:
-    :param kwargs: Additional parameters passed to fit()
+    :type ret_pl: bool
+    :param ret_CI: Whether to return confidence intervals (requires more memory during execution)
+    :param level: Level for confidence intervals
+    :type level: float (between 0 and 1)
+    :param fast: Whether to use the fast approximate solution (fit_fast() rather than fit())
+    :type fast: bool
+    :param model_type: Model type
+    :param T2: If model='prospective' then the period of which to evaluate the effect
+    :param kwargs: Additional parameters passed to fit() or fit_fast()
 
     :returns: An instance of SparseSCEstResults with the fitted results
     :raises ValueError:  when invalid parameters are passed
 
-    :Keyword Args: Passed on to fit()
+    :Keyword Args: Passed on to fit() or fit_fast()
     """
     Y_df = None
     if isinstance(Y, pd.DataFrame):
         Y_df = Y
         Y = Y.values
-    N,T = Y.shape
+        if isinstance(X, pd.DataFrame):
+            X = X.reindex(Y_df.index)
+        if isinstance(unit_treatment_periods, pd.Series):
+            unit_treatment_periods = unit_treatment_periods.reindex(Y_df.index)
+    if unit_treatment_periods.dtype.kind=='M':
+        assert (Y_df is not None), "Can't determine time period of treatment"
+        assert (Y_df.columns.dtype.kind=='M'), "Can't determine time period of treatment"
+        is_a_nat = np.isnat(unit_treatment_periods)
+        u2 = np.empty((len(unit_treatment_periods)))
+        for i, val in enumerate(unit_treatment_periods):
+            if is_a_nat[i]:
+                u2[i] = np.nan
+            else:
+                idx_list = np.where(Y_df.columns==val)[0]
+                if len(idx_list)==0:
+                    u2[i] = np.nan
+                else:
+                    u2[i] = idx_list[0]
+        unit_treatment_periods = u2
+
+    N,T = Y.shape #pylint: disable=unused-variable
     fin_t_periods = unit_treatment_periods[np.isfinite(unit_treatment_periods)].astype('int')
     if T0 is None:
         T0 = min(fin_t_periods[fin_t_periods>=1])
     if T1 is None:
         T1 = T-max(fin_t_periods[fin_t_periods<=(T-1)])
+    if model_type == 'full': 
+        raise ValueError("parameter 'model_type' can't be 'full'" )
+    if model_type != 'retrospective' and T2 is None:
+        raise ValueError("Must specificy 'T2' for non-retroscpective designs.")
+    fit_fn = fit_fast if fast else fit
 
     #Set default parameters for fit()
-    if 'model_type' in kwargs and kwargs['model_type'] != 'retrospective': 
-        raise ValueError("parameter 'model_type' must be 'retrospective'" )
     if 'print_path' not in kwargs:
         kwargs['print_path'] = False
     if 'progress' not in kwargs:
@@ -72,8 +108,16 @@ def estimate_effects(
         kwargs['choice'] = "min"
     if 'constrain' not in kwargs:
         kwargs['constrain'] = 'simplex'
+    
+    if model_type=='retrospective':
+        Tpost = T1
+        Teval = T1
+    else:
+        Tpost = T1+T2
+        Teval = T2
+    #Teval_offset = Tpost-Teval
 
-    treatment_periods = np.unique(fin_t_periods[np.logical_and(fin_t_periods>=T0,fin_t_periods<=(T-T1))]) #sorts
+    treatment_periods = np.unique(fin_t_periods[np.logical_and(fin_t_periods>=T0,fin_t_periods<=(T-Tpost))]) #sorts
     fits = {}
     if ret_CI:
         ind_CI = {}
@@ -81,46 +125,41 @@ def estimate_effects(
         ind_CI = None
     diffs_pre_c = np.empty((0,T0))
     diffs_pre_t = np.empty((0,T0))
-    diffs_post_c = np.empty((0,T1))
-    diffs_post_t = np.empty((0,T1))
-    diffs_post_scaled_c = np.empty((0,T1))
-    diffs_post_scaled_t = np.empty((0,T1))
+    if model_type!="retroscpective":
+        diffs_post_fit_c = np.empty((0,T1))
+        diffs_post_fit_t = np.empty((0,T1))
+    diffs_post_eval_c = np.empty((0,Teval))
+    diffs_post_eval_t = np.empty((0,Teval))
+    diffs_post_eval_scaled_c = np.empty((0,Teval))
+    diffs_post_eval_scaled_t = np.empty((0,Teval))
 
     for treatment_period in treatment_periods:
         #Get the local values
-        c_units_mask_full, t_units_mask_full, ct_units_mask_full = get_sample_masks(unit_treatment_periods, treatment_period, T1)
-        Y_local = Y[ct_units_mask_full,(treatment_period-T0):(treatment_period+T1)]
+        c_units_mask_full, t_units_mask_full, ct_units_mask_full = get_sample_masks(unit_treatment_periods, treatment_period, Tpost)
+        Y_local = Y[ct_units_mask_full,(treatment_period-T0):(treatment_period+Tpost)]
         if Y_df is not None:
-            col_index = Y_df.columns[(treatment_period-T0):(treatment_period+T1)]
+            col_index = Y_df.columns[(treatment_period-T0):(treatment_period+Tpost)]
         else:
             col_index = None
         treated_units = t_units_mask_full[ct_units_mask_full].nonzero()[0]
         control_units = c_units_mask_full[ct_units_mask_full].nonzero()[0]
 
         Y_pre = Y_local[:,:T0]
-        Y_post = Y_local[:,T0:]
+        #Y_post = Y_local[:,T0:]
+        Y_post_fit = Y_local[:,T0:(T0+T1)]
         if X is None:
             X_and_Y_pre = Y_pre
         else:
             X_and_Y_pre = np.hstack((X[ct_units_mask_full,:], Y_pre))
 
-        if not fast:
-            fits[treatment_period] = fit(
-                X=X_and_Y_pre,
-                Y=Y_post,
-                model_type="retrospective",
-                treated_units=treated_units,
-                **kwargs
-            )
-        else:
-            fits[treatment_period] = fit_fast(
-                X=X_and_Y_pre,
-                Y=Y_post,
-                model_type="retrospective",
-                treated_units=treated_units,
-                **kwargs
-            )
-
+        fits[treatment_period] = fit_fn(
+            X=X_and_Y_pre,
+            Y=Y_post_fit,
+            model_type=model_type,
+            treated_units=treated_units,
+            **kwargs
+        )
+        if fast:
             M = fits[treatment_period].match_space
             M_diffs_2 = np.square(M - fits[treatment_period].predict(M))
             #rmspe_M_unw = np.sqrt(np.mean(M_diff_2, axis=1))
@@ -135,12 +174,15 @@ def estimate_effects(
         diffs = Y_local - Y_sc
         diffs_pre_c = np.vstack((diffs_pre_c,diffs[control_units,:T0]))
         diffs_pre_t = np.vstack((diffs_pre_t,diffs[treated_units,:T0]))
-        diffs_post_c = np.vstack((diffs_post_c,diffs[control_units,T0:]))
-        diffs_post_t = np.vstack((diffs_post_t,diffs[treated_units,T0:]))
+        if model_type!="retroscpective":
+            diffs_post_fit_c = np.vstack((diffs_post_fit_c,diffs[control_units,T0:(T0+T1)]))
+            diffs_post_fit_t = np.vstack((diffs_post_fit_t,diffs[treated_units,T0:(T0+T1)]))
+        diffs_post_eval_c = np.vstack((diffs_post_eval_c,diffs[control_units,T0+Tpost-Teval:T0+Tpost]))
+        diffs_post_eval_t = np.vstack((diffs_post_eval_t,diffs[treated_units,T0+Tpost-Teval:T0+Tpost]))
         rmspes_pre = np.sqrt(np.mean(np.square(diffs[:,:T0]), axis=1))
-        diffs_post_scaled = np.diagflat(1/rmspes_pre).dot(diffs[:,T0:])
-        diffs_post_scaled_c = np.vstack((diffs_post_scaled_c,diffs_post_scaled[control_units,:]))
-        diffs_post_scaled_t = np.vstack((diffs_post_scaled_t,diffs_post_scaled[treated_units,:]))
+        diffs_post_eval_scaled = np.diagflat(1/rmspes_pre).dot(diffs[:,T0+Tpost-Teval:T0+Tpost])
+        diffs_post_eval_scaled_c = np.vstack((diffs_post_eval_scaled_c,diffs_post_eval_scaled[control_units,:]))
+        diffs_post_eval_scaled_t = np.vstack((diffs_post_eval_scaled_t,diffs_post_eval_scaled[treated_units,:]))
 
         if ret_CI:
             Y_sc_full = fits[treatment_period].predict(Y[ct_units_mask_full,:])
@@ -150,10 +192,14 @@ def estimate_effects(
             ind_CI[treatment_period] = ind_ci_vals
 
     if len(treatment_periods) == 1 and Y_df is not None:
+        treatment_period = treatment_periods[0]
         pre_index = Y_df.columns[(treatment_period-T0):treatment_period]
-        post_index = Y_df.columns[treatment_period:(treatment_period+T1)]
+        #post_index = Y_df.columns[treatment_period:(treatment_period+Tpost)]
+        post_eval_index = Y_df.columns[(treatment_period+Tpost-Teval):(treatment_period+Tpost)]
+        if model_type!="retroscpective":
+            post_fit_index = Y_df.columns[treatment_period:(treatment_period+T1)]
     else:
-        pre_index, post_index = None, None
+        pre_index, post_fit_index, post_eval_index = None, None, None
     # diagnostics
     pl_res_pre = _gen_placebo_stats_from_diffs(
         diffs_pre_c,
@@ -165,45 +211,54 @@ def estimate_effects(
         vec_index = pre_index
     )
 
-    pl_res_pre = _gen_placebo_stats_from_diffs(
-        diffs_pre_c,
-        diffs_pre_t,
-        max_n_pl,
-        ret_pl,
-        ret_CI,
-        level,
-        vec_index = pre_index
-    )
+    if model_type!="retroscpective":
+        pl_res_post_fit = _gen_placebo_stats_from_diffs(
+            diffs_post_fit_c,
+            diffs_post_fit_t,
+            max_n_pl,
+            ret_pl,
+            ret_CI,
+            level,
+            vec_index = post_fit_index
+        )
 
     # effects
-    pl_res_post = _gen_placebo_stats_from_diffs(
-        diffs_post_c,
-        diffs_post_t,
+    pl_res_post_eval = _gen_placebo_stats_from_diffs(
+        diffs_post_eval_c,
+        diffs_post_eval_t,
         max_n_pl,
         ret_pl,
         ret_CI,
         level,
-        vec_index = post_index
+        vec_index = post_eval_index
     )
 
-    pl_res_post_scaled = _gen_placebo_stats_from_diffs(
-        diffs_post_scaled_c,
-        diffs_post_scaled_t,
+    pl_res_post_eval_scaled = _gen_placebo_stats_from_diffs(
+        diffs_post_eval_scaled_c,
+        diffs_post_eval_scaled_t,
         max_n_pl,
         ret_pl,
         ret_CI,
         level,
-        vec_index = post_index
+        vec_index = post_eval_index
     )
 
     if Y_df is not None:
         Y = Y_df
 
-    return SparseSCEstResults(
-        Y, fits, unit_treatment_periods, T0, T1, pl_res_pre, pl_res_post, pl_res_post_scaled, X, ind_CI
+    est_ret = SparseSCEstResults(
+        Y, fits, unit_treatment_periods, T0, T1, pl_res_pre, pl_res_post_eval, pl_res_post_eval_scaled, X, ind_CI
     )
+    setattr(est_ret, 'pl_res_post_fit', pl_res_post_fit)
+    
+    return est_ret
 
 def get_sample_masks(unit_treatment_periods, treatment_period, T1):
+    """
+    Returns the sample mast for a particular treatment period
+
+    :returns: control units mask, treated units mask, full sample mask (logical or of the previous two) 
+    """
     is_fin_mask = np.isfinite(unit_treatment_periods)
     c_units_mask = np.logical_not(is_fin_mask)
     c_units_mask[is_fin_mask] = unit_treatment_periods[is_fin_mask]>(treatment_period+T1)
@@ -271,6 +326,9 @@ class SparseSCEstResults(object):
         return self.pl_res_post.avg_joint_effect
 
     def get_W(self, treatment_period=None):
+        """
+        Get W (np.ndarray 2D or pd.DataFrame depends on what was passed in) for one of the treatment periods
+        """
         if treatment_period is None:
             t_periods = self.fits.keys()
             if len(t_periods) ==1:
@@ -285,6 +343,8 @@ class SparseSCEstResults(object):
             return fit.sc_weights
 
     def get_V(self, treatment_period=None):
+        """Returns V split across potential pre-treatment outcomes and baseline features
+        """
         if treatment_period is None:
             t_periods = self.fits.keys()
             if len(t_periods) ==1:
@@ -294,10 +354,10 @@ class SparseSCEstResults(object):
         fit = self.fits[treatment_period]
         V = np.diag(fit.V)
         if fit.match_space is not None:
-           if isinstance(fit.match_space_desc, np.ndarray):
+            if isinstance(fit.match_space_desc, np.ndarray):
                 V = fit.match_space_desc
-           else:
-               return V
+            else:
+                return V
 
         if self.X is None:
             V_X, V_Y = None, V 
@@ -333,10 +393,12 @@ class SparseSCEstResults(object):
     
     @property
     def fit(self):
+        """Handy accessor if there is only one treatment-period
+        """
         t_periods = self.fits.keys()
         if len(t_periods) ==1:
             treatment_period = list(t_periods)[0]
-            return(self.fits[treatment_period])
+            return self.fits[treatment_period]
         else:
             raise ValueError("fit property ambiguous")
 
