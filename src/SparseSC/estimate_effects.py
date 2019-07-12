@@ -49,7 +49,7 @@ def estimate_effects(
         Y_df = Y
         Y = Y.values
     N,T = Y.shape
-    fin_t_periods = unit_treatment_periods[np.isfinite(unit_treatment_periods)]
+    fin_t_periods = unit_treatment_periods[np.isfinite(unit_treatment_periods)].astype('int')
     if T0 is None:
         T0 = min(fin_t_periods[fin_t_periods>=1])
     if T1 is None:
