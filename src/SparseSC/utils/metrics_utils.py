@@ -341,10 +341,12 @@ def did_sc(Y, treated_units, control_units, T0):
     return Y_sc
 
 def _did_sc(Y_target, Y_donors, T0):
-    N0 = Y_donors.shape[0]
+    #N0 = Y_donors.shape[0]
+    #did_weights = np.full((N0), 1/N0)
+    #base_sc_slow =  np.sum(np.transpose(np.transpose(Y_donors) * did_weights), axis=0)
+    base_sc = np.mean(Y_donors, axis=0)
     pre_mean_shift = np.mean(Y_target[:T0]) - np.mean(Y_donors[:,:T0])
-    did_weights = np.full((N0), 1/N0)
-    did_sc = np.mean(np.transpose(np.transpose(Y_donors) * did_weights), axis=0) + pre_mean_shift
+    did_sc = base_sc + pre_mean_shift
     return did_sc
 
 
