@@ -1,12 +1,25 @@
 """
 Effect estimation routines
 """
+# To do:
+# - Make sure the prospective-based designs work
 import numpy as np
 import pandas as pd
 from .utils.metrics_utils import _gen_placebo_stats_from_diffs
 from .fit import fit
 from .fit_fast import fit_fast
 
+#Note https://stackoverflow.com/questions/31917964/
+# - that pandas can only store datetime[ns]
+# - that iterating through it normally with give Timestamps, so use .values first to stay in datetime[ns]
+
+
+def _convert_dt_to_idx(dt, dt_index):
+    if np.isnat(dt):
+        return np.nan
+    else:
+        idx_list = np.where(dt_index==dt)[0]
+        return np.nan if len(idx_list)==0 else idx_list[0]
 
 def estimate_effects(
     Y,
@@ -28,7 +41,11 @@ def estimate_effects(
 
     :param Y: Outcomes
     :type Y: np.array or pd.DataFrame with shape (N,T)
-    :param unit_treatment_periods: Vector or treatment periods (use value np.nan if never treated in sample)
+    :param unit_treatment_periods: Vector of treatment periods for each unit
+        (if a unit is never treated then use np.NaN if vector refers to time periods by numerical index
+        and np.datetime64('NaT') if using DateTime to refer to time periods (and thne Y must be pd.DataFrame with columns in DateTime too))
+        If using a prospective-based design this is the true treatment periods (and fit will be called with
+        pseudo-treatment periods that are T1 periods earlier).
     :type unit_treatment_periods: np.array or pd.Series with shape (N)
     :param T0: pre-history length to match over. 
     :type T0: int, Optional (default is pre-period for first treatment)
@@ -65,32 +82,64 @@ def estimate_effects(
             X = X.reindex(Y_df.index)
         if isinstance(unit_treatment_periods, pd.Series):
             unit_treatment_periods = unit_treatment_periods.reindex(Y_df.index)
-    if unit_treatment_periods.dtype.kind=='M':
+    using_dt_index = (unit_treatment_periods.dtype.kind=='M')
+    if using_dt_index:
         assert (Y_df is not None), "Can't determine time period of treatment"
         assert (Y_df.columns.dtype.kind=='M'), "Can't determine time period of treatment"
-        is_a_nat = np.isnat(unit_treatment_periods)
-        u2 = np.empty((len(unit_treatment_periods)))
-        for i, val in enumerate(unit_treatment_periods):
-            if is_a_nat[i]:
-                u2[i] = np.nan
-            else:
-                idx_list = np.where(Y_df.columns==val)[0]
-                if len(idx_list)==0:
-                    u2[i] = np.nan
-                else:
-                    u2[i] = idx_list[0]
-        unit_treatment_periods = u2
 
-    N,T = Y.shape #pylint: disable=unused-variable
-    fin_t_periods = unit_treatment_periods[np.isfinite(unit_treatment_periods)].astype('int')
-    if T0 is None:
-        T0 = min(fin_t_periods[fin_t_periods>=1])
-    if T1 is None:
-        T1 = T-max(fin_t_periods[fin_t_periods<=(T-1)])
+
+        def _convert_dts_to_idx(datetimes, dt_index):
+            if isinstance(datetimes, pd.Series):
+                datetimes = datetimes.values
+            #is_a_nat = np.isnat(datetimes)
+            dt_idx = np.empty((len(datetimes)))
+            for i, val in enumerate(datetimes):
+                dt_idx[i] = _convert_dt_to_idx(val, dt_index)
+            return dt_idx
+        dt_index = Y_df.columns.values
+        unit_treatment_periods_idx = _convert_dts_to_idx(unit_treatment_periods, dt_index)
+    else:
+        unit_treatment_periods_idx = unit_treatment_periods
+
     if model_type == 'full': 
         raise ValueError("parameter 'model_type' can't be 'full'" )
+    N,T = Y.shape #pylint: disable=unused-variable
+    finite_t_idx = unit_treatment_periods_idx[np.isfinite(unit_treatment_periods_idx)].astype('int')
+    t_max_before = min(finite_t_idx[finite_t_idx>=1])
+    t_max_after = T-max(finite_t_idx[finite_t_idx<=(T-1)])
+    if model_type == "retrospective":
+        if T0 is None:
+            T0 = t_max_before
+        else:
+            assert (T0<=t_max_before), "T0 too large to accomodate all treated units. Drop them or change T0."
+        if T1 is None:
+            T1 = t_max_after
+        else:
+            assert (T1<=t_max_after), "T1 too large to accomodate all treated units. Drop them or change T1."
+        finite_t_idx_fit = finite_t_idx
+        unit_treatment_periods_idx_fit = unit_treatment_periods_idx
+    else:
+        assert (t_max_before>=2), "Prospective-based designs need at least 2 periods before the first treatment"
+        if (T0 is None and T1 is None):
+            T1 = max(1, int(t_max_before/5))
+            T0 = t_max_before - T1
+        elif T0 is None:
+            assert t_max_before>=(T1+1)
+            T0 = t_max_before - T1
+        elif T1 is None:
+            assert t_max_before>=(T0+1)
+            T1 = t_max_before - T0
+        else:
+            assert t_max_before>=(T0+T1)
+        
+        if T2 is None:
+            T2 = t_max_after
+
+        finite_t_idx_fit = finite_t_idx - T1
+        unit_treatment_periods_idx_fit = unit_treatment_periods_idx - T1
+
     if model_type != 'retrospective' and T2 is None:
-        raise ValueError("Must specificy 'T2' for non-retroscpective designs.")
+        raise ValueError("Must specificy 'T2' for non-retrospective designs.")
     fit_fn = fit_fast if fast else fit
 
     #Set default parameters for fit()
@@ -109,6 +158,13 @@ def estimate_effects(
     if 'constrain' not in kwargs:
         kwargs['constrain'] = 'simplex'
     
+    #pullout hidden ones
+    if 'treatment_unit_size' in kwargs:
+        treatment_unit_size = kwargs['treatment_unit_size']
+        del kwargs['treatment_unit_size']
+    else:
+        treatment_unit_size = None
+    
     if model_type=='retrospective':
         Tpost = T1
         Teval = T1
@@ -117,15 +173,12 @@ def estimate_effects(
         Teval = T2
     #Teval_offset = Tpost-Teval
 
-    treatment_periods = np.unique(fin_t_periods[np.logical_and(fin_t_periods>=T0,fin_t_periods<=(T-Tpost))]) #sorts
+    treatment_periods_idx_fit = np.unique(finite_t_idx_fit[np.logical_and(finite_t_idx_fit>=T0,finite_t_idx_fit<=(T-Tpost))]) #sorts
     fits = {}
-    if ret_CI:
-        ind_CI = {}
-    else:
-        ind_CI = None
+    ind_CI = {} if ret_CI else None
     diffs_pre_c = np.empty((0,T0))
     diffs_pre_t = np.empty((0,T0))
-    if model_type!="retroscpective":
+    if model_type!="retrospective":
         diffs_post_fit_c = np.empty((0,T1))
         diffs_post_fit_t = np.empty((0,T1))
     diffs_post_eval_c = np.empty((0,Teval))
@@ -133,16 +186,23 @@ def estimate_effects(
     diffs_post_eval_scaled_c = np.empty((0,Teval))
     diffs_post_eval_scaled_t = np.empty((0,Teval))
 
-    for treatment_period in treatment_periods:
+    for treatment_period_idx_fit in treatment_periods_idx_fit:
         #Get the local values
-        c_units_mask_full, t_units_mask_full, ct_units_mask_full = get_sample_masks(unit_treatment_periods, treatment_period, Tpost)
-        Y_local = Y[ct_units_mask_full,(treatment_period-T0):(treatment_period+Tpost)]
+        treatment_period_idx = treatment_period_idx_fit if model_type=='retrospective' else treatment_period_idx_fit + T1
+        if using_dt_index:
+            treatment_period = dt_index[treatment_period_idx]
+        user_index = treatment_period if using_dt_index else treatment_period_idx
+        c_units_mask_full, t_units_mask_full, ct_units_mask_full = get_sample_masks(unit_treatment_periods_idx_fit, treatment_period_idx_fit, Tpost)
+        n_treated = np.sum(t_units_mask_full)
+        Y_local = Y[ct_units_mask_full,(treatment_period_idx_fit-T0):(treatment_period_idx_fit+Tpost)]
         if Y_df is not None:
-            col_index = Y_df.columns[(treatment_period-T0):(treatment_period+Tpost)]
+            col_index = Y_df.columns[(treatment_period_idx_fit-T0):(treatment_period_idx_fit+Tpost)]
         else:
             col_index = None
         treated_units = t_units_mask_full[ct_units_mask_full].nonzero()[0]
         control_units = c_units_mask_full[ct_units_mask_full].nonzero()[0]
+        if treatment_unit_size is not None:
+            doses = treatment_unit_size[t_units_mask_full]
 
         Y_pre = Y_local[:,:T0]
         #Y_post = Y_local[:,T0:]
@@ -152,52 +212,69 @@ def estimate_effects(
         else:
             X_and_Y_pre = np.hstack((X[ct_units_mask_full,:], Y_pre))
 
-        fits[treatment_period] = fit_fn(
+        fit_res = fit_fn(
             X=X_and_Y_pre,
             Y=Y_post_fit,
             model_type=model_type,
             treated_units=treated_units,
             **kwargs
         )
+        fits[user_index] = fit_res
+
         if fast:
-            M = fits[treatment_period].match_space
-            M_diffs_2 = np.square(M - fits[treatment_period].predict(M))
+            M = fit_res.match_space
+            M_diffs_2 = np.square(M - fit_res.predict(M))
             #rmspe_M_unw = np.sqrt(np.mean(M_diff_2, axis=1))
-            V_fit = np.diag(fits[treatment_period].V)
+            V_fit = np.diag(fit_res.V)
             V_fit_norm = V_fit / np.sum(V_fit)
             rmspe_M_w = np.sqrt(np.mean(M_diffs_2 * V_fit_norm, axis=1))
 
             rmspe_M_w_p = _gen_placebo_stats_from_diffs(rmspe_M_w[control_units,None], rmspe_M_w[treated_units,None], max_n_pl, False, True).rms_joint_effect.p
-            setattr(fits[treatment_period], 'rmspe_M_w_p', rmspe_M_w_p)
+            setattr(fit_res, 'rmspe_M_w_p', rmspe_M_w_p)
 
-        Y_sc = fits[treatment_period].predict(Y_local)
+        Y_sc = fit_res.predict(Y_local)
         diffs = Y_local - Y_sc
-        diffs_pre_c = np.vstack((diffs_pre_c,diffs[control_units,:T0]))
-        diffs_pre_t = np.vstack((diffs_pre_t,diffs[treated_units,:T0]))
-        if model_type!="retroscpective":
-            diffs_post_fit_c = np.vstack((diffs_post_fit_c,diffs[control_units,T0:(T0+T1)]))
-            diffs_post_fit_t = np.vstack((diffs_post_fit_t,diffs[treated_units,T0:(T0+T1)]))
-        diffs_post_eval_c = np.vstack((diffs_post_eval_c,diffs[control_units,T0+Tpost-Teval:T0+Tpost]))
-        diffs_post_eval_t = np.vstack((diffs_post_eval_t,diffs[treated_units,T0+Tpost-Teval:T0+Tpost]))
         rmspes_pre = np.sqrt(np.mean(np.square(diffs[:,:T0]), axis=1))
         diffs_post_eval_scaled = np.diagflat(1/rmspes_pre).dot(diffs[:,T0+Tpost-Teval:T0+Tpost])
-        diffs_post_eval_scaled_c = np.vstack((diffs_post_eval_scaled_c,diffs_post_eval_scaled[control_units,:]))
-        diffs_post_eval_scaled_t = np.vstack((diffs_post_eval_scaled_t,diffs_post_eval_scaled[treated_units,:]))
+
+        diffs_pre_t = np.vstack((diffs_pre_t,diffs[treated_units,:T0]))
+        if model_type!="retrospective":
+            diffs_post_fit_c = np.vstack((diffs_post_fit_c,diffs[control_units,T0:(T0+T1)]))
+        diffs_post_eval_t_i = diffs[treated_units,T0+Tpost-Teval:T0+Tpost]
+        diffs_post_eval_scaled_t_i = diffs_post_eval_scaled[treated_units,:]
+        if treatment_unit_size is not None:
+            diffs_post_eval_t_i = diffs_post_eval_t_i / doses[:, np.newaxis] #scale rows
+            diffs_post_eval_scaled_t_i = diffs_post_eval_scaled_t_i / doses[:, np.newaxis] #scale rows
+        diffs_post_eval_t = np.vstack((diffs_post_eval_t,diffs_post_eval_t_i))
+        diffs_post_eval_scaled_t = np.vstack((diffs_post_eval_scaled_t,diffs_post_eval_scaled_t_i))
+
+        for t_i in range(n_treated): #technically only need to do if len(treatment_periods)>1, but consistency is nice
+            diffs_pre_c = np.vstack((diffs_pre_c, diffs[control_units,:T0]))
+            if model_type!="retrospective":
+                diffs_post_fit_c = np.vstack((diffs_post_fit_c, diffs[control_units,T0:(T0+T1)]))
+            diffs_post_eval_c_i = diffs[control_units,T0+Tpost-Teval:T0+Tpost]
+            diffs_post_eval_scaled_c_i = diffs_post_eval_scaled[control_units,:]
+            if treatment_unit_size is not None:
+                diffs_post_eval_c_i = diffs_post_eval_c_i / doses[t_i]
+                diffs_post_eval_scaled_c_i = diffs_post_eval_scaled_c_i / doses[t_i]
+            diffs_post_eval_c = np.vstack((diffs_post_eval_c, diffs_post_eval_c_i))
+            diffs_post_eval_scaled_c = np.vstack((diffs_post_eval_scaled_c, diffs_post_eval_scaled_c_i))
+
 
         if ret_CI:
-            Y_sc_full = fits[treatment_period].predict(Y[ct_units_mask_full,:])
+            Y_sc_full = fit_res.predict(Y[ct_units_mask_full,:])
             diffs_full = Y[ct_units_mask_full,:] - Y_sc_full
             ind_ci_vals = _gen_placebo_stats_from_diffs(diffs_full[control_units,:], np.zeros((1,diffs_full.shape[1])),
                                                                      max_n_pl, False, True, level, vec_index=col_index).effect_vec.ci
-            ind_CI[treatment_period] = ind_ci_vals
+            ind_CI[user_index] = ind_ci_vals
 
-    if len(treatment_periods) == 1 and Y_df is not None:
-        treatment_period = treatment_periods[0]
-        pre_index = Y_df.columns[(treatment_period-T0):treatment_period]
+    if len(treatment_periods_idx_fit) == 1 and Y_df is not None:
+        treatment_period_idx_fit = treatment_periods_idx_fit[0]
+        pre_index = Y_df.columns[(treatment_period_idx_fit-T0):treatment_period_idx_fit]
         #post_index = Y_df.columns[treatment_period:(treatment_period+Tpost)]
-        post_eval_index = Y_df.columns[(treatment_period+Tpost-Teval):(treatment_period+Tpost)]
-        if model_type!="retroscpective":
-            post_fit_index = Y_df.columns[treatment_period:(treatment_period+T1)]
+        post_eval_index = Y_df.columns[(treatment_period_idx_fit+Tpost-Teval):(treatment_period_idx_fit+Tpost)]
+        if model_type!="retrospective":
+            post_fit_index = Y_df.columns[treatment_period_idx_fit:(treatment_period_idx_fit+T1)]
     else:
         pre_index, post_fit_index, post_eval_index = None, None, None
     # diagnostics
@@ -211,7 +288,7 @@ def estimate_effects(
         vec_index = pre_index
     )
 
-    if model_type!="retroscpective":
+    if model_type!="retrospective":
         pl_res_post_fit = _gen_placebo_stats_from_diffs(
             diffs_post_fit_c,
             diffs_post_fit_t,
@@ -247,15 +324,21 @@ def estimate_effects(
         Y = Y_df
 
     est_ret = SparseSCEstResults(
-        Y, fits, unit_treatment_periods, T0, T1, pl_res_pre, pl_res_post_eval, pl_res_post_eval_scaled, X, ind_CI
+        Y, fits, unit_treatment_periods, unit_treatment_periods_idx, unit_treatment_periods_idx_fit, 
+        T0, T1, pl_res_pre, pl_res_post_eval, pl_res_post_eval_scaled, X, ind_CI, model_type, T2
     )
-    setattr(est_ret, 'pl_res_post_fit', pl_res_post_fit)
-    
+    setattr(est_ret, 'unit_treatment_periods_idx', unit_treatment_periods_idx)
+    if model_type!="retrospective":
+        setattr(est_ret, 'pl_res_post_fit', pl_res_post_fit)
+        setattr(est_ret, 'T2', T2)
+    if treatment_unit_size is not None:
+        setattr(est_ret, 'treatment_unit_size', treatment_unit_size)
+
     return est_ret
 
 def get_sample_masks(unit_treatment_periods, treatment_period, T1):
     """
-    Returns the sample mast for a particular treatment period
+    Returns the sample mask for a particular treatment period
 
     :returns: control units mask, treated units mask, full sample mask (logical or of the previous two) 
     """
@@ -273,12 +356,14 @@ class SparseSCEstResults(object):
     """
 
     # pylint: disable=redefined-outer-name
-    def __init__(self, Y, fits, unit_treatment_periods, T0, T1, pl_res_pre, pl_res_post, pl_res_post_scaled, X = None, ind_CI=None):
+    def __init__(self, Y, fits, unit_treatment_periods, unit_treatment_periods_idx, unit_treatment_periods_idx_fit, T0, T1, pl_res_pre, pl_res_post, pl_res_post_scaled, X = None, ind_CI=None, model_type="retrospective", T2=None):
         """
         :param Y: Outcome for the whole sample
         :param fits: The fit() return objects
         :type fits: dictionary of period->SparseSCFit
-        :param unit_treatment_periods: N -vector of treatment periods (use np.nan if never treated in sample)
+        :param unit_treatment_periods: Vector or treatment periods for each unit
+            (if a unit is never treated then use np.NaN if vector refers to time periods by numerical index
+            and np.datetime64('NaT') if using DateTime to refer to time periods (and thne Y must be pd.DataFrame with columns in DateTime too))
         :param T0: Pre-history to match over
         :param T1: post-history to evaluate over
         :param pl_res_pre: Statistics for the average fit of the treated units
@@ -300,12 +385,18 @@ class SparseSCEstResults(object):
         self.X = X
         self.fits = fits
         self.unit_treatment_periods = unit_treatment_periods
+        self.unit_treatment_periods_idx = unit_treatment_periods_idx
+        self.unit_treatment_periods_idx_fit = unit_treatment_periods_idx_fit
         self.T0 = T0
         self.T1 = T1
+        self.T2 = T2
         self.pl_res_pre = pl_res_pre
         self.pl_res_post = pl_res_post
         self.pl_res_post_scaled = pl_res_post_scaled
         self.ind_CI = ind_CI
+        self.model_type = model_type
+        self.Tpost = T1 if model_type=='retrospective' else T1+T2
+        self._using_dt_index = (unit_treatment_periods.dtype.kind=='M')
 
     @property
     def p_value(self):
@@ -324,20 +415,38 @@ class SparseSCEstResults(object):
         p-value for the current model if relevant, else None.
         """
         return self.pl_res_post.avg_joint_effect
+    
+    def _default_treatment_period(self, treatment_period=None):
+        if treatment_period is None:
+            t_periods = self.fits.keys()
+            if len(t_periods) ==1:
+                return list(t_periods)[0]
+            else:
+                raise ValueError("Need to pass in treatment_period when there are multiple")
+        return treatment_period
+    
+    def get_tr_time_info(self, treatment_period):
+        if self._using_dt_index:
+            treatment_period_idx = _convert_dt_to_idx(treatment_period, self.Y.columns.values)
+        else:
+            treatment_period_idx = treatment_period
+        treatment_period_idx_fit = treatment_period_idx if self.model_type=="retrospective" else treatment_period_idx - self.T1
+        
+        if self._using_dt_index:
+            treatment_period_fit = self.Y.columns.values[treatment_period_idx_fit]
+        else:
+            treatment_period_fit = treatment_period_idx_fit
+        return treatment_period_idx, treatment_period_idx_fit, treatment_period_fit
 
     def get_W(self, treatment_period=None):
         """
         Get W (np.ndarray 2D or pd.DataFrame depends on what was passed in) for one of the treatment periods
         """
-        if treatment_period is None:
-            t_periods = self.fits.keys()
-            if len(t_periods) ==1:
-                treatment_period = list(t_periods)[0]
-            else:
-                raise ValueError("Need to pass in treatment_period when there are multiple")
+        treatment_period = self._default_treatment_period(treatment_period)
+        _, treatment_period_idx_fit, _ = self.get_tr_time_info(treatment_period)
         fit = self.fits[treatment_period]
         if isinstance(self.Y, pd.DataFrame):
-            c_units_mask, _, ct_units_mask = get_sample_masks(self.unit_treatment_periods, treatment_period, self.T1)
+            c_units_mask, _, ct_units_mask = get_sample_masks(self.unit_treatment_periods_idx_fit, treatment_period_idx_fit, self.Tpost)
             return pd.DataFrame(fit.sc_weights, index=self.Y.iloc[ct_units_mask,:].index, columns = self.Y.iloc[c_units_mask,:].index)
         else:
             return fit.sc_weights
@@ -345,12 +454,8 @@ class SparseSCEstResults(object):
     def get_V(self, treatment_period=None):
         """Returns V split across potential pre-treatment outcomes and baseline features
         """
-        if treatment_period is None:
-            t_periods = self.fits.keys()
-            if len(t_periods) ==1:
-                treatment_period = list(t_periods)[0]
-            else:
-                raise ValueError("Need to pass in treatment_period when there are multiple")
+        treatment_period = self._default_treatment_period(treatment_period)
+        _, treatment_period_idx_fit, _ = self.get_tr_time_info(treatment_period)
         fit = self.fits[treatment_period]
         V = np.diag(fit.V)
         if fit.match_space is not None:
@@ -368,7 +473,7 @@ class SparseSCEstResults(object):
         if isinstance(self.X, pd.DataFrame):
             V_X = pd.Series(V_X, index=self.X.columns)
         if isinstance(self.Y, pd.DataFrame):
-            V_Y = pd.Series(V_Y, index=self.Y.columns[(treatment_period-self.T0):treatment_period])
+            V_Y = pd.Series(V_Y, index=self.Y.columns[(treatment_period_idx_fit-self.T0):treatment_period_idx_fit])
 
         return V_Y, V_X
 
@@ -376,14 +481,10 @@ class SparseSCEstResults(object):
         """Returns and NxT matrix of synthetic controls. For units not eligible (those previously treated or between treatment_period and treatment_period+T1)
         The results is left empty.
         """
-        if treatment_period is None:
-            t_periods = self.fits.keys()
-            if len(t_periods) ==1:
-                treatment_period = list(t_periods)[0]
-            else:
-                raise ValueError("Need to pass in treatment_period when there are multiple")
+        treatment_period = self._default_treatment_period(treatment_period)
+        _, treatment_period_idx_fit, _ = self.get_tr_time_info(treatment_period)
         Y_sc = np.full(self.Y.shape, np.NaN)
-        _, _, ct_units_mask = get_sample_masks(self.unit_treatment_periods, treatment_period, self.T1)
+        _, _, ct_units_mask = get_sample_masks(self.unit_treatment_periods_idx_fit, treatment_period_idx_fit, self.Tpost)
         if isinstance(self.Y, pd.DataFrame):
             Y_sc[ct_units_mask,:] = self.fits[treatment_period].predict(self.Y.iloc[ct_units_mask, :].values)
             Y_sc = pd.DataFrame(Y_sc, index = self.Y.index, columns=self.Y.columns)
@@ -395,12 +496,8 @@ class SparseSCEstResults(object):
     def fit(self):
         """Handy accessor if there is only one treatment-period
         """
-        t_periods = self.fits.keys()
-        if len(t_periods) ==1:
-            treatment_period = list(t_periods)[0]
-            return self.fits[treatment_period]
-        else:
-            raise ValueError("fit property ambiguous")
+        treatment_period = self._default_treatment_period()
+        return self.fits[treatment_period]
 
     def __str__(self):
         """

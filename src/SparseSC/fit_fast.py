@@ -2,7 +2,8 @@
 
 """
 import numpy as np
-from sklearn.linear_model import LassoCV, MultiTaskLassoCV, RidgeCV #Lasso, 
+from sklearn.linear_model import LassoCV, MultiTaskLassoCV, RidgeCV
+from sklearn.metrics import r2_score
 import scipy.linalg #superset of np.linalg and also optimized compiled
 
 from .fit import SparseSCFit
@@ -18,7 +19,7 @@ def MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5):
     :returns: MatchSpace fn, V vector, best_v_pen, V
     """
     varselectorfit = MultiTaskLassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X, Y)
-    V = np.sqrt(np.sum(varselectorfit.coef_**2, axis=0)) #n_tasks x n_features -> n_feature
+    V = np.sqrt(np.sum(np.square(varselectorfit.coef_), axis=0)) #n_tasks x n_features -> n_feature
     best_v_pen = varselectorfit.alpha_
     m_sel = (V!=0)
     def _MT_Match(X):
@@ -49,24 +50,31 @@ def MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=None, n_v_cv = 5):
     varselectorfit = MultiTaskLassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X, Y)
     alphas = varselectorfit.alphas_
     scores = np.zeros((len(alphas)))
+    fits = {}
+    R2s = np.zeros((len(alphas)))
     path_ret = MultiTaskLassoCV.path(X, Y, alphas=alphas) #same as MultiTaskLasso.path
     if isinstance(path_ret, tuple):
-        coefs = path_ret[1]
+        coefs = path_ret[1] #docs say should be object with names, but actually is tuple
     else:
         coefs = path_ret.coefs
     for i in range(len(alphas)):
         coef_i = coefs[:,:,i]
-        V = np.sqrt(np.sum(coef_i**2, axis=0)) #n_tasks x n_features -> n_feature
+        V = np.sqrt(np.sum(np.square(coef_i), axis=0)) #n_tasks x n_features -> n_feature
         m_sel = (V!=0)     
         def _MT_Match(X): #looks up m_sel when executed, not when defined. So only use if called right away 
             return(X[:,m_sel]) #pylint: disable=cell-var-from-loop
         sc_fit = fit_model_wrapper(_MT_Match, V[m_sel])
         scores[i] = sc_fit.score
+        R2s[i] = sc_fit.score_R2
+        fits[i] = sc_fit
     i_best = np.argmin(scores)
     alpha_best = alphas[i_best]
     alpha_cv = varselectorfit.alpha_
     i_cv = np.where(alphas==alpha_cv)[0][0]
     print("CV alpha: " + str(alpha_cv) + " (" + str(scores[i_cv]) + "). Best alpha: " + str(alpha_best) + " (" + str(scores[i_best]) + ") .")
+    print(alphas)
+    print(scores)
+    print(R2s)
     V = np.sqrt(np.sum(coefs[:,:,i_best]**2, axis=0))
     best_v_pen = alphas[i_best]
     m_sel = (V!=0)
@@ -175,13 +183,12 @@ def fit_fast(  # pylint: disable=unused-argument
             X_v = X[treated_units, :]
             Y_v = Y[treated_units,:]
     try:
-        def _score_model(MatchSpace, V):
+        def _fit_model_wrapper(MatchSpace, V):
             return _fit_fast_inner(X, MatchSpace(X), Y, V, model_type, treated_units, w_pens=w_pens, custom_donor_pool=custom_donor_pool)
-        MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, fit_model_wrapper=_score_model)
+        MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, fit_model_wrapper=_fit_model_wrapper)
     except TypeError as te:
         MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v)
     except Exception as e:
-        print(e)
         raise e
 
     if len(V) == 0:
@@ -301,14 +308,18 @@ def _fit_fast_inner(
     Y_sc = sc_weights.dot(Y[control_units, :])
     if model_type=="retrospective":
         mscore = np.sum(np.square(Y[control_units,:] - Y_sc[control_units,:]))
+        score_R2 = r2_score(Y[control_units,:].flatten(), Y_sc[control_units,:].flatten())
     elif model_type=="prospective":
         mscore = np.sum(np.square(Y - Y_sc))
+        score_R2 = r2_score(Y.flatten(), Y_sc.flatten())
     elif model_type=="prospective-restricted:":
         mscore = np.sum(np.square(Y[treated_units,:] - Y_sc[treated_units,:]))
+        score_R2 = r2_score(Y[treated_units,:].flatten(), Y_sc[treated_units,:].flatten())
     else: #model_type=="full"
         mscore = np.sum(np.square(Y - Y_sc))
+        score_R2 = r2_score(Y.flatten(), Y_sc.flatten())
 
-    return SparseSCFit(
+    fit_obj = SparseSCFit(
         X=X,
         Y=Y,
         control_units=control_units,
@@ -323,3 +334,5 @@ def _fit_fast_inner(
         match_space = M,
         match_space_desc = match_space_desc
     )
+    setattr(fit_obj, 'score_R2', score_R2)
+    return fit_obj
