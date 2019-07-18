@@ -2,7 +2,7 @@
 
 """
 import numpy as np
-from sklearn.linear_model import LassoCV, MultiTaskLassoCV, RidgeCV
+from sklearn.linear_model import LassoCV, MultiTaskLassoCV, RidgeCV, MultiTaskLasso
 from sklearn.metrics import r2_score
 import scipy.linalg #superset of np.linalg and also optimized compiled
 
@@ -47,40 +47,40 @@ def MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=None, n_v_cv = 5):
     :param n_v_cv: Number of Cross-Validation folds
     :returns: MatchSpace fn, V vector, best_v_pen, V
     """
-    varselectorfit = MultiTaskLassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X, Y)
-    alphas = varselectorfit.alphas_
-    scores = np.zeros((len(alphas)))
-    fits = {}
-    R2s = np.zeros((len(alphas)))
-    path_ret = MultiTaskLassoCV.path(X, Y, alphas=alphas) #same as MultiTaskLasso.path
-    if isinstance(path_ret, tuple):
-        coefs = path_ret[1] #docs say should be object with names, but actually is tuple
-    else:
-        coefs = path_ret.coefs
-    for i in range(len(alphas)):
-        coef_i = coefs[:,:,i]
-        V = np.sqrt(np.sum(np.square(coef_i), axis=0)) #n_tasks x n_features -> n_feature
-        m_sel = (V!=0)     
-        def _MT_Match(X): #looks up m_sel when executed, not when defined. So only use if called right away 
-            return(X[:,m_sel]) #pylint: disable=cell-var-from-loop
-        sc_fit = fit_model_wrapper(_MT_Match, V[m_sel])
-        scores[i] = sc_fit.score
-        R2s[i] = sc_fit.score_R2
-        fits[i] = sc_fit
+    #Note that MultiTaskLasso(CV).path with the same alpha doesn't produce same results as MultiTaskLasso(CV)
+    mtlasso_cv_fit = MultiTaskLassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X, Y)
+    V_cv = np.sqrt(np.sum(np.square(mtlasso_cv_fit.coef_), axis=0)) #n_tasks x n_features -> n_feature
+    v_pen_cv = mtlasso_cv_fit.alpha_
+    m_sel_cv = (V_cv!=0)
+    def _MT_Match_cv(X):
+        return(X[:,m_sel_cv])
+    sc_fit_cv = fit_model_wrapper(_MT_Match_cv, V_cv[m_sel_cv])
+
+    v_pens = mtlasso_cv_fit.alphas_
+    #fits_single = {}
+    Vs_single = {}
+    scores = np.zeros((len(v_pens)))
+    for i in range(len(v_pens)):
+        mtlasso_i_fit = MultiTaskLasso(alpha=v_pens[i], normalize=True).fit(X, Y)
+        V_i = np.sqrt(np.sum(np.square(mtlasso_i_fit.coef_), axis=0))
+        m_sel_i = (V_i!=0)
+        def _MT_Match_i(X):
+            return(X[:,m_sel_i])
+        sc_fit_i = fit_model_wrapper(_MT_Match_i, V_i[m_sel_i])
+        #fits_single[i] = sc_fit_i
+        Vs_single[i] = V_i
+        scores[i] = sc_fit_i.score
+
     i_best = np.argmin(scores)
-    alpha_best = alphas[i_best]
-    alpha_cv = varselectorfit.alpha_
-    i_cv = np.where(alphas==alpha_cv)[0][0]
-    print("CV alpha: " + str(alpha_cv) + " (" + str(scores[i_cv]) + "). Best alpha: " + str(alpha_best) + " (" + str(scores[i_best]) + ") .")
-    print(alphas)
-    print(scores)
-    print(R2s)
-    V = np.sqrt(np.sum(coefs[:,:,i_best]**2, axis=0))
-    best_v_pen = alphas[i_best]
-    m_sel = (V!=0)
-    def _MT_Match(X):
-        return X[:,m_sel]
-    return _MT_Match, V[m_sel], best_v_pen, V
+    v_pen_best = v_pens[i_best]
+    i_cv = np.where(v_pens==v_pen_cv)[0][0]
+    #print("CV alpha: " + str(v_pen_cv) + " (" + str(scores[i_cv]) + "). Best alpha: " + str(v_pen_best) + " (" + str(scores[i_best]) + ") .")
+    best_v_pen = v_pens[i_best]
+    V_best = Vs_single[i_best]
+    m_sel_best = (V_best!=0)
+    def _MT_Match_best(X):
+        return X[:,m_sel_best]
+    return _MT_Match_best, V_best[m_sel_best], best_v_pen, V_best
 
 def fit_fast(  # pylint: disable=unused-argument
     X,

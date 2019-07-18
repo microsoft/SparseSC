@@ -2,7 +2,7 @@
 """
 # To do:
 # - Allow all functions to work with an estimation result object
-# - Make sure work for the prospective-based designs
+# - Overlay (for selection) the variables we match on 
 
 import numpy as np
 import pandas as pd

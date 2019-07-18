@@ -2,7 +2,8 @@
 Effect estimation routines
 """
 # To do:
-# - Make sure the prospective-based designs work
+# - Rename the pl_res
+# - Allow pass in in label (rather than #idx) for treated units. 
 import numpy as np
 import pandas as pd
 from .utils.metrics_utils import _gen_placebo_stats_from_diffs
