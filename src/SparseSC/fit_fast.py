@@ -8,6 +8,12 @@ import scipy.linalg #superset of np.linalg and also optimized compiled
 
 from .fit import SparseSCFit
 
+# To do:
+# - Check weights are the same from RidgeCV solution
+# - For bigger data do the RidgeCV separately and find the best w_pen manually since block-diagonal
+#   On small data (Y_c = 100x30) this is only roughly 2x faster
+# - Implement the LSTM module
+
 def MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5):
     """
     Fit a MultiTaskLassoCV for Y ~ X
