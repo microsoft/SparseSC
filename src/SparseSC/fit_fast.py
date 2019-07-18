@@ -60,6 +60,7 @@ def MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=None, n_v_cv = 5):
     #fits_single = {}
     Vs_single = {}
     scores = np.zeros((len(v_pens)))
+    R2s = np.zeros((len(v_pens)))
     for i in range(len(v_pens)):
         mtlasso_i_fit = MultiTaskLasso(alpha=v_pens[i], normalize=True).fit(X, Y)
         V_i = np.sqrt(np.sum(np.square(mtlasso_i_fit.coef_), axis=0))
@@ -70,11 +71,12 @@ def MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=None, n_v_cv = 5):
         #fits_single[i] = sc_fit_i
         Vs_single[i] = V_i
         scores[i] = sc_fit_i.score
+        R2s[i] = sc_fit_i.score_R2
 
     i_best = np.argmin(scores)
     v_pen_best = v_pens[i_best]
     i_cv = np.where(v_pens==v_pen_cv)[0][0]
-    #print("CV alpha: " + str(v_pen_cv) + " (" + str(scores[i_cv]) + "). Best alpha: " + str(v_pen_best) + " (" + str(scores[i_best]) + ") .")
+    print("CV alpha: " + str(v_pen_cv) + " (" + str(R2s[i_cv]) + ")." + " Best alpha: " + str(v_pen_best) + " (" + str(R2s[i_best]) + ") .")
     best_v_pen = v_pens[i_best]
     V_best = Vs_single[i_best]
     m_sel_best = (V_best!=0)
