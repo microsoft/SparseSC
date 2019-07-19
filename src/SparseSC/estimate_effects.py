@@ -330,6 +330,7 @@ def estimate_effects(
         T0, T1, pl_res_pre, pl_res_post_eval, pl_res_post_eval_scaled, X, ind_CI, model_type, T2
     )
     setattr(est_ret, 'unit_treatment_periods_idx', unit_treatment_periods_idx)
+    setattr(est_ret, 'max_n_pl', max_n_pl)
     if model_type!="retrospective":
         setattr(est_ret, 'pl_res_post_fit', pl_res_post_fit)
         setattr(est_ret, 'T2', T2)

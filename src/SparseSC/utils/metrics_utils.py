@@ -176,11 +176,11 @@ def _gen_placebo_stats_from_diffs(
         return numer // denom
 
     n_pl = _ncr(N0, N1)
-    if max_n_pl > 0 & n_pl > max_n_pl:  # randomize
-        comb_iter = itertools.combinations(range(N0), N1)
+    if max_n_pl > 0 and n_pl > max_n_pl:  # randomize
+        comb_iter = _random_combinations(max_n_pl, N0, N1)
         comb_len = max_n_pl
     else:
-        comb_iter = _random_combinations(n_pl, N0, N1)
+        comb_iter = itertools.combinations(range(N0), N1)
         comb_len = n_pl
 
     if keep_pl:
@@ -349,7 +349,7 @@ def _did_sc(Y_target, Y_donors, T0):
     #base_sc_slow =  np.sum(np.transpose(np.transpose(Y_donors) * did_weights), axis=0)
     base_sc = np.mean(Y_donors, axis=0)
     pre_mean_shift = np.mean(Y_target[:T0]) - np.mean(Y_donors[:,:T0])
-    did_sc = base_sc + pre_mean_shift
-    return did_sc
+    did_sc_ret = base_sc + pre_mean_shift
+    return did_sc_ret
 
 
