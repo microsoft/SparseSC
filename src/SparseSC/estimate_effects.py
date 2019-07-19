@@ -15,8 +15,9 @@ from .fit_fast import fit_fast
 # - that iterating through it normally with give Timestamps, so use .values first to stay in datetime[ns]
 
 
-def _convert_dt_to_idx(dt, dt_index):
-    if np.isnat(dt):
+def _convert_dt_to_idx(dt, dt_index): 
+    #pylint seems to be confused by the ufunc
+    if np.isnat(dt): #pylint: disable=no-member
         return np.nan
     else:
         idx_list = np.where(dt_index==dt)[0]
@@ -160,7 +161,7 @@ def estimate_effects(
         kwargs['constrain'] = 'simplex'
     
     #pullout hidden ones
-    if 'treatment_unit_size' in kwargs:
+    if 'treatment_unit_size' in kwargs and kwargs['treatment_unit_size'] is not None:
         treatment_unit_size = kwargs['treatment_unit_size']
         del kwargs['treatment_unit_size']
     else:

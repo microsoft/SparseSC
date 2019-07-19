@@ -320,6 +320,9 @@ def did_info(Y, treated_units, control_units, T0):
     return Y_sc, r2_c_post
 
 def did_sc(Y, treated_units, control_units, T0):
+    """
+    DiD is like 1/N0 weighting where there are per-time period fixed effects and treatment is also per (post) time-period
+    """
     #treated_units should be list
     N, T = Y.shape
     Y_c = Y[control_units,:]

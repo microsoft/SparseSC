@@ -60,19 +60,19 @@ def MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=None, n_v_cv = 5):
     m_sel_cv = (V_cv!=0)
     def _MT_Match_cv(X):
         return(X[:,m_sel_cv])
-    sc_fit_cv = fit_model_wrapper(_MT_Match_cv, V_cv[m_sel_cv])
+    #sc_fit_cv = fit_model_wrapper(_MT_Match_cv, V_cv[m_sel_cv])
 
     v_pens = mtlasso_cv_fit.alphas_
     #fits_single = {}
     Vs_single = {}
     scores = np.zeros((len(v_pens)))
     R2s = np.zeros((len(v_pens)))
-    for i in range(len(v_pens)):
-        mtlasso_i_fit = MultiTaskLasso(alpha=v_pens[i], normalize=True).fit(X, Y)
+    for i, v_pen in enumerate(v_pens):
+        mtlasso_i_fit = MultiTaskLasso(alpha=v_pen, normalize=True).fit(X, Y)
         V_i = np.sqrt(np.sum(np.square(mtlasso_i_fit.coef_), axis=0))
         m_sel_i = (V_i!=0)
-        def _MT_Match_i(X):
-            return(X[:,m_sel_i])
+        def _MT_Match_i(X): #evaluated at call-time, not definition, but I call immediately so no problem
+            return(X[:,m_sel_i]) #pylint: disable=cell-var-from-loop
         sc_fit_i = fit_model_wrapper(_MT_Match_i, V_i[m_sel_i])
         #fits_single[i] = sc_fit_i
         Vs_single[i] = V_i
@@ -90,7 +90,18 @@ def MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=None, n_v_cv = 5):
         return X[:,m_sel_best]
     return _MT_Match_best, V_best[m_sel_best], best_v_pen, V_best
 
-def fit_fast(  # pylint: disable=unused-argument
+def _get_fit_units(model_type, control_units, treated_units, N):
+    if model_type=="retrospective":
+        return control_units
+    elif model_type=="prospective":
+        return range(N)
+    elif model_type=="prospective-restricted:":
+        return treated_units
+    else: # model_type=="full":
+        return range(N) #same as control_units
+
+#not documenting the error for when trying to two function signatures (think of better way to do that)
+def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
     X,
     Y,
     model_type="restrospective",
@@ -159,12 +170,10 @@ def fit_fast(  # pylint: disable=unused-argument
 
     if treated_units is not None:
         control_units = [u for u in range(Y.shape[0]) if u not in treated_units]
-        N0 = len(control_units)
-        N1 = len(treated_units)
+        N0, N1 = len(control_units), len(treated_units)
     else:
         control_units = [u for u in range(Y.shape[0])]
-        N0 = Y.shape[0]
-        N1 = 0
+        N0, N1 = Y.shape[0], 0
     N = N0 + N1
     
     if custom_donor_pool is not None:
@@ -173,44 +182,19 @@ def fit_fast(  # pylint: disable=unused-argument
         custom_donor_pool = np.full((N,N0), True)
     custom_donor_pool = _ensure_good_donor_pool(custom_donor_pool, control_units, N0)
 
-    if model_type=="full":
-        null_weights = (np.ones((N0, N0)) - np.eye(N0))* (1/(N0-1))
-        X_v = X
-        Y_v = Y
-    else:
-        null_weights = np.empty((N,N0))
-        null_weights[control_units,:] = (np.ones((N0, N0)) - np.eye(N0))* (1/(N0-1))
-        null_weights[treated_units,:] = np.ones((N1, N0))* (1/N0)
-        if model_type=="retrospective":
-            X_v = X[control_units, :]
-            Y_v = Y[control_units,:]
-        elif model_type=="prospective":
-            X_v = X
-            Y_v = Y
-        elif model_type=="prospective-restricted:":
-            X_v = X[treated_units, :]
-            Y_v = Y[treated_units,:]
+    fit_units = _get_fit_units(model_type, control_units, treated_units, N)
+    X_v = X[fit_units, :]
+    Y_v = Y[fit_units,:]
+
+    def _fit_model_wrapper(MatchSpace, V):
+        return _fit_fast_inner(X, MatchSpace(X), Y, V, model_type, treated_units, w_pens=w_pens, custom_donor_pool=custom_donor_pool)
     try:
-        def _fit_model_wrapper(MatchSpace, V):
-            return _fit_fast_inner(X, MatchSpace(X), Y, V, model_type, treated_units, w_pens=w_pens, custom_donor_pool=custom_donor_pool)
         MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, fit_model_wrapper=_fit_model_wrapper)
-    except TypeError as te:
+    except TypeError: # as te
         MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v)
     except Exception as e:
         raise e
 
-    if len(V) == 0:
-        return SparseSCFit(
-            X=X,
-            Y=Y,
-            control_units=control_units,
-            treated_units=treated_units,
-            model_type=model_type,
-            V=np.diag(V),
-            sc_weights=null_weights,
-            match_space_trans = MatchSpace,
-            match_space_desc = MatchSpaceDesc
-        )
     M = MatchSpace(X)
 
     return _fit_fast_inner(X, M, Y, V, model_type, treated_units, best_v_pen, w_pens, custom_donor_pool, MatchSpace, MatchSpaceDesc)
@@ -256,8 +240,8 @@ def _weights(V , X_treated, X_control, w_pen):
         X_treated.dot(2 * V).dot(X_control.T).T + 2 * w_pen / X_control.shape[0]
     )  # 6
     try:
-        b = np.linalg.solve(A, B)
-    except np.linalg.LinAlgError as exc:
+        b = scipy.linalg.solve(A, B)
+    except scipy.linalg.LinAlgError as exc:
         print("Unique weights not possible.")
         if w_pen == 0:
             print("Try specifying a very small w_pen rather than 0.")
@@ -287,45 +271,41 @@ def _fit_fast_inner(
     #returns in-sample score
     if treated_units is not None:
         control_units = [u for u in range(Y.shape[0]) if u not in treated_units]
-        N0 = len(control_units)
-        N1 = len(treated_units)
+        N0, N1 = len(control_units), len(treated_units)
     else:
         control_units = [u for u in range(Y.shape[0])]
-        N0 = Y.shape[0]
-        N1 = 0
+        N0, N1 = Y.shape[0], 0
     N = N0 + N1
-
+    fit_units = _get_fit_units(model_type, control_units, treated_units, N)
+    
     if custom_donor_pool is not None:
         assert custom_donor_pool.shape == (N,N0)
     else:
         custom_donor_pool = np.full((N,N0), True)
     custom_donor_pool = _ensure_good_donor_pool(custom_donor_pool, control_units, N0)
+    
+    if len(V) == 0 or M.shape[1]==0:
+        best_v_pen, best_w_pen, M = None, None, None
+        sc_weights = np.full((N,N0), 0.)
+        for i in range(N):
+            allowed = custom_donor_pool[i,:]
+            sc_weights[i,allowed] = 1/np.sum(allowed)
+    else:
+        if model_type=="retrospective":
+            best_w_pen = _RidgeCVSolution(M, control_units, True, None, V, w_pens)
+        elif model_type=="prospective":
+            best_w_pen = _RidgeCVSolution(M, control_units, True, treated_units, V, w_pens)
+        elif model_type=="prospective-restricted:":
+            best_w_pen = _RidgeCVSolution(M, control_units, False, treated_units, V, w_pens)
+        else: #model_type=="full"
+            best_w_pen = _RidgeCVSolution(M, control_units, True, None, V, w_pens)
 
-    if model_type=="retrospective":
-        best_w_pen = _RidgeCVSolution(M, control_units, True, None, V, w_pens)
-    elif model_type=="prospective":
-        best_w_pen = _RidgeCVSolution(M, control_units, True, treated_units, V, w_pens)
-    elif model_type=="prospective-restricted:":
-        best_w_pen = _RidgeCVSolution(M, control_units, False, treated_units, V, w_pens)
-    else: #model_type=="full"
-        best_w_pen = _RidgeCVSolution(M, control_units, True, None, V, w_pens)
+        M_c = M[control_units,:]
+        sc_weights = _sc_weights_trad(M, M_c, V, N, N0, custom_donor_pool, best_w_pen)
 
-    M_c = M[control_units,:]
-
-    sc_weights = _sc_weights_trad(M, M_c, V, N, N0, custom_donor_pool, best_w_pen)
     Y_sc = sc_weights.dot(Y[control_units, :])
-    if model_type=="retrospective":
-        mscore = np.sum(np.square(Y[control_units,:] - Y_sc[control_units,:]))
-        score_R2 = r2_score(Y[control_units,:].flatten(), Y_sc[control_units,:].flatten())
-    elif model_type=="prospective":
-        mscore = np.sum(np.square(Y - Y_sc))
-        score_R2 = r2_score(Y.flatten(), Y_sc.flatten())
-    elif model_type=="prospective-restricted:":
-        mscore = np.sum(np.square(Y[treated_units,:] - Y_sc[treated_units,:]))
-        score_R2 = r2_score(Y[treated_units,:].flatten(), Y_sc[treated_units,:].flatten())
-    else: #model_type=="full"
-        mscore = np.sum(np.square(Y - Y_sc))
-        score_R2 = r2_score(Y.flatten(), Y_sc.flatten())
+    
+    mscore = np.sum(np.square(Y[fit_units,:] - Y_sc[fit_units,:]))
 
     fit_obj = SparseSCFit(
         X=X,
@@ -342,5 +322,7 @@ def _fit_fast_inner(
         match_space = M,
         match_space_desc = match_space_desc
     )
+    score_R2 = r2_score(Y[fit_units,:].flatten(), Y_sc[fit_units,:].flatten())
     setattr(fit_obj, 'score_R2', score_R2)
+
     return fit_obj
