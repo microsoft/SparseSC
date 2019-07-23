@@ -210,26 +210,40 @@ def _ensure_good_donor_pool(custom_donor_pool, control_units, N0):
 def _RidgeCVSolution(M, control_units, controls_as_goals, extra_goals, V, w_pens):
     #Could return the weights too
     M_c = M[control_units,:]
-    features = np.empty((0,0))
-    targets = np.empty((0,))
+    #features = np.empty((0,0))
+    #targets = np.empty((0,))
+    n_targets = len(control_units) if controls_as_goals else 0
+    if extra_goals is not None:
+        n_targets = n_targets + len(extra_goals)
+    mse = np.empty((n_targets, len(w_pens)))
     if controls_as_goals:
         for i in range(len(control_units)):
             M_c_i = np.delete(M_c, i, axis=0)
             features_i = (M_c_i*np.sqrt(V)).T #K* x (N0-1) 
             targets_i = ((M_c[i,:]-M_c_i.mean(axis=0))*np.sqrt(V)).T #K*x1
 
-            features = scipy.linalg.block_diag(features, features_i) #pylint: disable=no-member
-            targets = np.hstack((targets, targets_i))
+            #features = scipy.linalg.block_diag(features, features_i) #pylint: disable=no-member
+            #targets = np.hstack((targets, targets_i))
+
+            ridgecvfit_i = RidgeCV(alphas=w_pens, fit_intercept=False, store_cv_values=True).fit(features_i, targets_i)
+            mse[i,:] = ridgecvfit_i.cv_values_.mean(axis=0) #as n_samples x n_alphas
     if extra_goals is not None:
-        for extra_goal in extra_goals:
+        i_offset = len(control_units) if controls_as_goals else 0
+        for i, extra_goal in enumerate(extra_goals):
             features_i = (M_c*np.sqrt(V)).T #K* x (N0-1) 
             targets_i = ((M[extra_goal,:]-M_c.mean(axis=0))*np.sqrt(V)).T #K*x1
 
-            features = scipy.linalg.block_diag(features, features_i) #pylint: disable=no-member
-            targets = np.hstack((targets, targets_i))
+            #features = scipy.linalg.block_diag(features, features_i) #pylint: disable=no-member
+            #targets = np.hstack((targets, targets_i))
+            
+            ridgecvfit_i = RidgeCV(alphas=w_pens, fit_intercept=False, store_cv_values=True).fit(features_i, targets_i)
+            mse[i+i_offset,:] = ridgecvfit_i.cv_values_.mean(axis=0) #as n_samples x n_alphas
 
-    ridgecvfit = RidgeCV(alphas=w_pens, fit_intercept=False).fit(features, targets) #Use the generalized cross-validation
-    return ridgecvfit.alpha_
+    #ridgecvfit = RidgeCV(alphas=w_pens, fit_intercept=False).fit(features, targets) #Use the generalized cross-validation
+    #joint_best_w_pen = ridgecvfit.alpha_
+    sep_best_w_pen = w_pens[mse.mean(axis=0).argmin()]
+    #print("joint: " + str(joint_best_w_pen) + ". separate: " + str(sep_best_w_pen))
+    return sep_best_w_pen
 
 def _weights(V , X_treated, X_control, w_pen):
     V = np.diag(V) #make square
