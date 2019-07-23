@@ -534,3 +534,63 @@ Average Effect Estimation: %s
 Effect Path Estimation:
  %s
  """
+
+class SparseSCPoolEstResults(object):
+    # To do:
+    # - Allow working with ests that have multiple diffs concatenated (store original and placebo sequence)
+    def __init__(self, ests, max_n_pl=200, ret_pl=False, ret_CI=False, level=0.95):
+        from SparseSC.utils.metrics_utils import _gen_placebo_stats_from_diffs
+        #works if only 1 treated unit per-estimation
+        #TODO: Get working with retrospective, and post_scaled, and wrap up nicer, use Est max_n_pl
+        T0 = ests[0].pl_res_pre.effect_vec.placebos.shape[1]
+        T1 = ests[0].pl_res_post.effect_vec.placebos.shape[1]
+        diffs_pre_c = np.empty((0,T0))
+        diffs_pre_t = np.empty((0,T0))
+        diffs_post_eval_c = np.empty((0,T1))
+        diffs_post_eval_t = np.empty((0,T1))
+        for est in ests:
+            diffs_pre_c_i = est.pl_res_pre.effect_vec.placebos
+            diffs_pre_t_i = est.pl_res_pre.effect_vec.effect
+            T0_i = diffs_pre_c_i.shape[1]
+            if T0_i < T0:
+                diffs_pre_c = diffs_pre_c[:,(T0-T0_i):]
+                diffs_pre_t = diffs_pre_t[:,(T0-T0_i):]
+                T0 = T0_i
+            elif T0<T0_i:
+                diffs_pre_c_i = diffs_pre_c_i[:,(T0_i-T0):]
+                print(diffs_pre_t_i.shape)
+                diffs_pre_t_i = diffs_pre_t_i[:,(T0_i-T0):]
+            #print("init: " + str(diffs_pre_c.shape) + ". new:" + str(diffs_pre_c_i.shape))
+            diffs_pre_c = np.vstack((diffs_pre_c, diffs_pre_c_i))
+            diffs_pre_t = np.vstack((diffs_pre_t, diffs_pre_t_i[np.newaxis,:]))
+
+            diffs_post_c_i = est.pl_res_post.effect_vec.placebos
+            diffs_post_t_i = est.pl_res_post.effect_vec.effect
+            T1_i = diffs_post_c_i.shape[1]
+            if T1_i < T1:
+                diffs_post_eval_c = diffs_post_eval_c[:,(T1-T1_i):]
+                diffs_post_eval_t = diffs_post_eval_t[:,(T1-T1_i):]
+                T1 = T1_i
+            elif T1 < T1_i:
+                diffs_post_c_i = diffs_post_c_i[:,(T1_i-T1):]
+                diffs_post_t_i = diffs_post_t_i[:,(T1_i-T1):]
+            diffs_post_eval_c = np.vstack((diffs_post_eval_c, diffs_post_c_i))
+            diffs_post_eval_t = np.vstack((diffs_post_eval_t, diffs_post_t_i[np.newaxis,:]))
+
+        self.pl_res_pre = _gen_placebo_stats_from_diffs(diffs_pre_c, diffs_pre_t, max_n_pl, ret_pl, ret_CI, level)
+        self.pl_res_post_eval = _gen_placebo_stats_from_diffs(diffs_post_eval_c, diffs_post_eval_t, max_n_pl, ret_pl, ret_CI, level)
+        
+    def __str__(self):
+        level_str = (
+            "< " + str(1 - self.pl_res_pre.avg_joint_effect.ci.level)
+            if self.pl_res_pre.avg_joint_effect.ci is not None
+            else "close to 0"
+        )
+        return _SparseSCEstResults_template % (
+            level_str,
+            str(self.pl_res_pre.rms_joint_effect),
+            str(self.pl_res_post_eval.avg_joint_effect),
+            str(self.pl_res_post_eval.effect_vec),
+        )
+    
+    
