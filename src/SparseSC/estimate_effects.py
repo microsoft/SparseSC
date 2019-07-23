@@ -205,6 +205,7 @@ def estimate_effects(
         control_units = c_units_mask_full[ct_units_mask_full].nonzero()[0]
         if treatment_unit_size is not None:
             doses = treatment_unit_size[t_units_mask_full]
+            doses[np.isnan(doses)] = 1
 
         Y_pre = Y_local[:,:T0]
         #Y_post = Y_local[:,T0:]

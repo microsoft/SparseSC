@@ -14,7 +14,7 @@ from .fit import SparseSCFit
 #   On small data (Y_c = 100x30) this is only roughly 2x faster
 # - Implement the LSTM module
 
-def MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5):
+def MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5, **kwargs):
     """
     Fit a MultiTaskLassoCV for Y ~ X
 
@@ -32,7 +32,7 @@ def MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5):
         return(X[:,m_sel])
     return _MT_Match, V[m_sel], best_v_pen, V
     
-def _FakeMTLassoCV_MatchSpace(X, Y, n_v_cv = 5, v_pens=None):
+def _FakeMTLassoCV_MatchSpace(X, Y, n_v_cv = 5, v_pens=None, **kwargs):
     y_mean = Y.mean(axis=1)
     varselectorfit = LassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X, y_mean)
     V = varselectorfit.coef_
@@ -42,7 +42,7 @@ def _FakeMTLassoCV_MatchSpace(X, Y, n_v_cv = 5, v_pens=None):
         return(X[:,m_sel])
     return _MT_Match, V[m_sel], best_v_pen, V
 
-def MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=None, n_v_cv = 5):
+def MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=None, n_v_cv = 5, **kwargs):
     """
     Fit a MultiTaskLasso for Y ~ X, but evaluate each penalization based on using that to fit a SparseSC model (downstream estimation)
 
@@ -188,12 +188,7 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
 
     def _fit_model_wrapper(MatchSpace, V):
         return _fit_fast_inner(X, MatchSpace(X), Y, V, model_type, treated_units, w_pens=w_pens, custom_donor_pool=custom_donor_pool)
-    try:
-        MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, fit_model_wrapper=_fit_model_wrapper)
-    except TypeError: # as te
-        MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v)
-    except Exception as e:
-        raise e
+    MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v)
 
     M = MatchSpace(X)
 
@@ -207,11 +202,11 @@ def _ensure_good_donor_pool(custom_donor_pool, control_units, N0):
     custom_donor_pool[control_units,:] = custom_donor_pool_c
     return custom_donor_pool
 
-def _RidgeCVSolution(M, control_units, controls_as_goals, extra_goals, V, w_pens):
+def _RidgeCVSolution(M, control_units, controls_as_goals, extra_goals, V, w_pens, separate=True):
     #Could return the weights too
     M_c = M[control_units,:]
-    #features = np.empty((0,0))
-    #targets = np.empty((0,))
+    features = np.empty((0,0))
+    targets = np.empty((0,))
     n_targets = len(control_units) if controls_as_goals else 0
     if extra_goals is not None:
         n_targets = n_targets + len(extra_goals)
@@ -222,28 +217,32 @@ def _RidgeCVSolution(M, control_units, controls_as_goals, extra_goals, V, w_pens
             features_i = (M_c_i*np.sqrt(V)).T #K* x (N0-1) 
             targets_i = ((M_c[i,:]-M_c_i.mean(axis=0))*np.sqrt(V)).T #K*x1
 
-            #features = scipy.linalg.block_diag(features, features_i) #pylint: disable=no-member
-            #targets = np.hstack((targets, targets_i))
-
-            ridgecvfit_i = RidgeCV(alphas=w_pens, fit_intercept=False, store_cv_values=True).fit(features_i, targets_i)
-            mse[i,:] = ridgecvfit_i.cv_values_.mean(axis=0) #as n_samples x n_alphas
+            if not separate:
+                features = scipy.linalg.block_diag(features, features_i) #pylint: disable=no-member
+                targets = np.hstack((targets, targets_i))
+            else:
+                ridgecvfit_i = RidgeCV(alphas=w_pens, fit_intercept=False, store_cv_values=True).fit(features_i, targets_i)
+                mse[i,:] = ridgecvfit_i.cv_values_.mean(axis=0) #as n_samples x n_alphas
     if extra_goals is not None:
         i_offset = len(control_units) if controls_as_goals else 0
         for i, extra_goal in enumerate(extra_goals):
             features_i = (M_c*np.sqrt(V)).T #K* x (N0-1) 
             targets_i = ((M[extra_goal,:]-M_c.mean(axis=0))*np.sqrt(V)).T #K*x1
 
-            #features = scipy.linalg.block_diag(features, features_i) #pylint: disable=no-member
-            #targets = np.hstack((targets, targets_i))
-            
-            ridgecvfit_i = RidgeCV(alphas=w_pens, fit_intercept=False, store_cv_values=True).fit(features_i, targets_i)
-            mse[i+i_offset,:] = ridgecvfit_i.cv_values_.mean(axis=0) #as n_samples x n_alphas
+            if not separate:
+                features = scipy.linalg.block_diag(features, features_i) #pylint: disable=no-member
+                targets = np.hstack((targets, targets_i))
+            else:
+                ridgecvfit_i = RidgeCV(alphas=w_pens, fit_intercept=False, store_cv_values=True).fit(features_i, targets_i)
+                mse[i+i_offset,:] = ridgecvfit_i.cv_values_.mean(axis=0) #as n_samples x n_alphas
 
-    #ridgecvfit = RidgeCV(alphas=w_pens, fit_intercept=False).fit(features, targets) #Use the generalized cross-validation
-    #joint_best_w_pen = ridgecvfit.alpha_
-    sep_best_w_pen = w_pens[mse.mean(axis=0).argmin()]
+    if not separate:
+        ridgecvfit = RidgeCV(alphas=w_pens, fit_intercept=False).fit(features, targets) #Use the generalized cross-validation
+        best_w_pen = ridgecvfit.alpha_
+    else:
+        best_w_pen = w_pens[mse.mean(axis=0).argmin()]
     #print("joint: " + str(joint_best_w_pen) + ". separate: " + str(sep_best_w_pen))
-    return sep_best_w_pen
+    return best_w_pen
 
 def _weights(V , X_treated, X_control, w_pen):
     V = np.diag(V) #make square
