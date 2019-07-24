@@ -11,6 +11,7 @@ import subprocess
 import itertools
 import tarfile
 import io
+import sys
 
 import numpy as np
 from ..cli.scgrad import GradientDaemon, DAEMON_PID, DAEMON_FIFO
@@ -36,12 +37,14 @@ _GRAD_COMMON_FILE = "common.yaml"
 _GRAD_PART_FILE = "part.yaml"
 
 RETURN_FIFO = "/tmp/sc-return.fifo"
-os.mkfifo(RETURN_FIFO)  # pylint: disable=no-member
+if sys.platform!="win32": #mkfifo not available on Windows
+    os.mkfifo(RETURN_FIFO)  # pylint: disable=no-member
 
 
 def cleanup():
     """ clean up"""
-    os.remove(RETURN_FIFO)
+    if sys.platform!="win32": #allow sphinx to build on windows w/o error
+        os.remove(RETURN_FIFO)
 
 
 atexit.register(cleanup)
