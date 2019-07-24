@@ -96,6 +96,9 @@ test/SparseSC_27.yml: .phony
 test/SparseSC_35.yml: .phony
 	activate SparseSC_35 && cd test && conda env export > SparseSC_35.yml
 	echo Make sure to remove the last prefix line and the pip sparsesc line, as user does pip install -e for that
+test/SparseSC_36.yml: .phony
+	activate SparseSC_36 && cd test && conda env export > SparseSC_36.yml
+	echo Make sure to remove the last prefix line and the pip sparsesc line, as user does pip install -e for that
 .phony:
 
 #Don't generate requirements-rtd.txt from conda environments (e.g. pip freeze > rtd-requirements.txt)
@@ -107,11 +110,13 @@ test/SparseSC_35.yml: .phony
 conda_env_upate:
 	deactivate && conda env update -f test/SparseSC_27.yml
 	deactivate && conda env update -f test/SparseSC_35.yml
+	deactivate && conda env update -f test/SparseSC_36.yml
 
 #Just needs to be done once
 conda_env_create:
 	conda env create -f test/SparseSC_27.yml
 	conda env create -f test/SparseSC_35.yml
+	conda env create -f test/SparseSC_36.yml
 
 jupyter_DifferentialTrends:
 	START jupyter notebook examples/DifferentialTrends.ipynb > jupyter_launch.log

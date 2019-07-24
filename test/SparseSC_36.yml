@@ -10,8 +10,8 @@ dependencies:
   - backcall=0.1.0=py36_0
   - blas=1.0=mkl
   - bleach=3.1.0=py36_0
-  - ca-certificates=2019.1.23=0
-  - certifi=2019.3.9=py36_0
+  - ca-certificates=2019.5.15=0
+  - certifi=2019.6.16=py36_0
   - cffi=1.12.3=py36h7a1dbc1_0
   - chardet=3.0.4=py36_1
   - colorama=0.4.1=py36_0
@@ -47,7 +47,7 @@ dependencies:
   - m2w64-gmp=6.1.0=2
   - m2w64-libwinpthread-git=5.0.0.4634.697f757=2
   - markupsafe=1.1.1=py36he774522_0
-  - matplotlib=3.0.0=py36hd159220_0
+  - matplotlib=3.1.0=py36hc8f65d3_0
   - mccabe=0.6.1=py36_1
   - mistune=0.8.4=py36he774522_0
   - mkl=2018.0.3=1
@@ -56,7 +56,8 @@ dependencies:
   - nbformat=4.4.0=py36h3a5bc1b_0
   - notebook=5.6.0=py36_0
   - numpy=1.13.1=py36haf1bc54_2
-  - openssl=1.1.1b=he774522_1
+  - openssl=1.1.1c=he774522_1
+  - pandas=0.24.2=py36ha925a31_0
   - pandoc=2.2.3.2=0
   - pandocfilters=1.4.2=py36_1
   - parso=0.4.0=py_0
@@ -64,6 +65,7 @@ dependencies:
   - pip=19.1.1=py36_0
   - prometheus_client=0.6.0=py36_0
   - prompt_toolkit=2.0.9=py36_0
+  - psutil=5.6.3=py36he774522_0
   - pycparser=2.19=py36_0
   - pygments=2.4.0=py_0
   - pylint=1.9.2=py36_0
@@ -115,10 +117,16 @@ dependencies:
     - azure-common==1.1.20
     - azure-storage-blob==2.0.1
     - azure-storage-common==2.0.0
+    - commonmark==0.9.0
+    - future==0.17.1
     - isodate==0.6.0
+    - markdown==2.6.11
     - msrest==0.6.6
     - msrestazure==0.6.0
     - oauthlib==3.0.1
     - pyjwt==1.7.1
+    - recommonmark==0.5.0
     - requests-oauthlib==1.2.0
+    - sphinx-markdown-tables==0.0.9
+    - sphinx-rtd-theme==0.4.3
 

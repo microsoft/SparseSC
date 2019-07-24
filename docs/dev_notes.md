@@ -6,14 +6,16 @@ You can create Anaconda environments using
 ```bash
 conda env create -f test/SparseSC_27.yml
 conda env create -f test/SparseSC_35.yml
+conda env create -f test/SparseSC_36.yml
 ```
 You can can do `update` rather than `create` to update existing ones (to avoid [potential bugs](https://stackoverflow.com/a/46114295/3429373) make sure the env isn't currently active).
 
 Note: When regenerating these files (`conda env export > test/SparseSC_*.yml`) make sure to remove the final `prefix` line since that's computer specific.
 
 ## Building the docs
-Required python packages: `sphinx`, `recommonmark`, `sphinx-markdown-tables`
-Index HTML file is at `docs/build/html/index.html`
+Requires Python >=3.6 and packages: `sphinx`, `recommonmark`, `sphinx-markdown-tables`.
+Index HTML file is at `docs/build/html/index.html`.
+There are some errors from our setup that aren't present in RTD (they use Python 3.7 and a pip environment with the latest packages).
 
 ## Running examples
 The Jupyter notebooks require `matplotlib`, `jupyter`, and `notebook`.
