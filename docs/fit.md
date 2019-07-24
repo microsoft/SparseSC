@@ -85,7 +85,7 @@ can be selected by passing one of the following values to the `model_type` param
 	other predictors / covariates. The parameter `treated_units` is unused.
 
 A more through discussoin of the model types can be found
-[Model Types](./model-types.html) Page.
+[Model Types](model-types) Page.
 
 #### Penalty Parameters
 
