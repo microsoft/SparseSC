@@ -153,7 +153,7 @@ def setup(app):
             'url_resolver': lambda url: "build/apidoc/" + url,
 			'auto_toc_tree_section': ['Contents','Examples'],
             'enable_eval_rst': True,
-			'enable_auto_doc_ref': True,
+			#'enable_auto_doc_ref': True,
 			'enable_math': True,
 			'enable_inline_math': True
             }, True)
