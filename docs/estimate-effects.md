@@ -6,21 +6,21 @@ analyses where counter-factual observations are constructed using Sparse
 Synthetic Controls.  
 
 ```py
-from SparseSC import fit
+import SparseSC
 
 # Fit the model:
-fitted_estimates = estimate_effects(Y_pre,Y_post,X,...)
+fitted_estimates = SparseSC.estimate_effects(Y,unit_treatment_periods,X=X,fast=True,...)
 
 # Print summary of the model including effect size estimates, 
 # p-values, and confidendence intervals:
 print(fitted_estimates)
 
 # Extract model attributes:
-fitted_estimates.p_value
-fitted_estimates.CI
+fitted_estimates.pl_res_post.avg_joint_effect.p_value
+fitted_estimates.pl_res_post.avg_joint_effect.CI
 
 # access the fitted Synthetic Controls model:
-fitted_model.CI = fitted_estimates.fit
+fitted_model = fitted_estimates.fit
 ```
 
 The returned object is of class `SparseSCEstResults`.
@@ -39,10 +39,10 @@ post-intervention outcomes from treated units are not used in the fitting
 process. There are two cuts from the remaining data that may be used to
 fit synthetic controls, and each has it's advantages and disadvantages.
 
-In the call to `estimate_effects()`, parameters `Y_pre`  (`Y_post`) should
+In the call to `estimate_effects()`, `Y` should
 be numeric matrices containing data on the target variables collected prior
 to (after) the treatment / intervention ( respectively), and the optional
-parameter `X` may be a matrix of additional features.  All three matrices
+parameter `X` may be a matrix of additional features.  All matrices
 should have one row per unit and one column per observation. 
 
 In addition, the rows in `X` and `Y` which contain units that were affected

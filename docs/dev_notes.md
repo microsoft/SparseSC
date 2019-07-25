@@ -30,10 +30,10 @@ python -m unittest test.test_fit.TestFit #class
 python -m unittest test.test_fit.TestFit.test_retrospective #function
 ```
 
-<!--
+
 ## Release Process
 * Ensure the makefile target `check`  (which does pylint, tests, doc building, and packaging) runs clean
-* If new version, check that it's been updated in `SparseSC/__init__.py`
+* If new version, check that it's been updated in `SparseSC/src/__init__.py`
 * Updated `Changelog.md`
 * Tag/Release in version control
--->
+

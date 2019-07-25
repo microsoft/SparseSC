@@ -28,17 +28,20 @@ DIR_SEP = /# \
 !endif
 
 #Creates a "Source Distribution" and a "Pure Python Wheel" (which is a bit easier for user)
-package: package_bdist_wheel
+package: package_both
+
+package_both:
+	python setup.py sdist bdist_wheel
 
 package_sdist:
-	python setup.py sdist -d dist
+	python setup.py sdist
 
 package_bdist_wheel:
-	python setup.py bdist_wheel -d dist
-
-readmedocs:
-	pandoc README.md -f markdown -t latex -o docs/SyntheticControlsReadme.pdf
-	pandoc README.md -f markdown -t docx -o docs/SyntheticControlsReadme.docx
+	python setup.py bdist_wheel
+	
+pypi_upload:
+	twine upload dist/*
+#python -m twine upload --verbose --repository-url https://test.pypi.org/legacy/ dist/*
 
 pylint:
 	-mkdir build

@@ -1,6 +1,6 @@
 # Fitting Sparse Synthetic Controls
 
-The `fit()` function can be used to create a set of weights and returns a
+The `fit()` and `fit_fast()` functions can be used to create a set of weights and returns a
 fitted model which can be used to create synthetic units using it's
 `.predict()` method:
 
@@ -18,8 +18,17 @@ in_sample_predictions = fitted_model.predict()
 additional_predictions = fitted_model.predict(Y_additional)
 ```
 
+Note that `Y` and `X` here are depend on the model type and are not the
+typical analysts outcome and covariates.
 
-#### Feature and Target Data
+The two methods differ in terms of there  choices about whether to calculate all parameters on the main matching objective or whether to get approximate/fast estimates of them using non-matching formulations.
+* Full joint (done by `fit()`): We optimize over `v_pen`, `w_pen` and `V`, so that the resulting SC for controls have smallest squared prediction error on `$Y_{post}$`.
+* Separate (done by `fit_fast()`): We note that we can efficiently estimate `w_pen` on main matching objective, since, given `V`, we can reformulate the finding problem into a Ridge Regression and use efficient LOO cross-validation (e.g. `RidgeCV`) to estimate `w_pen`. We will estimate `V` using an alternative, non-matching objective (such as a `MultiTaskLasso` of using `$X,Y_{pre}$` to predict `$Y_{post}$`). This setup also allows for feature generation to select the match space. There are two variants depend on how we handle `v_pen`:
+  * Mixed. Choose `v_pen` based on the resulting down-stream main matching objective.
+  * Full separate: Choose `v_pen` base on approximate objective (e.g., `MultiTaskLassoCV`).
+The Fully Separate solution is fast and often quite good so we recommend starting there, and if need be, advancing to the Mixed and then Fully Joint optimizations.
+
+## Feature and Target Data
 
 When estimating synthetic controls, units of observation are divided into
 control and treated units. Data collected on these units may include
@@ -33,14 +42,14 @@ post-intervention outcomes from treated units are not used in the fitting
 process. There are two cuts from the remaining data that may be used to
 fit synthetic controls, and each has it's advantages and disadvantages.
 
-In the call to `fit()`, parameters `X` and `Y` should be numeric matrices
+In the call to `fit()` and `fit_fast()`, parameters `X` and `Y` should be numeric matrices
 containing data on the features and target variables, respectively, with
 one row per unit of observation, and one column per feature or target
 variable.
 
-#### Data and Model Type
+## Data and Model Type
 
-There area 4 model types that can be fit using the `fit()` function which
+There area 4 model types that can be fit using the fit functions which
 can be selected by passing one of the following values to the `model_type` parameter: 
 
 * `"retrospective"`: In this model, data are assumed to be collected
@@ -87,7 +96,10 @@ can be selected by passing one of the following values to the `model_type` param
 A more through discussoin of the model types can be found
 [Model Types](model-types) Page.
 
-#### Penalty Parameters
+
+## Fit (Joint)
+
+### Penalty Parameters
 
 The fitted synthetic control weights depend on the penalties applied to the V and W
 matrices (`v_pen` and `w_pen`, respectively), and the `fit()` function will
@@ -96,12 +108,12 @@ process or simply provide their own values for the penalty parameters, for
 example to optimize these parameters on their own, with one of the
 following methods:
 
-##### 1. Passing `v_pen` and `w_pen` as floats:
+#### 1. Passing `v_pen` and `w_pen` as floats:
 
 When single values are passed in the to the `v_pen` and `w_pen`, a fitted
 synthetic control model is returned using the provided penalties.
 
-##### 2. Passing `v_pen` as a value and `w_pen` as a vector, or vice versa:
+#### 2. Passing `v_pen` as a value and `w_pen` as a vector, or vice versa:
 
 When either `v_pen` or `w_pen` are passed a vector of values, `fit()`
 will iterate over the vector of values and return the model with an optimal
@@ -120,7 +132,7 @@ from intertools import product
 fitted_models = [ fit(..., v_pen=v, w_pen=w) for v,w in product(v_pen,w_pen)]
 ```
 
-##### 3. Modifying the default search
+#### 3. Modifying the default search
 
 By default `fit()` picks an arbitrary value for `w_pen` and creates a grid
 of values for `v_pen` over which to search, picks the optimal for `v_pen`
@@ -148,13 +160,7 @@ Finally, the parameter `stopping_rule` determines how long the coordinate
 descent will alternate between searching over a grid of V and W penalties.
 (see the [Big list of parameters](#big-list-of-parameters) for details)
 
-## Advanced Topics
-
-#### Custom Donor Pools
-
-By default all control units are allowed to be donors for all other units.
-There are cases where this is not desired and so the user can pass in a
-matrix specifying a unit-specific donor pool via a N x C matrix of booleans.
+### Advanced Topics
 
 #### Constraining the V matrix
 
@@ -184,6 +190,31 @@ In the case that an integer is passed, the scikit-learn function
 is used internally to split the data into random folds. For consistency
 across calls to fit, the `cv_seed` and `gradient_seed` parameters are
 passed to `Kfold(..., random_state=seed)`.
+### Performance Notes
+
+The function `get_max_lambda()` requires a single calculation of the
+gradient using all of the available data.  In contrast, ` SC.CV_score()`
+performs gradient descent within each validation-fold of the data.
+Furthermore, in the 'pre-only' scenario the gradient is calculated once for
+each iteration of the gradient descent, whereas in the 'controls-only'
+scenario the gradient is calculated once for each control unit.
+Specifically, each control unit is excluded from the set of units that can
+be used to predict it's own post-intervention outcomes, resulting in
+leave-one-out gradient descent.
+
+For large sample sizes in the 'controls-only' scenario, it may be
+sufficient to divide the non-held out control units into "gradient folds", such
+that controls within the same gradient-fold are not used to predict the
+post-intervention outcomes of other control units in the same fold.  This
+result's in K-fold gradient descent, which improves the speed of
+calculating the overall gradient by a factor slightly greater than `c/k`
+(where `c` is the number of control units) with an even greater reduction
+in memory usage.
+
+K-fold gradient descent is enabled by passing the parameter `grad_splits`
+to `CV_score()`, and for consistency across calls to `CV_score()` it is
+recommended to also pass a value to the parameter `random_state`, which is
+used in selecting the gradient folds.
 
 #### Parallelization
 
@@ -213,3 +244,17 @@ descent function is used. (see the [Big list of
 parameters](#big-list-of-parameters) for details)
 
 
+## Fit_fast (Separate)
+The interface here is very similar except that `V` and `v_pen` are determined 
+by modified problems. This is specified by the `match_space_maker` option and the main
+choice is whether to use the fully separate solution method via the default `MTLassoCV_MatchSpace`
+or to try the mixed method (slower, but better) via `MTLassoMixed_MatchSpace`
+
+## Advanced Topics
+
+#### Custom Donor Pools
+
+By default all control units are allowed to be donors for all other units.
+There are cases where this is not desired and so the user can pass in a
+matrix specifying a unit-specific donor pool via a N x C matrix of booleans.
+See [overview](overview) for an example.

@@ -33,7 +33,7 @@ def estimate_effects(
     ret_pl=False,
     ret_CI=False,
     level=0.95,
-    fast = False,
+    fast = True,
     model_type = "retrospective",
     T2 = None,
     **kwargs

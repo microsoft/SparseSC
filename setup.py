@@ -37,6 +37,7 @@ setup(
         ),
         re.sub(":[a-z]+:`~?(.*?)`", r"``\1``", read("CHANGELOG.md")),
     ),
+    long_description_content_type="text/markdown",
     author="Microsoft Research",
     url="https://github.com/Microsoft/SparseSyntheticControls",
     packages=find_packages("src"),

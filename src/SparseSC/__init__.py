@@ -3,7 +3,7 @@
 
 # PRIMARY FITTING FUNCTIONS
 from SparseSC.fit import fit
-from SparseSC.fit_fast import fit_fast
+from SparseSC.fit_fast import fit_fast, MTLassoCV_MatchSpace, MTLassoMixed_MatchSpace
 from SparseSC.estimate_effects import estimate_effects
 from SparseSC.fit_loo import loo_v_matrix, loo_weights, loo_score
 from SparseSC.fit_ct import ct_v_matrix, ct_weights, ct_score
