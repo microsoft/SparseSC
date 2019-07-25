@@ -10,6 +10,7 @@ Welcome to SparseSC's |version| documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   overview
    fit
    estimate-effects
    model-types
