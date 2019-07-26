@@ -369,7 +369,9 @@ class SparseSCEstResults(object):
     """
 
     # pylint: disable=redefined-outer-name
-    def __init__(self, Y, fits, unit_treatment_periods, unit_treatment_periods_idx, unit_treatment_periods_idx_fit, T0, T1, pl_res_pre, pl_res_post, pl_res_post_scaled, X = None, ind_CI=None, model_type="retrospective", T2=None):
+    def __init__(self, Y, fits, unit_treatment_periods, unit_treatment_periods_idx, 
+    unit_treatment_periods_idx_fit, T0, T1, pl_res_pre, pl_res_post, pl_res_post_scaled, 
+    X = None, ind_CI=None, model_type="retrospective", T2=None):
         """
         :param Y: Outcome for the whole sample
         :param fits: The fit() return objects
@@ -377,6 +379,8 @@ class SparseSCEstResults(object):
         :param unit_treatment_periods: Vector or treatment periods for each unit
             (if a unit is never treated then use np.NaN if vector refers to time periods by numerical index
             and np.datetime64('NaT') if using DateTime to refer to time periods (and thne Y must be pd.DataFrame with columns in DateTime too))
+        :param unit_treatment_periods_idx: the conversion of unit_treatment_periods to indexes (helpful if use had datetime index)
+        :param unit_treatment_periods_idx_fit: the treatment period indexes passed to fit (helpful if prospective-based design)
         :param T0: Pre-history to match over
         :param T1: post-history to evaluate over
         :param pl_res_pre: Statistics for the average fit of the treated units
@@ -393,6 +397,8 @@ class SparseSCEstResults(object):
                 level (not averaged over N1).  Used for graphing rather than
                 treatment effect statistics
         :type ind_CI: dictionary of period->CI_int. Each CI_int is for the full sample (not necessarily T0+T1)
+        :param model_type: Model type string
+        :param T2: T2 (if prospective-type design)
         """
         self.Y = Y
         self.X = X
@@ -439,6 +445,12 @@ class SparseSCEstResults(object):
         return treatment_period
     
     def get_tr_time_info(self, treatment_period):
+        """ Returns treatment info:
+            a) indexes for the time index (helpful if user used an np datetime index)
+            b) treatment period used in the call to fit (helpful if model is a prospective type)
+        :param treatment_period: treatment period in the user's view (could be TimeIndex)
+        :returns: (reatment_period_idx, treatment_period_idx_fit, treatment_period_fit)
+        """
         if self._using_dt_index:
             treatment_period_idx = _convert_dt_to_idx(treatment_period, self.Y.columns.values)
         else:
@@ -544,7 +556,7 @@ Effect Path Estimation:
  %s
  """
 
-class SparseSCPoolEstResults(object):
+class _SparseSCPoolEstResults(object):
     # To do:
     # - Allow working with ests that have multiple diffs concatenated (store original and placebo sequence)
     def __init__(self, ests, max_n_pl=200, ret_pl=False, ret_CI=False, level=0.95):

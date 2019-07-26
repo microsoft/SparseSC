@@ -13,11 +13,9 @@ from .fit import SparseSCFit
 
 # To do:
 # - Check weights are the same from RidgeCV solution
-# - For bigger data do the RidgeCV separately and find the best w_pen manually since block-diagonal
-#   On small data (Y_c = 100x30) this is only roughly 2x faster
 # - Implement the LSTM module
 
-def MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5, **kwargs):
+def MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5, **kwargs): #pylint: disable=missing-param-doc, unused-argument
     """
     Fit a MultiTaskLassoCV for Y ~ X
 
@@ -35,7 +33,7 @@ def MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5, **kwargs):
         return(X[:,m_sel])
     return _MT_Match, V[m_sel], best_v_pen, V
     
-def _FakeMTLassoCV_MatchSpace(X, Y, n_v_cv = 5, v_pens=None, **kwargs):
+def _FakeMTLassoCV_MatchSpace(X, Y, n_v_cv = 5, v_pens=None, **kwargs): #pylint: disable=unused-argument
     y_mean = Y.mean(axis=1)
     varselectorfit = LassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X, y_mean)
     V = varselectorfit.coef_
@@ -45,7 +43,7 @@ def _FakeMTLassoCV_MatchSpace(X, Y, n_v_cv = 5, v_pens=None, **kwargs):
         return(X[:,m_sel])
     return _MT_Match, V[m_sel], best_v_pen, V
 
-def MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=None, n_v_cv = 5, **kwargs):
+def MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=None, n_v_cv = 5, **kwargs): #pylint: disable=missing-param-doc, unused-argument
     """
     Fit a MultiTaskLasso for Y ~ X, but evaluate each penalization based on using that to fit a SparseSC model (downstream estimation)
 

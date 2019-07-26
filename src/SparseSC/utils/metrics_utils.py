@@ -7,6 +7,13 @@ from warnings import warn
 from .warnings import SparseSCWarning
 
 def simulation_eval(effects, CI_lowers, CI_uppers, true_effect=0):
+    """ Returns typical stats for sims of estimation
+    :param effects: vector of effects
+    :param CI_lowers: vector of CI lower bounds
+    :param CI_uppers: vector of CI upper bounds
+    :param true_effect: true effect
+    :returns: (treatment effect MSE,CI coverage ratio, average CI length)
+    """
     te_mse = np.mean(np.square((effects - true_effect)))
     cov = np.mean(
         np.logical_and(effects >= CI_lowers, effects <= CI_uppers).astype(int)
@@ -50,6 +57,9 @@ class CI_int(object):
 
 
 class EstResultCI(object):
+    """
+    Holds an estimation result (effect + statistical significance)
+    """
     def __init__(self, effect, p, ci=None, placebos=None):
         """
         :param effect: Effect
@@ -140,9 +150,9 @@ def _gen_placebo_stats_from_diffs(
     :param ret_CI:
     :param level:
     :param vec_index:
+    :param sym_CI: Return symmetric CI
 
-    Returns: 
-        PlaceboResults: The Placebo test results
+    :Returns: PlaceboResults: The Placebo test results
     """
     if vec_index is not None:
         import pandas as pd
@@ -307,6 +317,13 @@ def _calculate_p_value(npl_at_least_as_large, npl, incl_actual_in_set=True):
     return (npl_at_least_as_large + addition) / (npl + addition)
 
 def did_info(Y, treated_units, control_units, T0):
+    """ Return Difference-in-Difference information on setup
+    :param Y: Matrix of outcomes
+    :param treated_units:
+    :param control_units:
+    :param T0:
+    :returns: (Synthetic controls Y, R2 for controls post-treatment)
+    """
     import sklearn
     import pandas as pd
 
