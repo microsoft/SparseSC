@@ -205,8 +205,10 @@ def _ensure_good_donor_pool(custom_donor_pool, control_units, N0):
     custom_donor_pool[control_units,:] = custom_donor_pool_c
     return custom_donor_pool
 
-def _RidgeCVSolution(M, control_units, controls_as_goals, extra_goals, V, w_pens, separate=True):
+def _RidgeCVSolution(M, control_units, controls_as_goals, extra_goals, V, w_pens, separate=None):
     #Could return the weights too
+    if separate is None:
+        separate = (M.shape[1] > 1)
     M_c = M[control_units,:]
     features = np.empty((0,0))
     targets = np.empty((0,))
