@@ -12,7 +12,9 @@ A note of notation: When thinking of treatment effect estimation via `estimate_e
 import SparseSC
 
 # Fit the model:
-fitted_estimates = SparseSC.estimate_effects(Y,unit_treatment_periods,X=X,fast=True,...)
+treatment_unit_size = np.full((N), np.NaN)
+treatment_unit_size[treated_unit_idx] = T0
+fitted_estimates = SparseSC.estimate_effects(Y,unit_treatment_periods,...)
 
 # Print summary of the model including effect size estimates, 
 # p-values, and confidendence intervals:
@@ -33,11 +35,11 @@ See [here](https://en.wikipedia.org/wiki/Synthetic_control_method) for more info
 SparseSC makes a number of changes to Synthetic Controls. It uses regularization and feature learning to avoid overfitting, ensure uniqueness of the solution, automate researcher decisions, and allow for estimation on large datasets. See the docs for more details.
 
 The main choices to make are:
-* The solution structure
-* The model-type
+1. The solution structure
+2. The model-type
 
 ### SparseSC Solution Structure
-The first choice is whether to calculate all parameters (`V`, its  regularization parameter, and the regularization parameters for the weights) on the main matching objective or whether to get approximate/fast estimates of them using non-matching formulations. The methods are:
+The first choice is whether to calculate all of the high-level parameters (`V`, its  regularization parameter, and the regularization parameters for the weights) on the main matching objective or whether to get approximate/fast estimates of them using non-matching formulations. The options are:
 * Full joint (done by `fit()`): We optimize over `v_pen`, `w_pen` and `V`, so that the resulting SC for controls have smallest squared prediction error on `Y_post`.
 * Separate (done by `fit_fast()`): We note that we can efficiently estimate `w_pen` on main matching objective, since, given `V`, we can reformulate the finding problem into a Ridge Regression and use efficient LOO cross-validation (e.g. `RidgeCV`) to estimate `w_pen`. We will estimate `V` using an alternative, non-matching objective (such as a `MultiTaskLasso` of using `X,Y_pre` to predict `Y_post`). This setup also allows for feature generation to select the match space. There are two variants depending on how we handle `v_pen`:
   * Mixed. Choose `v_pen` based on the resulting down-stream main matching objective.
