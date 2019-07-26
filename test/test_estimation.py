@@ -3,7 +3,12 @@ Tests for model fitness
 """
 
 import unittest
+import random
 import numpy as np
+import pandas as pd
+
+#import warnings
+#warnings.simplefilter("error")
 
 try:
     import SparseSC as SC
@@ -19,10 +24,52 @@ sys.path.insert(0, join(dirname(abspath(__file__)), "..", "examples"))
 from example_graphs import *
 
 
-# pylint: disable=no-self-use
+# pylint: disable=no-self-use, missing-docstring
 
 # here for lexical scoping
 command_line_options = {}
+
+class TestEstimationForErrors(unittest.TestCase):
+    def setUp(self):
+
+        random.seed(12345)
+        np.random.seed(101101001)
+        control_units = 50
+        treated_units = 2
+        N = control_units + treated_units
+        T = 15
+        K_X = 2
+
+        self.Y = np.random.rand(N, T)
+        self.X = np.random.rand(N, K_X)
+        self.treated_units = np.arange(treated_units)
+        self.unit_treatment_periods = np.full((N), np.nan)
+        self.unit_treatment_periods[0] = 7
+        self.unit_treatment_periods[1] = 8
+        #self.
+        #self.unit_treatment_periods[treated_name] = treatment_date_ms
+
+    @classmethod
+    def run_test(cls, obj, model_type="retrospective", frame_type="ndarray"): #"NDFrame", "pandas_timeindex", NDFrame
+        X = obj.X
+        Y = obj.Y
+        unit_treatment_periods = obj.unit_treatment_periods
+        if frame_type=="NDFrame" or frame_type=="timeindex":
+            X = pd.DataFrame(X)
+            Y = pd.DataFrame(Y)
+            if frame_type=="timeindex":
+                t_index = pd.Index(np.datetime64('2000-01-01','D') + range(Y.shape[1]))
+                unit_treatment_periods = pd.Series(np.datetime64('NaT'), index=Y.index)
+                unit_treatment_periods[0] = t_index[7]
+                unit_treatment_periods[1] = t_index[8]
+                Y.columns = t_index
+
+        SC.estimate_effects(X=X, Y=Y, model_type=model_type, unit_treatment_periods=unit_treatment_periods)
+
+    def test_all(self): #RidgeCV returns: RuntimeWarning: invalid value encountered in true_divide \n return (c / G_diag) ** 2, c
+        for model_type in ["retrospective", "prospective", "prospective-restricted"]:
+            for frame_type in ["ndarray", "NDFrame", "timeindex"]:
+                TestEstimationForErrors.run_test(self, model_type, frame_type)
 
 class TestDGPs(unittest.TestCase):
     """
@@ -154,7 +201,6 @@ class TestDGPs(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    import random
     import argparse
 
     parser = argparse.ArgumentParser(prog="PROG", allow_abbrev=False)
@@ -167,6 +213,7 @@ if __name__ == "__main__":
     random.seed(12345)
     np.random.seed(10101)
 
-    t = TestDGPs()
-    t.testSimpleTrendDGP()
+    t = TestEstimationForErrors()
+    t.setUp()
+    t.test_all()
     # unittest.main()

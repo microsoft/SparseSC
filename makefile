@@ -65,11 +65,11 @@ examples:
 
 #Python 2.7 can do 'test.test_fit' but not 'test/test_fit.py'
 tests:
-	python -m unittest test.test_fit
+	python -m unittest test.test_fit.TestFitForErrors test.test_fit.TestFitFastForErrors test.test_estimation.TestEstimationForErrors
 
-tests_both:
-	activate SparseSC_27 && python -m unittest test.test_fit
-	activate SparseSC_35 && python -m unittest test.test_fit
+#tests_both:
+#	activate SparseSC_27 && python -m unittest test.test_fit
+#	activate SparseSC_35 && python -m unittest test.test_fit
 
 #add examples here when working
 check: pylint package_bdist_wheel tests_both

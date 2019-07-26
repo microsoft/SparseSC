@@ -84,6 +84,10 @@ def estimate_effects(
             X = X.reindex(Y_df.index)
         if isinstance(unit_treatment_periods, pd.Series):
             unit_treatment_periods = unit_treatment_periods.reindex(Y_df.index)
+    X_df = None
+    if X is not None and isinstance(X, pd.DataFrame):
+        X_df = X
+        X = X.values
     using_dt_index = (unit_treatment_periods.dtype.kind=='M')
     if using_dt_index:
         assert (Y_df is not None), "Can't determine time period of treatment"
@@ -226,13 +230,16 @@ def estimate_effects(
 
         if fast:
             M = fit_res.match_space
-            M_diffs_2 = np.square(M - fit_res.predict(M))
-            #rmspe_M_unw = np.sqrt(np.mean(M_diff_2, axis=1))
-            V_fit = np.diag(fit_res.V)
-            V_fit_norm = V_fit / np.sum(V_fit)
-            rmspe_M_w = np.sqrt(np.mean(M_diffs_2 * V_fit_norm, axis=1))
+            if M is not None:
+                M_diffs_2 = np.square(M - fit_res.predict(M))
+                #rmspe_M_unw = np.sqrt(np.mean(M_diff_2, axis=1))
+                V_fit = np.diag(fit_res.V)
+                V_fit_norm = V_fit / np.sum(V_fit)
+                rmspe_M_w = np.sqrt(np.mean(M_diffs_2 * V_fit_norm, axis=1))
 
-            rmspe_M_w_p = _gen_placebo_stats_from_diffs(rmspe_M_w[control_units,None], rmspe_M_w[treated_units,None], max_n_pl, False, True).rms_joint_effect.p
+                rmspe_M_w_p = _gen_placebo_stats_from_diffs(rmspe_M_w[control_units,None], rmspe_M_w[treated_units,None], max_n_pl, False, True).rms_joint_effect.p
+            else:
+                rmspe_M_w_p = np.nan
             setattr(fit_res, 'rmspe_M_w_p', rmspe_M_w_p)
 
         Y_sc = fit_res.predict(Y_local)
@@ -242,7 +249,7 @@ def estimate_effects(
 
         diffs_pre_t = np.vstack((diffs_pre_t,diffs[treated_units,:T0]))
         if model_type!="retrospective":
-            diffs_post_fit_c = np.vstack((diffs_post_fit_c,diffs[control_units,T0:(T0+T1)]))
+            diffs_post_fit_t = np.vstack((diffs_post_fit_t,diffs[treated_units,T0:(T0+T1)]))
         diffs_post_eval_t_i = diffs[treated_units,T0+Tpost-Teval:T0+Tpost]
         diffs_post_eval_scaled_t_i = diffs_post_eval_scaled[treated_units,:]
         if treatment_unit_size is not None:
@@ -325,6 +332,8 @@ def estimate_effects(
 
     if Y_df is not None:
         Y = Y_df
+    if X_df is not None:
+        X = X_df
 
     est_ret = SparseSCEstResults(
         Y, fits, unit_treatment_periods, unit_treatment_periods_idx, unit_treatment_periods_idx_fit, 

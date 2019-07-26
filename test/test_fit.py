@@ -1,3 +1,6 @@
+"""
+Tests the fit methods
+"""
 # --------------------------------------------------------------------------------
 # Programmer: Jason Thorpe
 # Date    1/25/2019 3:34:02 PM
@@ -15,23 +18,23 @@
 # --------------------------------------------------------------------------------
 
 from __future__ import print_function  # for compatibility with python 2.7
-import sys, os, random
+import sys
+import random
 import unittest
 import warnings
 from scipy.optimize.linesearch import LineSearchWarning
 import numpy as np
 import traceback
-import pdb 
 
 try:
-    import SparseSC as SC
+    from SparseSC.fit import fit
+    from SparseSC.fit_fast import fit_fast
 except ImportError:
     raise RuntimeError("SparseSC is not installed. use 'pip install -e .' from repo root to install in dev mode")
-from SparseSC.fit import fit
-from SparseSC.fit_fast import fit_fast
 
+# pylint: disable=missing-docstring
 
-class TestFit(unittest.TestCase):
+class TestFitForErrors(unittest.TestCase):
     def setUp(self):
 
         random.seed(12345)
@@ -86,22 +89,26 @@ class TestFit(unittest.TestCase):
                 print("Failed with {}({})/n{}\n==================================".format(exc.__class__.__name__, getattr(exc,"message",""),traceback.format_exc()))
                 raise exc
 
-    def test_retrospective(self):
-        TestFit.run_test(self, "retrospective")
+    # def test_retrospective(self):
+    #     TestFitForErrors.run_test(self, "retrospective")
 
-    def test_prospective(self):
-        TestFit.run_test(self, "prospective")
+    # def test_prospective(self):
+    #     TestFitForErrors.run_test(self, "prospective")
 
-    def test_prospective_restrictive(self):
-        TestFit.run_test(self, "prospective-restricted")
+    # def test_prospective_restrictive(self):
+    #     TestFitForErrors.run_test(self, "prospective-restricted")
 
-    def test_full(self):
-        TestFit.run_test(self, "full")
-        
-class TestFitFast(unittest.TestCase):
+    # def test_full(self):
+    #     TestFitForErrors.run_test(self, "full")
 
-    @classmethod
-    def run_test(cls, model_type="retrospective"):
+    def test_all(self):
+        TestFitForErrors.run_test(self, "retrospective")
+        TestFitForErrors.run_test(self, "prospective")
+        TestFitForErrors.run_test(self, "prospective-restricted")
+        TestFitForErrors.run_test(self, "full")
+
+class TestFitFastForErrors(unittest.TestCase):
+    def setUp(self):
 
         random.seed(12345)
         np.random.seed(101101001)
@@ -110,39 +117,49 @@ class TestFitFast(unittest.TestCase):
         features = 10
         targets = 5
 
-        X = np.random.rand(control_units + treated_units, features)
+        self.X = np.random.rand(control_units + treated_units, features)
         beta = np.array([[1,0,0,0,0,0,0,0,0,1]]).T
-        yhat = X @ beta
-        Y = yhat @ np.ones((1,targets)) + np.random.rand(control_units + treated_units, targets)
-        treated_units = np.arange(treated_units)
+        yhat = self.X @ beta
+        self.Y = yhat @ np.ones((1,targets)) + np.random.rand(control_units + treated_units, targets)
+        self.treated_units = np.arange(treated_units)
+
+    @classmethod
+    def run_test(cls, obj, model_type="retrospective"):
         fit_fast(
-            X=X,
-            Y=Y,
+            X=obj.X,
+            Y=obj.Y,
             model_type=model_type,
-            treated_units=treated_units
+            treated_units=obj.treated_units
             if model_type
             in ("retrospective", "prospective", "prospective-restricted")
             else None,
         )
 
-class TestFitToy(unittest.TestCase):
+    def test_all(self):
+        TestFitFastForErrors.run_test(self, "retrospective")
+        TestFitFastForErrors.run_test(self, "prospective")
+        TestFitFastForErrors.run_test(self, "prospective-restricted")
+        TestFitFastForErrors.run_test(self, "full")
+
+class TestFitForCorrectness(unittest.TestCase):
     @staticmethod
-    def simple_summ(fit, Y):
-        #print("V_pen=%s, W_pen=%s" % (fit.fitted_v_pen, fit.fitted_w_pen))
-        print("V=%s" % np.diag(fit.V))
-        print("Treated weights: sim=%s, uns=%s, sum=%s" % ( fit.sc_weights[0, 49], fit.sc_weights[0, 99], sum(fit.sc_weights[0, :]),))
-        print("Sim Con weights: sim=%s, uns=%s, sum=%s" % ( fit.sc_weights[1, 49], fit.sc_weights[1, 99], sum(fit.sc_weights[1, :]),))
-        print("Uns Con weights: sim=%s, uns=%s, sum=%s" % ( fit.sc_weights[51, 49], fit.sc_weights[51, 99], sum(fit.sc_weights[51, :]),))
-        Y_sc = fit.predict(Y)#[fit.control_units, :]
+    def simple_summ(fit_res, Y):
+        #print("V_pen=%s, W_pen=%s" % (fit_res.fitted_v_pen, fit_res.fitted_w_pen))
+        print("V=%s" % np.diag(fit_res.V))
+        print("Treated weights: sim=%s, uns=%s, sum=%s" % ( fit_res.sc_weights[0, 49], fit_res.sc_weights[0, 99], sum(fit_res.sc_weights[0, :]),))
+        print("Sim Con weights: sim=%s, uns=%s, sum=%s" % ( fit_res.sc_weights[1, 49], fit_res.sc_weights[1, 99], sum(fit_res.sc_weights[1, :]),))
+        print("Uns Con weights: sim=%s, uns=%s, sum=%s" % ( fit_res.sc_weights[51, 49], fit_res.sc_weights[51, 99], sum(fit_res.sc_weights[51, :]),))
+        Y_sc = fit_res.predict(Y)#[fit_res.control_units, :]
         print("Treated diff: %s" % (Y - Y_sc)[0, :])
 
     def test0s(self):
         N1, N0_sim, N0_not = 1, 50, 50
         N0 = N0_sim + N0_not
         N = N1 + N0
-        treated_units, control_units  = range(N1), range(N1, N)
+        treated_units = range(N1)
+        #control_units  = range(N1, N)
         T0, T1 = 2, 1
-        T = T0 + T1 # unused
+        #T = T0 + T1 # unused
         te = 2
         #configs = [[[1, 0, 0], [0, 1, 1]], 
         #           [[0, 1, 0], [1, 0, 1]], 
@@ -174,7 +191,11 @@ class TestFitToy(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    #t = TestFitFast()
+    #t = TestFitForErrors()
+    #t.test_all()
+    t = TestFitFastForErrors()
+    t.test_all()
     #t.setUp()
-    TestFitFast.run_test()
+    #TestFitForErrors.test_all()
+    #TestFitFastForErrors.test_all()
     #unittest.main()

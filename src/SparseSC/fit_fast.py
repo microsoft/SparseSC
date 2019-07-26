@@ -1,6 +1,9 @@
 """ Fast API providing a single call for fitting SC Models
 
 """
+#import warnings
+#warnings.simplefilter("error")
+
 import numpy as np
 from sklearn.linear_model import LassoCV, MultiTaskLassoCV, RidgeCV, MultiTaskLasso
 from sklearn.metrics import r2_score
