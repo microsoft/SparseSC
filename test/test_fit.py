@@ -27,6 +27,7 @@ import numpy as np
 import traceback
 
 try:
+    import SparseSC
     from SparseSC.fit import fit
     from SparseSC.fit_fast import fit_fast
 except ImportError:
@@ -124,7 +125,7 @@ class TestFitFastForErrors(unittest.TestCase):
         self.treated_units = np.arange(treated_units)
 
     @classmethod
-    def run_test(cls, obj, model_type="retrospective"):
+    def run_test(cls, obj, model_type="retrospective", match_maker=None):
         fit_fast(
             X=obj.X,
             Y=obj.Y,
@@ -133,13 +134,13 @@ class TestFitFastForErrors(unittest.TestCase):
             if model_type
             in ("retrospective", "prospective", "prospective-restricted")
             else None,
+            match_space_maker=match_maker
         )
 
     def test_all(self):
-        TestFitFastForErrors.run_test(self, "retrospective")
-        TestFitFastForErrors.run_test(self, "prospective")
-        TestFitFastForErrors.run_test(self, "prospective-restricted")
-        TestFitFastForErrors.run_test(self, "full")
+        for model_type in ["retrospective", "prospective", "prospective-restricted", "full"]:
+            for match_maker in [None, SparseSC.MTLassoMixed_MatchSpace]:
+                TestFitFastForErrors.run_test(self, model_type, match_maker)
 
 class TestFitForCorrectness(unittest.TestCase):
     @staticmethod
@@ -155,7 +156,7 @@ class TestFitForCorrectness(unittest.TestCase):
     def test0s(self):
         N1, N0_sim, N0_not = 1, 50, 50
         N0 = N0_sim + N0_not
-        N = N1 + N0
+        #N = N1 + N0
         treated_units = range(N1)
         #control_units  = range(N1, N)
         T0, T1 = 2, 1
@@ -192,10 +193,8 @@ class TestFitForCorrectness(unittest.TestCase):
 
 if __name__ == "__main__":
     #t = TestFitForErrors()
-    #t.test_all()
     t = TestFitFastForErrors()
+    t.setUp()
     t.test_all()
-    #t.setUp()
-    #TestFitForErrors.test_all()
-    #TestFitFastForErrors.test_all()
+    
     #unittest.main()

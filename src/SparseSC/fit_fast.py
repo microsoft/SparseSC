@@ -57,7 +57,7 @@ def MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=None, n_v_cv = 5, **
     #Note that MultiTaskLasso(CV).path with the same alpha doesn't produce same results as MultiTaskLasso(CV)
     mtlasso_cv_fit = MultiTaskLassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X, Y)
     V_cv = np.sqrt(np.sum(np.square(mtlasso_cv_fit.coef_), axis=0)) #n_tasks x n_features -> n_feature
-    v_pen_cv = mtlasso_cv_fit.alpha_
+    #v_pen_cv = mtlasso_cv_fit.alpha_
     m_sel_cv = (V_cv!=0)
     def _MT_Match_cv(X):
         return(X[:,m_sel_cv])
@@ -81,9 +81,9 @@ def MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=None, n_v_cv = 5, **
         R2s[i] = sc_fit_i.score_R2
 
     i_best = np.argmin(scores)
-    v_pen_best = v_pens[i_best]
-    i_cv = np.where(v_pens==v_pen_cv)[0][0]
-    print("CV alpha: " + str(v_pen_cv) + " (" + str(R2s[i_cv]) + ")." + " Best alpha: " + str(v_pen_best) + " (" + str(R2s[i_best]) + ") .")
+    #v_pen_best = v_pens[i_best]
+    #i_cv = np.where(v_pens==v_pen_cv)[0][0]
+    #print("CV alpha: " + str(v_pen_cv) + " (" + str(R2s[i_cv]) + ")." + " Best alpha: " + str(v_pen_best) + " (" + str(R2s[i_best]) + ") .")
     best_v_pen = v_pens[i_best]
     V_best = Vs_single[i_best]
     m_sel_best = (V_best!=0)
@@ -182,6 +182,7 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
     else:
         custom_donor_pool = np.full((N,N0), True)
     custom_donor_pool = _ensure_good_donor_pool(custom_donor_pool, control_units, N0)
+    match_space_maker = MTLassoCV_MatchSpace if match_space_maker is None else match_space_maker
 
     fit_units = _get_fit_units(model_type, control_units, treated_units, N)
     X_v = X[fit_units, :]
@@ -189,7 +190,7 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
 
     def _fit_model_wrapper(MatchSpace, V):
         return _fit_fast_inner(X, MatchSpace(X), Y, V, model_type, treated_units, w_pens=w_pens, custom_donor_pool=custom_donor_pool)
-    MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v)
+    MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, fit_model_wrapper=_fit_model_wrapper)
 
     M = MatchSpace(X)
 
@@ -206,7 +207,7 @@ def _ensure_good_donor_pool(custom_donor_pool, control_units, N0):
 def _RidgeCVSolution(M, control_units, controls_as_goals, extra_goals, V, w_pens, separate=None):
     #Could return the weights too
     if separate is None:
-        separate = (M.shape[1] > 1)
+        separate = (M.shape[1] > 2) #problems if 1, might be unstable with 2.
     M_c = M[control_units,:]
     features = np.empty((0,0))
     targets = np.empty((0,))

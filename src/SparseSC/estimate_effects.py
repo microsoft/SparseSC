@@ -418,6 +418,7 @@ class SparseSCEstResults(object):
         self.model_type = model_type
         self.pl_res_post_fit = pl_res_post_fit
         self.Tpost = T1 if model_type=='retrospective' else T1+T2
+        self.max_n_pl = max_n_pl
         self._using_dt_index = (unit_treatment_periods.dtype.kind=='M')
 
     @property
