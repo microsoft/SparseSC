@@ -308,6 +308,8 @@ def estimate_effects(
             level,
             vec_index = post_fit_index
         )
+    else:
+        pl_res_post_fit = None
 
     # effects
     pl_res_post_eval = _gen_placebo_stats_from_diffs(
@@ -330,6 +332,7 @@ def estimate_effects(
         vec_index = post_eval_index
     )
 
+    #reset to dataframes if possible
     if Y_df is not None:
         Y = Y_df
     if X_df is not None:
@@ -337,13 +340,9 @@ def estimate_effects(
 
     est_ret = SparseSCEstResults(
         Y, fits, unit_treatment_periods, unit_treatment_periods_idx, unit_treatment_periods_idx_fit, 
-        T0, T1, pl_res_pre, pl_res_post_eval, pl_res_post_eval_scaled, X, ind_CI, model_type, T2
+        T0, T1, pl_res_pre, pl_res_post_eval, pl_res_post_eval_scaled, max_n_pl, X, ind_CI, model_type, 
+        T2, pl_res_post_fit
     )
-    setattr(est_ret, 'unit_treatment_periods_idx', unit_treatment_periods_idx)
-    setattr(est_ret, 'max_n_pl', max_n_pl)
-    if model_type!="retrospective":
-        setattr(est_ret, 'pl_res_post_fit', pl_res_post_fit)
-        setattr(est_ret, 'T2', T2)
     if treatment_unit_size is not None:
         setattr(est_ret, 'treatment_unit_size', treatment_unit_size)
 
@@ -371,7 +370,7 @@ class SparseSCEstResults(object):
     # pylint: disable=redefined-outer-name
     def __init__(self, Y, fits, unit_treatment_periods, unit_treatment_periods_idx, 
     unit_treatment_periods_idx_fit, T0, T1, pl_res_pre, pl_res_post, pl_res_post_scaled, 
-    X = None, ind_CI=None, model_type="retrospective", T2=None):
+    max_n_pl, X = None, ind_CI=None, model_type="retrospective", T2=None, pl_res_post_fit=None):
         """
         :param Y: Outcome for the whole sample
         :param fits: The fit() return objects
@@ -392,6 +391,7 @@ class SparseSCEstResults(object):
                 effect (difference divided by pre-treatment RMS fit) in the
                 post-period.
         :type pl_res_post_scaled: PlaceboResults
+        :param max_n_pl: maximum number of of placebos effects used for inference
         :param X: Nxk matrix of full baseline covariates (or None)
         :param ind_CI: Confidence intervals for SC predictions at the unit
                 level (not averaged over N1).  Used for graphing rather than
@@ -399,6 +399,8 @@ class SparseSCEstResults(object):
         :type ind_CI: dictionary of period->CI_int. Each CI_int is for the full sample (not necessarily T0+T1)
         :param model_type: Model type string
         :param T2: T2 (if prospective-type design)
+        :param pl_res_post_fit: If prospective-type designs, the PlaceboResults for target period used for fit 
+            (still before actual treatment)
         """
         self.Y = Y
         self.X = X
@@ -414,6 +416,7 @@ class SparseSCEstResults(object):
         self.pl_res_post_scaled = pl_res_post_scaled
         self.ind_CI = ind_CI
         self.model_type = model_type
+        self.pl_res_post_fit = pl_res_post_fit
         self.Tpost = T1 if model_type=='retrospective' else T1+T2
         self._using_dt_index = (unit_treatment_periods.dtype.kind=='M')
 

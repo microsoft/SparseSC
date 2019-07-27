@@ -152,7 +152,7 @@ def _gen_placebo_stats_from_diffs(
     :param vec_index:
     :param sym_CI: Return symmetric CI
 
-    :Returns: PlaceboResults: The Placebo test results
+    :returns: PlaceboResults, the Placebo test results
     """
     if vec_index is not None:
         import pandas as pd
