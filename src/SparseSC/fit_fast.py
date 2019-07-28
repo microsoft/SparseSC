@@ -98,8 +98,8 @@ def _get_fit_units(model_type, control_units, treated_units, N):
         return range(N)
     elif model_type=="prospective-restricted:":
         return treated_units
-    else: # model_type=="full":
-        return range(N) #same as control_units
+    # model_type=="full":
+    return range(N) #same as control_units
 
 #not documenting the error for when trying to two function signatures (think of better way to do that)
 def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
