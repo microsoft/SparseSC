@@ -183,6 +183,10 @@ az group delete -n $name
 az group delete -n %name%
 ```
 
+## Solving
+The Azure batch will just vary one of the penalty parameters. You should therefore not specify the 
+simplex constraint for the V matrix as then it will be missing one degree of freedom.
+
 ## FAQ
 
 1. What if I get disconnected while the batch job is running?

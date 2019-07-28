@@ -176,6 +176,12 @@ orthant](https://en.wikipedia.org/wiki/Orthant) in some cases. V is
 constrained to the either the simplex or the nonnegative orthant by passing
 either `"simplex"` or `"orthant"` to the `constrain` parameter.
 
+Note that with both penalty parameters and V just constrained to the non-negative
+orthant, then there is an extra degree of freedom. Typically then it is more
+efficient to constrain V to the simplex. When solving using Azure Batch
+then only a single penalty parameter is varied so then V should only be constrained
+to the non-negative orthant.
+
 #### Fold Parameters
 
 The data are split into folds both purpose of calculating the cross fold
