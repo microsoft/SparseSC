@@ -129,7 +129,7 @@ def ct_v_matrix(
 
     def _score(V):
         dv = diag(V)
-        weights, _, _, _ = _weights(dv)
+        weights, _, _ = _weights(dv)
         Ey = (Y_treated - weights.T.dot(Y_control)).getA()
         # note that (...).copy() assures that x.flags.writeable is True:
         # also einsum is faster than the equivalent (Ey **2).sum()
@@ -142,7 +142,8 @@ def ct_v_matrix(
         There is an implementation that allows for all elements of V to be varied...
         """
         dv = diag(V)
-        weights, A, _, AinvB = _weights(dv)
+        weights, A, _ = _weights(dv)
+        AinvB = weights
         Ey = (weights.T.dot(Y_control) - Y_treated).getA()
         dGamma0_dV_term2 = zeros(K)
         # dPI_dV = zeros((N0, N1)) # stupid notation: PI = W.T
@@ -170,19 +171,18 @@ def ct_v_matrix(
     w_pen_mat = 2 * w_pen * diag(ones(X_control.shape[0]))
 
     def _weights(V):
-        weights = zeros((N0, N1))
         A = X_control.dot(2 * V).dot(X_control.T) + w_pen_mat  # 5
         B = (
             X_treated.dot(2 * V).dot(X_control.T).T + 2 * w_pen / X_control.shape[0]
         )  # 6
         try:
-            b = linalg.solve(A, B)
+            weights = linalg.solve(A, B)
         except linalg.LinAlgError as exc:
             print("Unique weights not possible.")
             if w_pen == 0:
                 print("Try specifying a very small w_pen rather than 0.")
             raise exc
-        return weights, A, B, b
+        return weights, A, B
 
     if return_max_v_pen:
         grad0 = _grad(zeros(K))
@@ -201,7 +201,7 @@ def ct_v_matrix(
     v_mat = diag(opt.x)
 
     # CALCULATE weights AND ts_score
-    weights, _, _, _ = _weights(v_mat)
+    weights, _, _ = _weights(v_mat)
     errors = Y_treated - weights.T.dot(Y_control)
     ts_loss = opt.fun
     ts_score = linalg.norm(errors) / sqrt(prod(errors.shape))
