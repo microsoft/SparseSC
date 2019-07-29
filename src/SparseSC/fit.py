@@ -45,6 +45,7 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
     grid_length=20,
     stopping_rule=2,
     gradient_folds=10,
+    w_pen_inner=False,
     **kwargs
 ):
     r"""
@@ -236,8 +237,6 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
     ):
         return _fit(X, Y, treated_units, w_pen, v_pen, gradient_folds=gradient_folds,**kwargs)
 
-    # Herein, either v_pen or w_pen is None (possibly both)
-
     # --------------------------------------------------
     # BUILD THE COORDINATE DESCENT PARAMETERS
     # --------------------------------------------------
@@ -249,6 +248,21 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
         _X, _Y = X[control_units, :], Y[control_units, :]
     else:
         _X, _Y = X, Y
+
+    # Herein, either v_pen or w_pen is None (possibly both)
+    if w_pen_inner:
+        N, K = X.shape
+        if kwargs['model_type']=="full":
+            control_units = range(N)
+        from .utils.penalty_utils import RidgeCVSolution
+        base_v = np.diag(np.full((K), 1/K))
+
+        if kwargs['model_type']=="retrospective" or kwargs['model_type']=="full":
+            base_w_pen = RidgeCVSolution(X, control_units, True, None, base_v)
+        elif kwargs['model_type']=="prospective":
+            base_w_pen = RidgeCVSolution(X, control_units, True, treated_units, base_v)
+        else: # kwargs['model_type']=="prospective-restricted:":
+            base_w_pen = RidgeCVSolution(X, control_units, False, treated_units, base_v)
 
     # --------------------------------------------------
     #  BUILD THE STOPPING RULE
@@ -292,8 +306,11 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
         )
         if last_axis:
             assert axis != last_axis
+        
+        if w_pen_inner:
+            w_pen = base_w_pen
 
-        model_fit = _fit(X, Y, treated_units, w_pen, v_pen, gradient_folds=gradient_folds, **kwargs)
+        model_fit = _fit(X, Y, treated_units, w_pen, v_pen, gradient_folds=gradient_folds, w_pen_inner=w_pen_inner, **kwargs)
 
         if not model_fit:
             # this happens when only a batch file is being produced but not executed
@@ -366,6 +383,7 @@ def _fit(
     # VERBOSITY
     progress=True,
     batchDir=None,
+    w_pen_inner=False,
     **kwargs
 ):
     assert X.shape[0] == Y.shape[0]
@@ -381,7 +399,7 @@ def _fit(
         pass
     else:
         if v_pen is None:
-            raise ValueError("When v_pen is an iterable, v_pen must be provided")
+            raise ValueError("When w_pen is an iterable, v_pen must be provided")
         w_pen_is_iterable = True
 
     v_pen_is_iterable = False
@@ -391,7 +409,7 @@ def _fit(
         pass
     else:
         v_pen_is_iterable = True
-        if w_pen is None:
+        if w_pen is None and not w_pen_inner:
             raise ValueError("When v_pen is an iterable, w_pen must be provided")
 
     if v_pen_is_iterable and w_pen_is_iterable:
@@ -497,6 +515,7 @@ def _fit(
                 random_state=gradient_seed,  # TODO: Cleanup Task 1
                 quiet=not progress,
                 batchDir=batchDir,
+                w_pen_inner=w_pen_inner,
                 **kwargs
             )
             if not ret:
@@ -585,6 +604,7 @@ def _fit(
                 random_state=gradient_seed,  # TODO: Cleanup Task 1
                 quiet=not progress,
                 batchDir=batchDir,
+                w_pen_inner=w_pen_inner,
                 **kwargs
             )
             if not ret:
@@ -631,6 +651,7 @@ def _fit(
                 progress=progress,
                 quiet=not progress,
                 batchDir=batchDir,
+                w_pen_inner=w_pen_inner,
                 **kwargs
             )
             if not ret:
@@ -704,6 +725,7 @@ def _fit(
             random_state=gradient_seed,  # TODO: Cleanup Task 1
             quiet=not progress,
             batchDir=batchDir,
+            w_pen_inner=w_pen_inner,
             **kwargs
         )
         if not ret:

@@ -20,6 +20,7 @@ def ct_v_matrix(
     return_max_v_pen=False,  # this is terrible at least without documentation...
     verbose=False,
     gradient_message="Calculating gradient",
+    w_pen_inner=False,
     **kwargs
 ):
     """
@@ -184,6 +185,21 @@ def ct_v_matrix(
             raise exc
         return weights, A, B
 
+    def _weights_varying(V, w_pen):
+        w_pen_mat = 2 * w_pen * diag(ones(X_control.shape[0]))
+        A = X_control.dot(2 * V).dot(X_control.T) + w_pen_mat  # 5
+        B = (
+            X_treated.dot(2 * V).dot(X_control.T).T + 2 * w_pen / X_control.shape[0]
+        )  # 6
+        try:
+            weights = linalg.solve(A, B)
+        except linalg.LinAlgError as exc:
+            print("Unique weights not possible.")
+            if w_pen == 0:
+                print("Try specifying a very small w_pen rather than 0.")
+            raise exc
+        return weights, A, B
+
     if return_max_v_pen:
         grad0 = _grad(zeros(K))
         return -grad0[grad0 < 0].min()
@@ -201,7 +217,13 @@ def ct_v_matrix(
     v_mat = diag(opt.x)
 
     # CALCULATE weights AND ts_score
-    weights, _, _ = _weights(v_mat)
+    if w_pen_inner:
+        from .utils.penalty_utils import RidgeCVSolution
+        new_w_pen = RidgeCVSolution(X, control_units, False, treated_units, v_mat)
+        weights, _, _ = _weights_varying(v_mat, new_w_pen)
+        w_pen = new_w_pen
+    else:
+        weights, _, _ = _weights(v_mat)
     errors = Y_treated - weights.T.dot(Y_control)
     ts_loss = opt.fun
     ts_score = linalg.norm(errors) / sqrt(prod(errors.shape))

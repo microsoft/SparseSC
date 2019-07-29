@@ -50,7 +50,7 @@ class TestFitForErrors(unittest.TestCase):
         self.treated_units = np.arange(treated_units)
 
     @classmethod
-    def run_test(cls, obj, model_type, verbose=False):
+    def run_test(cls, obj, model_type, verbose=False, w_pen_inner=False):
         """
         main test runner
         """
@@ -79,6 +79,7 @@ class TestFitForErrors(unittest.TestCase):
                     min_iter=-1,
                     tol=1,
                     verbose=0,
+                    w_pen_inner=w_pen_inner,
                 )
                 if verbose:
                     print("DONE")
@@ -103,10 +104,11 @@ class TestFitForErrors(unittest.TestCase):
     #     TestFitForErrors.run_test(self, "full")
 
     def test_all(self):
-        TestFitForErrors.run_test(self, "retrospective")
-        TestFitForErrors.run_test(self, "prospective")
-        TestFitForErrors.run_test(self, "prospective-restricted")
-        TestFitForErrors.run_test(self, "full")
+        w_pen_inner=True
+        TestFitForErrors.run_test(self, "retrospective", w_pen_inner=w_pen_inner)
+        TestFitForErrors.run_test(self, "prospective", w_pen_inner=w_pen_inner)
+        TestFitForErrors.run_test(self, "prospective-restricted", w_pen_inner=w_pen_inner)
+        TestFitForErrors.run_test(self, "full", w_pen_inner=w_pen_inner)
 
 class TestFitFastForErrors(unittest.TestCase):
     def setUp(self):

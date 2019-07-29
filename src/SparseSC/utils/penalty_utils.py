@@ -184,3 +184,52 @@ def get_max_v_pen(X, Y, w_pen=None, X_treat=None, Y_treat=None, **kwargs):
                     "MemoryError encountered.  Try setting `grad_splits` "
                     "parameter to reduce memory requirements."
                 )  
+
+
+def RidgeCVSolution(M, control_units, controls_as_goals, extra_goals, V, w_pens=None, separate=None):
+    import scipy.linalg #superset of np.linalg and also optimized compiled
+    from sklearn.linear_model import RidgeCV
+    #Could return the weights too
+    if separate is None:
+        separate = (M.shape[1] > 2) #problems if 1, might be unstable with 2.
+    if w_pens is None:
+        w_pens = np.logspace(start=-5, stop=5, num=40)
+    M_c = M[control_units,:]
+    features = np.empty((0,0))
+    targets = np.empty((0,))
+    n_targets = len(control_units) if controls_as_goals else 0
+    if extra_goals is not None:
+        n_targets = n_targets + len(extra_goals)
+    mse = np.empty((n_targets, len(w_pens)))
+    if controls_as_goals:
+        for i in range(len(control_units)):
+            M_c_i = np.delete(M_c, i, axis=0)
+            features_i = (M_c_i*np.sqrt(V)).T #K* x (N0-1) 
+            targets_i = ((M_c[i,:]-M_c_i.mean(axis=0))*np.sqrt(V)).T #K*x1
+
+            if not separate:
+                features = scipy.linalg.block_diag(features, features_i) #pylint: disable=no-member
+                targets = np.hstack((targets, targets_i))
+            else:
+                ridgecvfit_i = RidgeCV(alphas=w_pens, fit_intercept=False, store_cv_values=True).fit(features_i, targets_i)
+                mse[i,:] = ridgecvfit_i.cv_values_.mean(axis=0) #as n_samples x n_alphas
+    if extra_goals is not None:
+        i_offset = len(control_units) if controls_as_goals else 0
+        for i, extra_goal in enumerate(extra_goals):
+            features_i = (M_c*np.sqrt(V)).T #K* x (N0-1) 
+            targets_i = ((M[extra_goal,:]-M_c.mean(axis=0))*np.sqrt(V)).T #K*x1
+
+            if not separate:
+                features = scipy.linalg.block_diag(features, features_i) #pylint: disable=no-member
+                targets = np.hstack((targets, targets_i))
+            else:
+                ridgecvfit_i = RidgeCV(alphas=w_pens, fit_intercept=False, store_cv_values=True).fit(features_i, targets_i)
+                mse[i+i_offset,:] = ridgecvfit_i.cv_values_.mean(axis=0) #as n_samples x n_alphas
+
+    if not separate:
+        ridgecvfit = RidgeCV(alphas=w_pens, fit_intercept=False).fit(features, targets) #Use the generalized cross-validation
+        best_w_pen = ridgecvfit.alpha_
+    else:
+        best_w_pen = w_pens[mse.mean(axis=0).argmin()]
+    #print("joint: " + str(joint_best_w_pen) + ". separate: " + str(sep_best_w_pen))
+    return best_w_pen

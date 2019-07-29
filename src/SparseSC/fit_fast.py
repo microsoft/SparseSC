@@ -5,11 +5,12 @@
 #warnings.simplefilter("error")
 
 import numpy as np
-from sklearn.linear_model import LassoCV, MultiTaskLassoCV, RidgeCV, MultiTaskLasso
+from sklearn.linear_model import LassoCV, MultiTaskLassoCV, MultiTaskLasso
 from sklearn.metrics import r2_score
 import scipy.linalg #superset of np.linalg and also optimized compiled
 
 from .fit import SparseSCFit
+from .utils.penalty_utils import RidgeCVSolution
 
 # To do:
 # - Check weights are the same from RidgeCV solution
@@ -204,50 +205,6 @@ def _ensure_good_donor_pool(custom_donor_pool, control_units, N0):
     custom_donor_pool[control_units,:] = custom_donor_pool_c
     return custom_donor_pool
 
-def _RidgeCVSolution(M, control_units, controls_as_goals, extra_goals, V, w_pens, separate=None):
-    #Could return the weights too
-    if separate is None:
-        separate = (M.shape[1] > 2) #problems if 1, might be unstable with 2.
-    M_c = M[control_units,:]
-    features = np.empty((0,0))
-    targets = np.empty((0,))
-    n_targets = len(control_units) if controls_as_goals else 0
-    if extra_goals is not None:
-        n_targets = n_targets + len(extra_goals)
-    mse = np.empty((n_targets, len(w_pens)))
-    if controls_as_goals:
-        for i in range(len(control_units)):
-            M_c_i = np.delete(M_c, i, axis=0)
-            features_i = (M_c_i*np.sqrt(V)).T #K* x (N0-1) 
-            targets_i = ((M_c[i,:]-M_c_i.mean(axis=0))*np.sqrt(V)).T #K*x1
-
-            if not separate:
-                features = scipy.linalg.block_diag(features, features_i) #pylint: disable=no-member
-                targets = np.hstack((targets, targets_i))
-            else:
-                ridgecvfit_i = RidgeCV(alphas=w_pens, fit_intercept=False, store_cv_values=True).fit(features_i, targets_i)
-                mse[i,:] = ridgecvfit_i.cv_values_.mean(axis=0) #as n_samples x n_alphas
-    if extra_goals is not None:
-        i_offset = len(control_units) if controls_as_goals else 0
-        for i, extra_goal in enumerate(extra_goals):
-            features_i = (M_c*np.sqrt(V)).T #K* x (N0-1) 
-            targets_i = ((M[extra_goal,:]-M_c.mean(axis=0))*np.sqrt(V)).T #K*x1
-
-            if not separate:
-                features = scipy.linalg.block_diag(features, features_i) #pylint: disable=no-member
-                targets = np.hstack((targets, targets_i))
-            else:
-                ridgecvfit_i = RidgeCV(alphas=w_pens, fit_intercept=False, store_cv_values=True).fit(features_i, targets_i)
-                mse[i+i_offset,:] = ridgecvfit_i.cv_values_.mean(axis=0) #as n_samples x n_alphas
-
-    if not separate:
-        ridgecvfit = RidgeCV(alphas=w_pens, fit_intercept=False).fit(features, targets) #Use the generalized cross-validation
-        best_w_pen = ridgecvfit.alpha_
-    else:
-        best_w_pen = w_pens[mse.mean(axis=0).argmin()]
-    #print("joint: " + str(joint_best_w_pen) + ". separate: " + str(sep_best_w_pen))
-    return best_w_pen
-
 def _weights(V , X_treated, X_control, w_pen):
     V = np.diag(V) #make square
     #weights = np.zeros((X_control.shape[0], X_treated.shape[0]))
@@ -280,7 +237,7 @@ def _fit_fast_inner(
     model_type="restrospective",
     treated_units=None,
     best_v_pen = None,
-    w_pens = np.logspace(start=-5, stop=5, num=40),
+    w_pens = None,
     custom_donor_pool=None,
     match_space_trans = None,
     match_space_desc = None
@@ -309,13 +266,13 @@ def _fit_fast_inner(
             sc_weights[i,allowed] = 1/np.sum(allowed)
     else:
         if model_type=="retrospective":
-            best_w_pen = _RidgeCVSolution(M, control_units, True, None, V, w_pens)
+            best_w_pen = RidgeCVSolution(M, control_units, True, None, V, w_pens)
         elif model_type=="prospective":
-            best_w_pen = _RidgeCVSolution(M, control_units, True, treated_units, V, w_pens)
+            best_w_pen = RidgeCVSolution(M, control_units, True, treated_units, V, w_pens)
         elif model_type=="prospective-restricted:":
-            best_w_pen = _RidgeCVSolution(M, control_units, False, treated_units, V, w_pens)
+            best_w_pen = RidgeCVSolution(M, control_units, False, treated_units, V, w_pens)
         else: #model_type=="full"
-            best_w_pen = _RidgeCVSolution(M, control_units, True, None, V, w_pens)
+            best_w_pen = RidgeCVSolution(M, control_units, True, None, V, w_pens)
 
         M_c = M[control_units,:]
         sc_weights = _sc_weights_trad(M, M_c, V, N, N0, custom_donor_pool, best_w_pen)

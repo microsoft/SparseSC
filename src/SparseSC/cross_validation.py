@@ -22,6 +22,7 @@ def score_train_test(
     FoldNumber=None,  # pylint: disable=unused-argument
     grad_splits=None,
     progress=None,  # pylint: disable=unused-argument
+    w_pen_inner=False,
     **kwargs
 ):
     """ 
@@ -108,6 +109,7 @@ def score_train_test(
             X=np.vstack((X, X_treat[train, :])),
             Y=np.vstack((Y, Y_treat[train, :])),
             treated_units=[X.shape[0] + i for i in range(len(train))],
+            w_pen_inner=w_pen_inner, 
             **kwargs
         )
 
@@ -148,6 +150,7 @@ def score_train_test(
                 Y=Y[train, :],
                 # treated_units = [X.shape[0] + i for i in  range(len(train))],
                 grad_splits=grad_splits,
+                w_pen_inner=w_pen_inner, 
                 **kwargs
             )
 
@@ -170,6 +173,7 @@ def score_train_test(
                     X=X[train, :],
                     Y=Y[train, :],
                     # treated_units = [X.shape[0] + i for i in  range(len(train))],
+                    w_pen_inner=w_pen_inner, 
                     **kwargs
                 )
             except MemoryError:
@@ -185,7 +189,8 @@ def score_train_test(
 
 
 def score_train_test_sorted_w_pens(
-    w_pen, start=None, cache=False, progress=False, FoldNumber=None, **kwargs
+    w_pen, start=None, cache=False, progress=False, FoldNumber=None, 
+    w_pen_inner=False, **kwargs
 ):
     """ a wrapper which calls  score_train_test() for each element of an
         array of `w_pen`'s, optionally caching the optimized v_mat and using it
@@ -201,7 +206,7 @@ def score_train_test_sorted_w_pens(
         t0 = time.time()
 
     for i, _w_pen in enumerate(w_pen):
-        v_mat, _, _ = values[i] = score_train_test(w_pen=_w_pen, start=start, **kwargs)
+        v_mat, _, _ = values[i] = score_train_test(w_pen=_w_pen, start=start, w_pen_inner=w_pen_inner, **kwargs)
 
         if cache:
             start = np.diag(v_mat)
@@ -227,7 +232,7 @@ def score_train_test_sorted_w_pens(
 
 
 def score_train_test_sorted_v_pens(
-    v_pen, start=None, cache=False, progress=False, FoldNumber=None, **kwargs
+    v_pen, w_pen, start=None, cache=False, progress=False, FoldNumber=None, w_pen_inner=False, **kwargs
 ):
     """ a wrapper which calls  score_train_test() for each element of an
         array of `v_pen`'s, optionally caching the optimized v_mat and using it
@@ -241,9 +246,11 @@ def score_train_test_sorted_v_pens(
         import time
 
         t0 = time.time()
+    #w_pen_init = w_pen
 
     for i, _v_pen in enumerate(v_pen):
-        v_mat, _, _ = values[i] = score_train_test(v_pen=_v_pen, start=start, **kwargs)
+        #w_pen_inner=True will reset this.
+        v_mat, w_pen, _ = values[i] = score_train_test(v_pen=_v_pen, start=start, w_pen_inner=w_pen_inner, w_pen=w_pen, **kwargs)
 
         if cache:
             start = np.diag(v_mat)
@@ -284,6 +291,7 @@ def CV_score(
     cv_seed=110011,
     # this is here for API consistency:
     progress=None,  # pylint: disable=unused-argument
+    w_pen_inner=False,
     **kwargs
 ):
     """ 
@@ -442,6 +450,7 @@ def CV_score(
                         train=train,
                         test=test,
                         FoldNumber=fold,
+                        w_pen_inner=w_pen_inner,
                         **kwargs
                     )
                     for fold, (train, test) in enumerate(train_test_splits)
@@ -468,6 +477,7 @@ def CV_score(
                     test=test,
                     FoldNumber=fold,
                     progress=progress,
+                    w_pen_inner=w_pen_inner,
                     **kwargs
                 )
                 for fold, (train, test) in enumerate(train_test_splits)
@@ -552,6 +562,7 @@ def CV_score(
                         test=test,
                         FoldNumber=fold,
                         progress=progress,
+                        w_pen_inner=w_pen_inner,
                         **kwargs
                     )
                     for fold, (train, test) in enumerate(train_test_splits)
@@ -576,6 +587,7 @@ def CV_score(
                     test=test,
                     FoldNumber=fold,
                     progress=progress,
+                    w_pen_inner=w_pen_inner,
                     **kwargs
                 )
                 for fold, (train, test) in enumerate(train_test_splits)

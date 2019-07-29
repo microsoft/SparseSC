@@ -27,6 +27,7 @@ def fold_v_matrix(
     verbose=False,
     gradient_message="Calculating gradient",
     batch_client_config=None,
+    w_pen_inner=False,
     **kwargs
 ):
     """
@@ -369,6 +370,32 @@ def fold_v_matrix(
             weights[np.ix_(out_controls[i], test)] = b
         return weights, A, B
 
+    def _weights_varying(V, w_pen):
+        weights = zeros((N0, N1))
+        A = X.dot(V + V.T).dot(X.T) + 2 * w_pen * diag(ones(X.shape[0]))  # 5
+        B = X.dot(V + V.T).dot(X.T).T  # 6
+        for i, (_, test) in enumerate(splits):
+            if (
+                verbose >= 2
+            ):  # for large sample sizes, linalg.solve is a huge bottle neck,
+                print(
+                    "Calculating weights, linalg.solve() call %s of %s"
+                    % (i, len(splits))
+                )
+            try:
+                b = b_i[i] = linalg.solve(
+                    A[in_controls2[i]],
+                    B[np.ix_(in_controls[i], treated_units[test])]
+                    + 2 * w_pen / len(in_controls[i]),
+                )
+            except linalg.LinAlgError as exc:
+                print("Unique weights not possible.")
+                if w_pen == 0:
+                    print("Try specifying a very small w_pen rather than 0.")
+                raise exc
+            weights[np.ix_(out_controls[i], test)] = b
+        return weights, A, B
+
     if return_max_v_pen:
         grad0 = _grad(zeros(K))
         return -grad0[grad0 < 0].min()
@@ -385,7 +412,13 @@ def fold_v_matrix(
         opt = method(_score, start.copy(), jac=_grad, **kwargs)
     v_mat = diag(opt.x)
     # CALCULATE weights AND ts_score
-    weights, _, _ = _weights(v_mat)
+    if w_pen_inner:
+        from .utils.penalty_utils import RidgeCVSolution
+        new_w_pen = RidgeCVSolution(X, control_units, True, None, v_mat)
+        weights, _, _ = _weights_varying(v_mat, new_w_pen)
+        w_pen = new_w_pen
+    else:
+        weights, _, _ = _weights(v_mat)
     errors = Y_treated - weights.T.dot(Y_control)
     ts_loss = opt.fun
     ts_score = linalg.norm(errors) / sqrt(prod(errors.shape))
