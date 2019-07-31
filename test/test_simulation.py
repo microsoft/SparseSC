@@ -12,13 +12,66 @@ from SparseSC.fit import fit
 # python
 # from test.test_simulation import installRSynth
 # installRSynth()
+# installRCausalImpact()
 
 def installRSynth():
     from rpy2.robjects.packages import importr
     utils = importr('utils')
     utils.install_packages('Synth')
 
+def installRCausalImpact():
+    from rpy2.robjects.packages import importr
+    utils = importr('utils')
+    utils.install_packages('CausalImpact')
+
 class Simulation(unittest.TestCase):
+    @staticmethod
+    def fitRCausalImpact(Y_pre, Y_post, treated_units):
+        import rpy2.robjects as ro #ro.r is the R instace
+        control_units = [u for u in range(Y_pre.shape[0]) if u not in treated_units]
+
+
+        #np.matrix is not automatically converted so use ndarray
+        if type(Y_pre).__name__=="matrix":
+            Y_pre = Y_pre.A
+        if type(Y_post).__name__=="matrix":
+            Y_post = Y_post.A
+
+        Y = np.hstack((Y_pre, Y_post)
+        Y_sc = np.full(Y.shape, np.nan)
+        Y_c = Y[control_units,:]
+        T0 = Y_pre.shape[1]
+        N,T = Y.shape
+
+        from rpy2.robjects import numpy2ri
+        numpy2ri.activate()
+        try:
+            CausalImpact = importr('CausalImpact')
+        except:
+            raise RuntimeError("Need the 'CausalImpact' package loaded in the rpy2 R environment. Use test.test_simulation.installRCausalImpact")
+        
+        for unit in range(N): #
+            if unit in treated_units:
+                data = np.hstack(Y[unit,:].T, Y_c.T))
+            else:
+                data = np.hstack(Y[unit,:].T, np.delete(Y_c, unit, 0).T))
+            r_data = ro.r.matrix(data, nrow=df.shape[0], ncol=df.shape[1])
+
+            r_casaulimpact_out = CausalImpact.CausalImpact(data=r_data, pre.period=ro.IntVector([1, T0]), post.period=ro.IntVector([T0+1, T]))
+            #can't seem to get weights from impact$model$bsts.model
+            #r_summary = r_casaulimpact_out[r_casaulimpact_out.names.index('summary')]
+            #te = r_summary[r_summary.names.index('AbsEffect')]
+            #p = r_summary[r_summary.names.index('p')]
+            #te_ci_l = r_summary[r_summary.names.index('AbsEffect.lower')]
+            #te_ci_u = r_summary[r_summary.names.index('AbsEffect.upper')]
+            point_pred = np.array(r_casaulimpact_out[r_casaulimpact_out.names.index('series')])[:,2] #'point.pred' from 'zoo' object
+            Y_sc[unit,:] = point_pred
+
+        class RCausalImpact:
+            def __self__(self, Y_sc):
+                self.Y_sc = Y_sc
+
+        return RCausalImpact(Y_sc)
 
     @staticmethod
     def fitRSynth(Y_pre, treated_units, verbose=False):
@@ -58,11 +111,6 @@ class Simulation(unittest.TestCase):
         
         sc_weights = np.zeros((N,N0))
         Vs = np.zeros((N,T0))
-        
-        X1=Y_pre[treated_units, :].T
-        X0=Y_pre[control_units, :].T
-        r_X1 = ro.r.matrix(X1, nrow=X1.shape[0], ncol=X1.shape[1])
-        r_X0 = ro.r.matrix(X0, nrow=X0.shape[0], ncol=X0.shape[1])
 
         #Difficult to suppress Synth output. The following doesn't work
         #with capture() as out: #https://stackoverflow.com/questions/5136611/ #didn't suppress
@@ -70,9 +118,16 @@ class Simulation(unittest.TestCase):
         if not verbose:
             r_tc = ro.r.textConnection("messages","w")
             ro.r.sink(r_tc)
-        r_synth_out = Synth.synth(X1=r_X1, X0=r_X0, Z1=r_X1, Z0=r_X0)
-        sc_weights[treated_units[0],:] = np.squeeze(np.array(r_synth_out[r_synth_out.names.index('solution.w')]))
-        Vs[treated_units[0],:] = np.squeeze(np.array(r_synth_out[r_synth_out.names.index('solution.v')]))
+            
+        X0=Y_pre[control_units, :].T
+        r_X0 = ro.r.matrix(X0, nrow=X0.shape[0], ncol=X0.shape[1])
+        for treated_unit in treated_units:
+            X1=Y_pre[[treated_unit], :].T
+            r_X1 = ro.r.matrix(X1, nrow=X1.shape[0], ncol=X1.shape[1])
+
+            r_synth_out = Synth.synth(X1=r_X1, X0=r_X0, Z1=r_X1, Z0=r_X0)
+            sc_weights[treated_unit,:] = np.squeeze(np.array(r_synth_out[r_synth_out.names.index('solution.w')]))
+            Vs[treated_unit,:] = np.squeeze(np.array(r_synth_out[r_synth_out.names.index('solution.v')]))
 
         from tqdm import tqdm
         for p_c, p_ct in enumerate(tqdm(control_units)):
