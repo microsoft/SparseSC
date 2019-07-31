@@ -28,8 +28,11 @@ class Simulation(unittest.TestCase):
     @staticmethod
     def fitRCausalImpact(Y_pre, Y_post, treated_units):
         import rpy2.robjects as ro #ro.r is the R instace
-        control_units = [u for u in range(Y_pre.shape[0]) if u not in treated_units]
+        #Automatically convert numpy arrays to R vector/matrix
+        from rpy2.robjects import numpy2ri
+        numpy2ri.activate()
 
+        control_units = [u for u in range(Y_pre.shape[0]) if u not in treated_units]
 
         #np.matrix is not automatically converted so use ndarray
         if type(Y_pre).__name__=="matrix":
@@ -43,8 +46,6 @@ class Simulation(unittest.TestCase):
         T0 = Y_pre.shape[1]
         N,T = Y.shape
 
-        from rpy2.robjects import numpy2ri
-        numpy2ri.activate()
         try:
             CausalImpact = importr('CausalImpact')
         except:
