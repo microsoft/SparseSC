@@ -26,6 +26,9 @@ from recommonmark.transform import AutoStructify
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
+#Allow capturing output
+#from SparseSC.utils.misc import capture
+
 
 # -- General configuration ------------------------------------------------
 
@@ -84,25 +87,6 @@ pygments_style = 'sphinx'
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = False
-
-#Allow capturing output
-#Modified (to not capture stderr too) from https://stackoverflow.com/questions/5136611/
-import contextlib
-@contextlib.contextmanager
-def capture():
-    import sys
-    oldout = sys.stdout
-    try:
-        if sys.version_info[0] < 3:
-            from cStringIO import StringIO
-        else:
-            from io import StringIO
-        out=StringIO()
-        sys.stdout = out
-        yield out
-    finally:
-        sys.stdout = oldout
-        out = out.getvalue()
 
 #Run apidoc from here rather than separate process (so that we can do Read the Docs easily)
 #https://github.com/rtfd/readthedocs.org/issues/1139
