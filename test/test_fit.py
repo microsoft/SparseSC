@@ -104,11 +104,9 @@ class TestFitForErrors(unittest.TestCase):
     #     TestFitForErrors.run_test(self, "full")
 
     def test_all(self):
-        w_pen_inner=True
-        TestFitForErrors.run_test(self, "retrospective", w_pen_inner=w_pen_inner)
-        TestFitForErrors.run_test(self, "prospective", w_pen_inner=w_pen_inner)
-        TestFitForErrors.run_test(self, "prospective-restricted", w_pen_inner=w_pen_inner)
-        TestFitForErrors.run_test(self, "full", w_pen_inner=w_pen_inner)
+        for model_type in ["retrospective"]: #, "prospective", "prospective-restricted", "full"
+            TestFitForErrors.run_test(self, model_type, w_pen_inner=False)
+        TestFitForErrors.run_test(self, "retrospective", w_pen_inner=True)
 
 class TestFitFastForErrors(unittest.TestCase):
     def setUp(self):
@@ -142,7 +140,7 @@ class TestFitFastForErrors(unittest.TestCase):
     def test_all(self):
         for match_maker in [None, SparseSC.MTLassoMixed_MatchSpace_factory(), SparseSC.MTLassoCV_MatchSpace_factory(), SparseSC.MTLSTMMixed_MatchSpace_factory(), SparseSC.Fixed_V_factory(np.full(self.X.shape[1], 1))]: #, 
             TestFitFastForErrors.run_test(self, "retrospective", match_maker)
-        for model_type in ["retrospective", "prospective", "prospective-restricted", "full"]:
+        for model_type in ["prospective", "prospective-restricted", "full"]: #"retrospective", (tested above)
             TestFitFastForErrors.run_test(self, model_type, None)
 
 class TestFitForCorrectness(unittest.TestCase):
