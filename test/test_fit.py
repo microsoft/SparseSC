@@ -140,7 +140,7 @@ class TestFitFastForErrors(unittest.TestCase):
         )
 
     def test_all(self):
-        for match_maker in [None, SparseSC.MTLassoMixed_MatchSpace_factory(), SparseSC.MTLassoCV_MatchSpace_factory(), SparseSC.MTLSTMMixed_MatchSpace_factory()]: #, 
+        for match_maker in [None, SparseSC.MTLassoMixed_MatchSpace_factory(), SparseSC.MTLassoCV_MatchSpace_factory(), SparseSC.MTLSTMMixed_MatchSpace_factory(), SparseSC.Fixed_V_factory(np.full(self.X.shape[1], 1))]: #, 
             TestFitFastForErrors.run_test(self, "retrospective", match_maker)
         for model_type in ["retrospective", "prospective", "prospective-restricted", "full"]:
             TestFitFastForErrors.run_test(self, model_type, None)
