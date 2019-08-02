@@ -16,6 +16,24 @@ from .utils.penalty_utils import RidgeCVSolution
 # To do:
 # - Check weights are the same from RidgeCV solution
 
+def Fixed_V_factory(V):
+    """
+    Return a MatchSpace function with user-supplied V over raw X.
+
+    :param V: V Matrix on the raw features
+    :returns: a function with the signature 
+        MatchSpace fn, V vector, best_v_pen, V = function(X,Y)
+    """
+
+    def _Fixed_V_MatchSpace_wrapper(X, Y, **kwargs):
+        return _Fixed_V_MatchSpace(X, Y, V=V, **kwargs)
+    return _Fixed_V_MatchSpace_wrapper
+
+def _Fixed_V_MatchSpace(X, Y, V, **kwargs):
+    def _MT_Match(X):
+        return(X)
+    return _MT_Match, V, np.nan, V
+
 def MTLassoCV_MatchSpace_factory(v_pens=None, n_v_cv = 5):
     """
     Return a MatchSpace function that will fit a MultiTaskLassoCV for Y ~ X
