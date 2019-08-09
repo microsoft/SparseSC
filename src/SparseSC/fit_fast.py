@@ -27,8 +27,8 @@ def _get_fit_units(model_type, control_units, treated_units, N):
 
 #not documenting the error for when trying to two function signatures (think of better way to do that)
 def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
-    X,
-    Y,
+    features,
+    targets,
     model_type="restrospective",
     treated_units=None,
     w_pens = np.logspace(start=-5, stop=5, num=40),
@@ -38,11 +38,11 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
 ):
     r"""
 
-    :param X: Matrix of features
-    :type X: matrix of floats
+    :param features: Matrix of features
+    :type features: matrix of floats
 
-    :param Y: Matrix of targets
-    :type Y: matrix of floats
+    :param targets: Matrix of targets
+    :type targets: matrix of floats
 
     :param model_type:  Type of model being
         fit. One of ``"retrospective"``, ``"prospective"``,
@@ -87,6 +87,8 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
     :raises ValueError: when ``treated_units`` is not None and not an
             ``iterable``, or when model_type is not one of the allowed values
     """
+    X = features
+    Y = targets
     try:
         X = np.float64(X)
     except ValueError:
@@ -208,8 +210,8 @@ def _fit_fast_inner(
     mscore = np.sum(np.square(Y[fit_units,:] - Y_sc[fit_units,:]))
 
     fit_obj = SparseSCFit(
-        X=X,
-        Y=Y,
+        features=X,
+        targets=Y,
         control_units=control_units,
         treated_units=treated_units,
         model_type=model_type,

@@ -33,8 +33,8 @@ class TrivialUnitsWarning(
 
 
 def fit(  # pylint: disable=differing-type-doc, differing-param-doc
-    X,
-    Y,
+    features,
+    targets,
     treated_units=None,
     w_pen=None,  # Float
     v_pen=None,  # Float or an array of floats
@@ -50,11 +50,11 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
 ):
     r"""
 
-    :param X: Matrix of features
-    :type X: matrix of floats
+    :param features: Matrix of features
+    :type features: matrix of floats
 
-    :param Y: Matrix of targets
-    :type Y: matrix of floats
+    :param targets: Matrix of targets
+    :type targets: matrix of floats
 
     :param model_type:  Type of model being
         fit. One of ``"retrospective"``, ``"prospective"``,
@@ -191,6 +191,8 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
     :raises ValueError: when ``treated_units`` is not None and not an
             ``iterable``, or when model_type is not one of the allowed values
     """
+    X = features
+    Y = targets
     # --------------------------------------------------
     # PARAMETER VALIDATION
     # --------------------------------------------------
@@ -756,8 +758,8 @@ def _fit(
         )
 
     return SparseSCFit(
-        X=X,
-        Y=Y,
+        features=X,
+        targets=Y,
         control_units=control_units,
         treated_units=treated_units,
         model_type=model_type,
@@ -785,8 +787,8 @@ class SparseSCFit(object):
     def __init__(
         self,
         # Data:
-        X,
-        Y,
+        features,
+        targets,
         control_units,
         treated_units,
         model_type,
@@ -810,8 +812,8 @@ class SparseSCFit(object):
         #If match_space===None then V is over match_space (rather than X) and look at match_space_desc for relation to X
 
         # DATA
-        self.X = X
-        self.Y = Y
+        self.features = features
+        self.targets = targets
         self.control_units = control_units
         self.treated_units = treated_units
         self.model_type = model_type
@@ -830,11 +832,11 @@ class SparseSCFit(object):
         self._sc_weights = sc_weights
 
         # IDENTIFY TRIVIAL UNITS
-        M=X
+        M=features
         if match_space is not None:
             M=match_space
         self.trivial_units = np.apply_along_axis(
-            lambda x: (x == 0).all(), 1, np.hstack([M[:, np.diag(V) != 0], Y])
+            lambda x: (x == 0).all(), 1, np.hstack([M[:, np.diag(V) != 0], targets])
         )
         if self.trivial_units.any():
             warn(
@@ -868,12 +870,12 @@ class SparseSCFit(object):
         __weights[np.ix_(np.logical_not(self.trivial_units), trivial_donors)] = 0
         return __weights
 
-    def predict(self, Y=None, include_trivial_donors=True):
+    def predict(self, targets=None, include_trivial_donors=True):
         """ 
         predict method
 
-        :param Y: Matrix of targets
-        :type Y:  (optional) matrix of floats
+        :param targets: Matrix of targets
+        :type targets:  (optional) matrix of floats
 
         :param include_trivial_donors: Should donors for whom selected
                 predictors and all targets equal to zero be included in the weights for
@@ -885,20 +887,20 @@ class SparseSCFit(object):
         :returns: matrix of predicted outcomes
         :rtype: matrix of floats
 
-        :raises ValueError: When ``Y.shape[0]`` is inconsistent with the fitted model.
+        :raises ValueError: When ``targets.shape[0]`` is inconsistent with the fitted model.
         """
-        if Y is None:
-            Y = self.Y
+        if targets is None:
+            targets = self.targets
         else:
-            if Y.shape[0] != self.Y.shape[0]:
+            if targets.shape[0] != self.targets.shape[0]:
                 raise ValueError(
-                    "parameter Y must have the same number of rows as X and Y in the fitted model"
+                    "parameter targets must have the same number of rows as features and targets in the fitted model"
                 )
 
         if self.model_type != "full":
-            Y = Y[self.control_units, :]
+            targets = targets[self.control_units, :]
 
-        return self.get_weights(include_trivial_donors).dot(Y)
+        return self.get_weights(include_trivial_donors).dot(targets)
 
     def __str__(self):
         """ 

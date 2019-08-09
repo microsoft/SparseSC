@@ -66,8 +66,8 @@ class TestFitForErrors(unittest.TestCase):
             warnings.filterwarnings("ignore",category=LineSearchWarning)
             try:
                 fit(
-                    X=obj.X,
-                    Y=obj.Y,
+                    features=obj.X,
+                    targets=obj.Y,
                     model_type=model_type,
                     treated_units=obj.treated_units
                     if model_type
@@ -129,8 +129,8 @@ class TestFitFastForErrors(unittest.TestCase):
     @classmethod
     def run_test(cls, obj, model_type="retrospective", match_maker=None):
         fit_fast(
-            X=obj.X,
-            Y=obj.Y,
+            features=obj.X,
+            targets=obj.Y,
             model_type=model_type,
             treated_units=obj.treated_units
             if model_type

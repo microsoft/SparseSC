@@ -6,8 +6,6 @@ SparseSC is a package that implements an ML-enhanced version of Synthetic Contro
 
 Though the fitting methods do not require such structure, the typical setup is where we have panel data of an outcome variable `Y` for `T` time periods for `N` observation units (customer, computers, etc.). We may additionally have some baseline characteristics `X` about the units. In the treatment effect setting, we will also have a discrete change in treatment status (e.g. some policy change) at time, `T0`, for a select group of units. When there is treatment, we can think of the pre-treatment data as [`X`, `Y_pre`] and post-treatment data as [`Y_post`].
 
-A note of notation: When thinking of treatment effect estimation via `estimate_effects()`, the parameters `Y` and `X` are as they are described here in the analysts problem. Depend on the exact model-type used (see below) this may get translated into different `fit`-type problems in terms of features and targets, so the `Y` and `X` used by those methods will be different.
-
 ```py
 import SparseSC
 
