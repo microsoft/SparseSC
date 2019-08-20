@@ -1,6 +1,10 @@
 """ Utils for getting match spaces (Matching features and potentially feature wegihts)
 
 """
+# To do:
+# - Implement Post-lasso versions. Could do MT OLS as fully separate then aggregate coefs like with Lasso.
+#   (Though some coefficients aren't well estimated we don't want to just take t-stats as we still want to be fit-based.
+#   Ideally we'd have something like marginal R2, but the initial method is probably fine for most uses. (We could standardize input features).)
 import numpy as np
 from sklearn.linear_model import MultiTaskLassoCV, MultiTaskLasso
 from .misc import capture_all
