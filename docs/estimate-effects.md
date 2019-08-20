@@ -9,7 +9,7 @@ Synthetic Controls.
 import SparseSC
 
 # Fit the model:
-fitted_estimates = SparseSC.estimate_effects(Y,unit_treatment_periods,X=X,fast=True,...)
+fitted_estimates = SparseSC.estimate_effects(outcomes,unit_treatment_periods,covariates=X,fast=True,...)
 
 # Print summary of the model including effect size estimates, 
 # p-values, and confidendence intervals:
@@ -39,13 +39,13 @@ post-intervention outcomes from treated units are not used in the fitting
 process. There are two cuts from the remaining data that may be used to
 fit synthetic controls, and each has it's advantages and disadvantages.
 
-In the call to `estimate_effects()`, `Y` should
+In the call to `estimate_effects()`, `outcomes` should
 be numeric matrices containing data on the target variables collected prior
 to (after) the treatment / intervention ( respectively), and the optional
-parameter `X` may be a matrix of additional features.  All matrices
+parameter `covariates` may be a matrix of additional features.  All matrices
 should have one row per unit and one column per observation. 
 
-In addition, the rows in `X` and `Y` which contain units that were affected
+In addition, the rows in `covariates` and `outcomes` which contain units that were affected
 by the intervention ("treated units") should be indicated using the
 `treated_units` parameter, which may be a vector of booleans or integers
 indicating the rows which belong to treat units.

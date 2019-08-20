@@ -64,7 +64,7 @@ class TestEstimationForErrors(unittest.TestCase):
                 unit_treatment_periods[1] = t_index[8]
                 Y.columns = t_index
 
-        SC.estimate_effects(X=X, Y=Y, model_type=model_type, unit_treatment_periods=unit_treatment_periods)
+        SC.estimate_effects(covariates=X, outcomes=Y, model_type=model_type, unit_treatment_periods=unit_treatment_periods)
 
     def test_all(self): #RidgeCV returns: RuntimeWarning: invalid value encountered in true_divide \n return (c / G_diag) ** 2, c
         for model_type in ["retrospective", "prospective", "prospective-restricted"]:

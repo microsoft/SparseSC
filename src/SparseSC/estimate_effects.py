@@ -24,11 +24,11 @@ def _convert_dt_to_idx(dt, dt_index):
         return np.nan if len(idx_list)==0 else idx_list[0]
 
 def estimate_effects(
-    Y,
+    outcomes,
     unit_treatment_periods,
     T0=None,
     T1=None,
-    X=None,
+    covariates=None,
     max_n_pl=10000,
     ret_pl=False,
     ret_CI=False,
@@ -41,8 +41,8 @@ def estimate_effects(
     r"""
     Determines statistical significance for average and individual effects
 
-    :param Y: Outcomes
-    :type Y: np.array or pd.DataFrame with shape (N,T)
+    :param outcomes: Outcomes
+    :type outcomes: np.array or pd.DataFrame with shape (N,T)
     :param unit_treatment_periods: Vector of treatment periods for each unit
         (if a unit is never treated then use np.NaN if vector refers to time periods by numerical index
         and np.datetime64('NaT') if using DateTime to refer to time periods (and thne Y must be pd.DataFrame with columns in DateTime too))
@@ -53,8 +53,8 @@ def estimate_effects(
     :type T0: int, Optional (default is pre-period for first treatment)
     :param T1: post-history length to fit over. 
     :type T1: int, Optional (Default is post-period for last treatment)
-    :param X: Additional pre-treatment features
-    :type X: np.array or pd.DataFrame with shape (N,K), Optional
+    :param covariates: Additional pre-treatment features
+    :type covariates: np.array or pd.DataFrame with shape (N,K), Optional
     :param max_n_pl: The full number of placebos is choose(N0,N1). If N1=1
             then this is N0. This number grows quickly with N1 so we can
             set a maximum that we compute and this is drawn at random.
@@ -76,6 +76,8 @@ def estimate_effects(
 
     :Keyword Args: Passed on to fit() or fit_fast()
     """
+    Y = outcomes
+    X = covariates
     Y_df = None
     if isinstance(Y, pd.DataFrame):
         Y_df = Y
@@ -220,8 +222,8 @@ def estimate_effects(
             X_and_Y_pre = np.hstack((X[ct_units_mask_full,:], Y_pre))
 
         fit_res = fit_fn(
-            X=X_and_Y_pre,
-            Y=Y_post_fit,
+            features=X_and_Y_pre,
+            targets=Y_post_fit,
             model_type=model_type,
             treated_units=treated_units,
             **kwargs
@@ -368,11 +370,11 @@ class SparseSCEstResults(object):
     """
 
     # pylint: disable=redefined-outer-name
-    def __init__(self, Y, fits, unit_treatment_periods, unit_treatment_periods_idx, 
+    def __init__(self, outcomes, fits, unit_treatment_periods, unit_treatment_periods_idx, 
     unit_treatment_periods_idx_fit, T0, T1, pl_res_pre, pl_res_post, pl_res_post_scaled, 
-    max_n_pl, X = None, ind_CI=None, model_type="retrospective", T2=None, pl_res_post_fit=None):
+    max_n_pl, covariates = None, ind_CI=None, model_type="retrospective", T2=None, pl_res_post_fit=None):
         """
-        :param Y: Outcome for the whole sample
+        :param outcomes: Outcome for the whole sample
         :param fits: The fit() return objects
         :type fits: dictionary of period->SparseSCFit
         :param unit_treatment_periods: Vector or treatment periods for each unit
@@ -392,7 +394,7 @@ class SparseSCEstResults(object):
                 post-period.
         :type pl_res_post_scaled: PlaceboResults
         :param max_n_pl: maximum number of of placebos effects used for inference
-        :param X: Nxk matrix of full baseline covariates (or None)
+        :param covariates: Nxk matrix of full baseline covariates (or None)
         :param ind_CI: Confidence intervals for SC predictions at the unit
                 level (not averaged over N1).  Used for graphing rather than
                 treatment effect statistics
@@ -402,8 +404,8 @@ class SparseSCEstResults(object):
         :param pl_res_post_fit: If prospective-type designs, the PlaceboResults for target period used for fit 
             (still before actual treatment)
         """
-        self.Y = Y
-        self.X = X
+        self.Y = outcomes
+        self.X = covariates
         self.fits = fits
         self.unit_treatment_periods = unit_treatment_periods
         self.unit_treatment_periods_idx = unit_treatment_periods_idx

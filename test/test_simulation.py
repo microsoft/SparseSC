@@ -40,7 +40,7 @@ class Simulation(unittest.TestCase):
         if type(Y_post).__name__=="matrix":
             Y_post = Y_post.A
 
-        Y = np.hstack((Y_pre, Y_post)
+        Y = np.hstack((Y_pre, Y_post))
         Y_sc = np.full(Y.shape, np.nan)
         Y_c = Y[control_units,:]
         T0 = Y_pre.shape[1]
@@ -53,12 +53,12 @@ class Simulation(unittest.TestCase):
         
         for unit in range(N): #
             if unit in treated_units:
-                data = np.hstack(Y[unit,:].T, Y_c.T))
+                data = np.hstack((Y[unit,:].T, Y_c.T))
             else:
-                data = np.hstack(Y[unit,:].T, np.delete(Y_c, unit, 0).T))
+                data = np.hstack((Y[unit,:].T, np.delete(Y_c, unit, 0).T))
             r_data = ro.r.matrix(data, nrow=df.shape[0], ncol=df.shape[1])
 
-            r_casaulimpact_out = CausalImpact.CausalImpact(data=r_data, pre.period=ro.IntVector([1, T0]), post.period=ro.IntVector([T0+1, T]))
+            r_casaulimpact_out = CausalImpact.CausalImpact(data=r_data, pre_period=ro.IntVector([1, T0]), post_period=ro.IntVector([T0+1, T]))
             #can't seem to get weights from impact$model$bsts.model
             #r_summary = r_casaulimpact_out[r_casaulimpact_out.names.index('summary')]
             #te = r_summary[r_summary.names.index('AbsEffect')]

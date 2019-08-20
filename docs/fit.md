@@ -8,17 +8,17 @@ fitted model which can be used to create synthetic units using it's
 from SparseSC import fit
 
 # Fit the model:
-fitted_model = fit(X,Y,...)
+fitted_model = fit(features,targets,...)
 
-# Get the fitted synthetic controls for `Y`:
+# Get the fitted synthetic controls for `targets`:
 in_sample_predictions = fitted_model.predict()
 
-# Make predictions for a held out set of fetures (Y_hat) 
+# Make predictions for a held out set of fetures (targets_hat) 
 # using the fitted synthetic controls model:
-additional_predictions = fitted_model.predict(Y_additional)
+additional_predictions = fitted_model.predict(targets_additional)
 ```
 
-Note that `Y` and `X` here are depend on the model type and are not the
+Note that `targets` and `features` here are depend on the model type and are not the
 typical analysts outcome and covariates.
 
 The two methods differ in terms of there  choices about whether to calculate all parameters on the main matching objective or whether to get approximate/fast estimates of them using non-matching formulations.
@@ -42,7 +42,7 @@ post-intervention outcomes from treated units are not used in the fitting
 process. There are two cuts from the remaining data that may be used to
 fit synthetic controls, and each has it's advantages and disadvantages.
 
-In the call to `fit()` and `fit_fast()`, parameters `X` and `Y` should be numeric matrices
+In the call to `fit()` and `fit_fast()`, parameters `features` and `targets` should be numeric matrices
 containing data on the features and target variables, respectively, with
 one row per unit of observation, and one column per feature or target
 variable.
@@ -57,11 +57,11 @@ can be selected by passing one of the following values to the `model_type` param
 	place in a subset of the subjects/units, typically with the intent of
 	estimating the effect of the intervention. 
 	
-	In this model, `Y` should contain target variables recorded after the
-	event of interest and `X` may contain a combination of target variables
+	In this model, `targets` should contain target variables recorded after the
+	event of interest and `features` may contain a combination of target variables
 	recorded prior to the event of interest and other predictors /
-	covariates known prior to the event. In addition, the rows in `X` and
-	`Y` which contain units that were affected by the intervention
+	covariates known prior to the event. In addition, the rows in `features` and
+	`targets` which contain units that were affected by the intervention
 	("treated units") should be indicated using the `treated_units`
 	parameter.
 
@@ -73,7 +73,7 @@ can be selected by passing one of the following values to the `model_type` param
 	of interested are divided in two, typically divided in two subsets
 	taken before and after a particular point in time. 
 	
-	In this model, `Y` should contain only target variables and `X` may
+	In this model, `targets` should contain only target variables and `features` may
 	contain a combination of target variables and other predictors /
 	covariates. The parameters `treated_units` should be used to indicate
 	the units which will or will not receive treatment.
@@ -89,8 +89,8 @@ can be selected by passing one of the following values to the `model_type` param
 
 	like the `prospective` models, data on the outcome of interested are
 	divided in two, typically divided in two subsets taken before and after
-	a particular point in time, and `Y` should contain only target
-	variables and `X` may contain a combination of target variables and
+	a particular point in time, and `targets` should contain only target
+	variables and `features` may contain a combination of target variables and
 	other predictors / covariates. The parameter `treated_units` is unused.
 
 A more through discussoin of the model types can be found
