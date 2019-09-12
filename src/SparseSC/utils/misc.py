@@ -59,3 +59,22 @@ class PreDemeanScaler:
 
     def inverse_transform(self, Y):
         return (Y.T + self.means).T
+
+
+def _ensure_good_donor_pool(custom_donor_pool, control_units):
+    N0 = custom_donor_pool.shape[1]
+    custom_donor_pool_c = custom_donor_pool[control_units,:]
+    for i in range(N0):
+        custom_donor_pool_c[i, i] = False
+    custom_donor_pool[control_units,:] = custom_donor_pool_c
+    return custom_donor_pool
+
+def _get_fit_units(model_type, control_units, treated_units, N):
+    if model_type=="retrospective":
+        return control_units
+    elif model_type=="prospective":
+        return range(N)
+    elif model_type=="prospective-restricted:":
+        return treated_units
+    # model_type=="full":
+    return range(N) #same as control_units

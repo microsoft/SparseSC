@@ -9,21 +9,11 @@ import scipy.linalg #superset of np.linalg and also optimized compiled
 from .fit import SparseSCFit
 from .utils.penalty_utils import RidgeCVSolution
 from .utils.match_space import MTLassoCV_MatchSpace_factory
+from .utils.misc import _ensure_good_donor_pool, _get_fit_units
 
 
 # To do:
 # - Check weights are the same from RidgeCV solution
-
-
-def _get_fit_units(model_type, control_units, treated_units, N):
-    if model_type=="retrospective":
-        return control_units
-    elif model_type=="prospective":
-        return range(N)
-    elif model_type=="prospective-restricted:":
-        return treated_units
-    # model_type=="full":
-    return range(N) #same as control_units
 
 #not documenting the error for when trying to two function signatures (think of better way to do that)
 def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
@@ -34,6 +24,7 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
     w_pens = np.logspace(start=-5, stop=5, num=40),
     custom_donor_pool=None,  
     match_space_maker = None,
+    w_pen_inner=True,
     **kwargs #keep so that calls can switch easily between fit() and fit_fast()
 ):
     r"""
@@ -110,7 +101,7 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
         assert custom_donor_pool.shape == (N,N0)
     else:
         custom_donor_pool = np.full((N,N0), True)
-    custom_donor_pool = _ensure_good_donor_pool(custom_donor_pool, control_units, N0)
+    custom_donor_pool = _ensure_good_donor_pool(custom_donor_pool, control_units)
     match_space_maker = MTLassoCV_MatchSpace_factory() if match_space_maker is None else match_space_maker
 
     fit_units = _get_fit_units(model_type, control_units, treated_units, N)
@@ -118,20 +109,13 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
     Y_v = Y[fit_units,:]
 
     def _fit_model_wrapper(MatchSpace, V):
-        return _fit_fast_inner(X, MatchSpace(X), Y, V, model_type, treated_units, w_pens=w_pens, custom_donor_pool=custom_donor_pool)
+        return _fit_fast_inner(X, MatchSpace(X), Y, V, model_type, treated_units, w_pens=w_pens, custom_donor_pool=custom_donor_pool, w_pen_inner=w_pen_inner)
     MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, fit_model_wrapper=_fit_model_wrapper)
 
     M = MatchSpace(X)
 
-    return _fit_fast_inner(X, M, Y, V, model_type, treated_units, best_v_pen, w_pens, custom_donor_pool, MatchSpace, MatchSpaceDesc)
+    return _fit_fast_inner(X, M, Y, V, model_type, treated_units, best_v_pen, w_pens, custom_donor_pool, MatchSpace, MatchSpaceDesc, w_pen_inner=w_pen_inner)
 
-
-def _ensure_good_donor_pool(custom_donor_pool, control_units, N0):
-    custom_donor_pool_c = custom_donor_pool[control_units,:]
-    for i in range(N0):
-        custom_donor_pool_c[i, i] = False
-    custom_donor_pool[control_units,:] = custom_donor_pool_c
-    return custom_donor_pool
 
 def _weights(V , X_treated, X_control, w_pen):
     V = np.diag(V) #make square
@@ -168,7 +152,8 @@ def _fit_fast_inner(
     w_pens = None,
     custom_donor_pool=None,
     match_space_trans = None,
-    match_space_desc = None
+    match_space_desc = None,
+    w_pen_inner=True
 ):
     #returns in-sample score
     if treated_units is not None:
@@ -184,7 +169,7 @@ def _fit_fast_inner(
         assert custom_donor_pool.shape == (N,N0)
     else:
         custom_donor_pool = np.full((N,N0), True)
-    custom_donor_pool = _ensure_good_donor_pool(custom_donor_pool, control_units, N0)
+    custom_donor_pool = _ensure_good_donor_pool(custom_donor_pool, control_units)
     
     if len(V) == 0 or M.shape[1]==0:
         best_v_pen, best_w_pen, M = None, None, None
@@ -193,16 +178,27 @@ def _fit_fast_inner(
             allowed = custom_donor_pool[i,:]
             sc_weights[i,allowed] = 1/np.sum(allowed)
     else:
-        if model_type=="retrospective":
-            best_w_pen = RidgeCVSolution(M, control_units, True, None, V, w_pens)
-        elif model_type=="prospective":
-            best_w_pen = RidgeCVSolution(M, control_units, True, treated_units, V, w_pens)
-        elif model_type=="prospective-restricted:":
-            best_w_pen = RidgeCVSolution(M, control_units, False, treated_units, V, w_pens)
-        else: #model_type=="full"
-            best_w_pen = RidgeCVSolution(M, control_units, True, None, V, w_pens)
-
         M_c = M[control_units,:]
+        if w_pen_inner:
+            if model_type=="retrospective":
+                best_w_pen = RidgeCVSolution(M, control_units, True, None, V, w_pens)
+            elif model_type=="prospective":
+                best_w_pen = RidgeCVSolution(M, control_units, True, treated_units, V, w_pens)
+            elif model_type=="prospective-restricted:":
+                best_w_pen = RidgeCVSolution(M, control_units, False, treated_units, V, w_pens)
+            else: #model_type=="full"
+                best_w_pen = RidgeCVSolution(M, control_units, True, None, V, w_pens)
+        else:
+            best_w_pen = None
+            best_w_pen_score = np.Inf
+            for w_pen in w_pens:
+                sc_weights = _sc_weights_trad(M, M_c, V, N, N0, custom_donor_pool, w_pen)
+                Y_sc = sc_weights.dot(Y[control_units, :])
+                mscore = np.sum(np.square(Y[fit_units,:] - Y_sc[fit_units,:]))
+                if mscore<best_w_pen_score:
+                    best_w_pen = w_pen
+                    best_w_pen_score = mscore
+
         sc_weights = _sc_weights_trad(M, M_c, V, N, N0, custom_donor_pool, best_w_pen)
 
     Y_sc = sc_weights.dot(Y[control_units, :])

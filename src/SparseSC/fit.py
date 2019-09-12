@@ -6,11 +6,13 @@ import numpy as np
 from os.path import join
 from warnings import warn
 from inspect import signature
+
 from .utils.penalty_utils import get_max_w_pen, get_max_v_pen, w_pen_guestimate
 from .cross_validation import CV_score
 from .tensor import tensor
 from .weights import weights
 from .utils.warnings import SparseSCWarning
+from .utils.misc import _ensure_good_donor_pool, _get_fit_units
 
 # pylint: disable=too-many-lines, inconsistent-return-statements, fixme
 
@@ -238,7 +240,44 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
         or (v_pen is not None and w_pen is not None)
     ):
         return _fit(X, Y, treated_units, w_pen, v_pen, gradient_folds=gradient_folds,**kwargs)
+    
+    if treated_units is not None:
+        control_units = [u for u in range(Y.shape[0]) if u not in treated_units]
 
+    # --------------------------------------------------
+    # Solve null-model case
+    # --------------------------------------------------
+    if X.shape[1]==0:
+        if treated_units is None: #here we treat "full" as all control
+            control_units = [u for u in range(Y.shape[0])]
+        N = Y.shape[0]
+        N0 = len(control_units)
+        custom_donor_pool = kwargs.get("custom_donor_pool", np.full((N,N0), True))
+        assert custom_donor_pool.shape == (N,N0)
+        model_type = kwargs.get("model_type", "retrospective")
+        custom_donor_pool = _ensure_good_donor_pool(custom_donor_pool, control_units)
+        sc_weights = np.full((N,N0), 0.)
+        for i in range(N):
+            allowed = custom_donor_pool[i,:]
+            sc_weights[i,allowed] = 1/np.sum(allowed)
+
+        Y_sc = sc_weights.dot(Y[control_units, :])
+        fit_units = _get_fit_units(model_type, control_units, treated_units, Y.shape[0])
+        score = np.sum(np.square(Y[fit_units,:] - Y_sc[fit_units,:]))
+
+        return SparseSCFit(
+            features=X,
+            targets=Y,
+            control_units=control_units,
+            treated_units=treated_units,
+            model_type=model_type,
+            # fitting parameters
+            V=np.array([]),
+            # Fitted Synthetic Controls
+            sc_weights=sc_weights,
+            score=score,
+            scores=[score],
+        )
     # --------------------------------------------------
     # BUILD THE COORDINATE DESCENT PARAMETERS
     # --------------------------------------------------
@@ -246,7 +285,6 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
         grid = np.exp(np.linspace(np.log(grid_min), np.log(grid_max), grid_length))
 
     if treated_units is not None:
-        control_units = [u for u in range(Y.shape[0]) if u not in treated_units]
         _X, _Y = X[control_units, :], Y[control_units, :]
     else:
         _X, _Y = X, Y
@@ -708,7 +746,7 @@ def _fit(
             raise ValueError(
                 "Unexpected model_type ='%s' or treated_units is not None" % model_type
             )  # pylint: disable=line-too-long
-
+            
         control_units = None
 
         # --------------------------------------------------
@@ -835,9 +873,12 @@ class SparseSCFit(object):
         M=features
         if match_space is not None:
             M=match_space
-        self.trivial_units = np.apply_along_axis(
-            lambda x: (x == 0).all(), 1, np.hstack([M[:, np.diag(V) != 0], targets])
-        )
+        if len(V)>0:
+            self.trivial_units = np.apply_along_axis(
+                lambda x: (x == 0).all(), 1, np.hstack([M[:, np.diag(V) != 0], targets])
+            )
+        else:
+            self.trivial_units = np.full((targets.shape[0]), False)
         if self.trivial_units.any():
             warn(
                 "Fitted Model contains %s trivial unit(s)" % self.trivial_units.sum(),

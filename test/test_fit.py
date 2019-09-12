@@ -106,9 +106,47 @@ class TestFitForErrors(unittest.TestCase):
     #     TestFitForErrors.run_test(self, "full")
 
     def test_all(self):
-        for model_type in ["retrospective"]: #, "prospective", "prospective-restricted", "full"
-            TestFitForErrors.run_test(self, model_type, w_pen_inner=False)
-        TestFitForErrors.run_test(self, "retrospective", w_pen_inner=True)
+        for model_type in ["retrospective", "prospective", "prospective-restricted", "full"]: #
+            TestFitForErrors.run_test(self, model_type)
+
+        model_type = "retrospective"
+        TestFitForErrors.run_test(self, model_type, w_pen_inner=True) #default is, w_pen_inner=False
+
+        ## How to combine with a match-space front-end (do retrospective)
+        control_units = [u for u in range(self.Y.shape[0]) if u not in self.treated_units]
+        # Separate
+        match_space_maker = SparseSC.MTLassoCV_MatchSpace_factory()
+        MatchSpace, _, _, _ = match_space_maker(self.X[control_units], self.Y[control_units], fit_model_wrapper=None)
+        M = MatchSpace(self.X)
+        X_orig = self.X
+        self.X = M
+        TestFitForErrors.run_test(self, model_type)
+        self.X = X_orig
+        # Mixed
+
+        def _fit_model_wrapper(MatchSpace, *args, **kwargs): #allow room to pass in the V
+            fit_obj = fit(
+                features=MatchSpace(self.X),
+                targets=self.Y,
+                model_type=model_type,
+                treated_units=self.treated_units,
+                # KWARGS:
+                print_path=False,
+                stopping_rule=1,
+                progress=False,
+                grid_length=5,
+                min_iter=-1,
+                tol=1,
+                verbose=0,
+            )
+            return fit_obj
+        match_space_maker = SparseSC.MTLassoMixed_MatchSpace_factory(v_pens=[1,2])
+        MatchSpace, _, _, _ = match_space_maker(self.X[control_units], self.Y[control_units], fit_model_wrapper=_fit_model_wrapper)
+        M = MatchSpace(self.X)
+        X_orig = self.X
+        self.X = M
+        TestFitForErrors.run_test(self, model_type)
+        self.X = X_orig
 
 class TestFitFastForErrors(unittest.TestCase):
     def setUp(self):
@@ -127,7 +165,7 @@ class TestFitFastForErrors(unittest.TestCase):
         self.treated_units = np.arange(treated_units)
 
     @classmethod
-    def run_test(cls, obj, model_type="retrospective", match_maker=None):
+    def run_test(cls, obj, model_type="retrospective", match_maker=None, w_pen_inner=True):
         fit_fast(
             features=obj.X,
             targets=obj.Y,
@@ -136,14 +174,18 @@ class TestFitFastForErrors(unittest.TestCase):
             if model_type
             in ("retrospective", "prospective", "prospective-restricted")
             else None,
-            match_space_maker=match_maker
+            match_space_maker=match_maker,
+            w_pen_inner=w_pen_inner
         )
 
     def test_all(self):
         for match_maker in [None, SparseSC.MTLassoMixed_MatchSpace_factory(), SparseSC.MTLassoCV_MatchSpace_factory(), SparseSC.MTLSTMMixed_MatchSpace_factory(), SparseSC.Fixed_V_factory(np.full(self.X.shape[1], 1))]: #, 
             TestFitFastForErrors.run_test(self, "retrospective", match_maker)
+
         for model_type in ["prospective", "prospective-restricted", "full"]: #"retrospective", (tested above)
             TestFitFastForErrors.run_test(self, model_type, None)
+
+        TestFitFastForErrors.run_test(self, "retrospective", w_pen_inner=False) #default is, w_pen_inner=True
 
 class TestFitForCorrectness(unittest.TestCase):
     @staticmethod
@@ -195,7 +237,10 @@ class TestFitForCorrectness(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    #t = TestFitForErrors()
+    t = TestFitForErrors()
+    t.setUp()
+    t.test_all()
+    
     t = TestFitFastForErrors()
     t.setUp()
     t.test_all()
