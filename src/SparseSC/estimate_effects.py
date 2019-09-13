@@ -238,7 +238,7 @@ def estimate_effects(
             #rmspe_M_unw = np.sqrt(np.mean(M_diff_2, axis=1))
             V_fit = np.diag(fit_res.V)
             V_fit_norm = V_fit / np.sum(V_fit)
-            rmspe_M_w = np.sqrt(np.mean(M_diffs_2 * V_fit_norm, axis=1))
+            rmspe_M_w = np.sqrt(np.mean(np.asarray(M_diffs_2) * V_fit_norm, axis=1))
 
             rmspe_M_w_p = _gen_placebo_stats_from_diffs(rmspe_M_w[control_units,None], rmspe_M_w[treated_units,None], max_n_pl, False, True).rms_joint_effect.p
 

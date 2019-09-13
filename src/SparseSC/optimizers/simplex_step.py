@@ -6,6 +6,7 @@ positive simplex go when pulled in the direction of the gradient which would
 otherwise take the droplet outside of the simplex
 """
 # pylint: disable=invalid-name
+import numpy as np
 from numpy import (
     array,
     append,
@@ -145,7 +146,7 @@ def simplex_step_proj_sort(x, g, verbose=False):
 def simplex_proj_sort(v, verbose=False):
     k = v.shape[0]
     if k == 1:
-        return 1
+        return np.array([1])
 
     u = sort(v)[::-1] #switches the order
     ind = arange(1, k+1) #shift to 1-indexing
