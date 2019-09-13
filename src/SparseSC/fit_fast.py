@@ -3,7 +3,6 @@
 """
 
 import numpy as np
-from sklearn.metrics import r2_score
 import scipy.linalg #superset of np.linalg and also optimized compiled
 
 from .fit import SparseSCFit
@@ -108,9 +107,9 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
     X_v = X[fit_units, :]
     Y_v = Y[fit_units,:]
 
-    def _fit_model_wrapper(MatchSpace, V):
+    def _fit_fast_wrapper(MatchSpace, V):
         return _fit_fast_inner(X, MatchSpace(X), Y, V, model_type, treated_units, w_pens=w_pens, custom_donor_pool=custom_donor_pool, w_pen_inner=w_pen_inner)
-    MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, fit_model_wrapper=_fit_model_wrapper)
+    MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, fit_model_wrapper=_fit_fast_wrapper)
 
     M = MatchSpace(X)
 
@@ -220,7 +219,5 @@ def _fit_fast_inner(
         match_space = M,
         match_space_desc = match_space_desc
     )
-    score_R2 = r2_score(Y[fit_units,:].flatten(), Y_sc[fit_units,:].flatten())
-    setattr(fit_obj, 'score_R2', score_R2)
 
     return fit_obj

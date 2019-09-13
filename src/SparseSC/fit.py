@@ -2,10 +2,11 @@
 
 Implements round-robin fitting of Sparse Synthetic Controls Model for DGP based analysis
 """
-import numpy as np
 from os.path import join
 from warnings import warn
 from inspect import signature
+import numpy as np
+from sklearn.metrics import r2_score
 
 from .utils.penalty_utils import get_max_w_pen, get_max_v_pen, w_pen_guestimate
 from .cross_validation import CV_score
@@ -48,6 +49,7 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
     stopping_rule=2,
     gradient_folds=10,
     w_pen_inner=False,
+    match_space_maker=None,
     **kwargs
 ):
     r"""
@@ -278,6 +280,30 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
             score=score,
             scores=[score],
         )
+
+    # --------------------------------------------------
+    # match_space_maker front-end?
+    # --------------------------------------------------
+    if match_space_maker is not None:
+        assert "batchDir" not in kwargs, "Can't combine batchDir with match_space_maker yet"
+        model_type = kwargs.get("model_type", "retrospective")
+        N = Y.shape[0]
+        fit_units = _get_fit_units(model_type, control_units, treated_units, N)
+        X_v = X[fit_units, :]
+        Y_v = Y[fit_units,:]
+        def _fit_model_wrapper(MatchSpace, V): #disregard V
+            return fit(MatchSpace(X), Y, treated_units, w_pen, v_pen, grid, grid_min, grid_max, grid_length, stopping_rule, gradient_folds, w_pen_inner, **kwargs)
+        MatchSpace, _, _, MatchSpaceDesc = match_space_maker(X_v, Y_v, fit_model_wrapper=_fit_model_wrapper) #drop V, best_v_pen
+
+        M = MatchSpace(X)
+
+        fit_inner = fit(M, Y, treated_units, w_pen, v_pen, grid, grid_min, grid_max, grid_length, stopping_rule, gradient_folds, w_pen_inner, **kwargs)
+        #fix-up
+        fit_inner.match_space = M
+        fit_inner.features = X
+        match_space_trans = MatchSpace,
+        fit_inner.match_space_desc = MatchSpaceDesc
+
     # --------------------------------------------------
     # BUILD THE COORDINATE DESCENT PARAMETERS
     # --------------------------------------------------
@@ -887,6 +913,10 @@ class SparseSCFit(object):
         self.match_space_trans = match_space_trans
         self.match_space = match_space
         self.match_space_desc = match_space_desc
+        
+        fit_units = _get_fit_units(model_type, control_units, treated_units, targets.shape[0])
+        targets_sc = sc_weights.dot(targets[control_units, :])
+        self.score_R2 = r2_score(targets[fit_units,:].flatten(), targets_sc[fit_units,:].flatten())
 
     @property
     def sc_weights(self):

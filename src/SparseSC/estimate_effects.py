@@ -230,19 +230,19 @@ def estimate_effects(
         )
         fits[user_index] = fit_res
 
-        if fast:
-            M = fit_res.match_space
-            if M is not None:
-                M_diffs_2 = np.square(M - fit_res.predict(M))
-                #rmspe_M_unw = np.sqrt(np.mean(M_diff_2, axis=1))
-                V_fit = np.diag(fit_res.V)
-                V_fit_norm = V_fit / np.sum(V_fit)
-                rmspe_M_w = np.sqrt(np.mean(M_diffs_2 * V_fit_norm, axis=1))
+        M = fit_res.match_space if fit_res.match_space is not None else fit_res.features
+        if M is None or M.shape[1]==0 or len(fit_res.V) == 0: #think last test is redundant
+            rmspe_M_w_p = np.nan
+        else:
+            M_diffs_2 = np.square(M - fit_res.predict(M))
+            #rmspe_M_unw = np.sqrt(np.mean(M_diff_2, axis=1))
+            V_fit = np.diag(fit_res.V)
+            V_fit_norm = V_fit / np.sum(V_fit)
+            rmspe_M_w = np.sqrt(np.mean(M_diffs_2 * V_fit_norm, axis=1))
 
-                rmspe_M_w_p = _gen_placebo_stats_from_diffs(rmspe_M_w[control_units,None], rmspe_M_w[treated_units,None], max_n_pl, False, True).rms_joint_effect.p
-            else:
-                rmspe_M_w_p = np.nan
-            setattr(fit_res, 'rmspe_M_w_p', rmspe_M_w_p)
+            rmspe_M_w_p = _gen_placebo_stats_from_diffs(rmspe_M_w[control_units,None], rmspe_M_w[treated_units,None], max_n_pl, False, True).rms_joint_effect.p
+
+        setattr(fit_res, 'rmspe_M_w_p', rmspe_M_w_p)
 
         Y_sc = fit_res.predict(Y_local)
         diffs = Y_local - Y_sc
