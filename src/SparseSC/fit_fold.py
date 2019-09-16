@@ -398,7 +398,11 @@ def fold_v_matrix(
 
     if return_max_v_pen:
         grad0 = _grad(zeros(K))
-        return -grad0[grad0 < 0].min()
+        grad0neg = grad0[grad0 < 0]
+        if len(grad0neg)==0:
+            print("return_max_v_pen: No valid component. Returning 1.")
+            return 1 #not sure what else
+        return -grad0neg.min()
 
     # DO THE OPTIMIZATION
     if isinstance(method, str):
