@@ -205,7 +205,7 @@ def RidgeCVSolution(M, control_units, controls_as_goals, extra_goals, V, w_pens=
         for i in range(len(control_units)):
             M_c_i = np.delete(M_c, i, axis=0)
             features_i = (M_c_i*np.sqrt(V)).T #K* x (N0-1) 
-            targets_i = ((M_c[i,:]-M_c_i.mean(axis=0))*np.sqrt(V)).T #K*x1
+            targets_i = ((M_c[i,:]-M_c_i.mean(axis=0))*np.sqrt(V)).T #K*1
 
             if not separate:
                 features = scipy.linalg.block_diag(features, features_i) #pylint: disable=no-member

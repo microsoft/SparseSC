@@ -321,14 +321,14 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
         if kwargs['model_type']=="full":
             control_units = range(N)
         from .utils.penalty_utils import RidgeCVSolution
-        base_v = np.diag(np.full((K), 1/K))
+        base_v = np.full((K), 1/K)
 
         if kwargs['model_type']=="retrospective" or kwargs['model_type']=="full":
-            base_w_pen = RidgeCVSolution(X, control_units, True, None, base_v)
+            base_w_pen = RidgeCVSolution(np.asarray(X), control_units, True, None, base_v)
         elif kwargs['model_type']=="prospective":
-            base_w_pen = RidgeCVSolution(X, control_units, True, treated_units, base_v)
+            base_w_pen = RidgeCVSolution(np.asarray(X), control_units, True, treated_units, base_v)
         else: # kwargs['model_type']=="prospective-restricted:":
-            base_w_pen = RidgeCVSolution(X, control_units, False, treated_units, base_v)
+            base_w_pen = RidgeCVSolution(np.asarray(X), control_units, False, treated_units, base_v)
 
     # --------------------------------------------------
     #  BUILD THE STOPPING RULE
