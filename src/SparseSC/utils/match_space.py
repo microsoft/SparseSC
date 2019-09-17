@@ -9,6 +9,40 @@ import numpy as np
 from sklearn.linear_model import MultiTaskLassoCV, MultiTaskLasso
 from .misc import capture_all
 
+def keras_reproducible(seed=1234, verbose=0, TF_CPP_MIN_LOG_LEVEL='3'):
+    import random
+    random.seed(seed) 
+    np.random.seed(seed)
+    #https://keras.io/getting-started/faq/#how-can-i-obtain-reproducible-results-using-keras-during-development
+    import os
+    os.environ['PYTHONHASHSEED'] = '0' #might need to do this outside the script
+
+    if verbose==0:
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = TF_CPP_MIN_LOG_LEVEL #2 will print warnings
+        
+    import tensorflow
+    if verbose==0:
+        #https://github.com/tensorflow/tensorflow/issues/27023
+        try:
+            from tensorflow.python.util import deprecation
+            deprecation._PRINT_DEPRECATION_WARNINGS = False
+        except ImportError:
+            try:
+                from tensorflow.python.util import module_wrapper as deprecation
+            except ImportError:
+                from tensorflow.python.util import deprecation_wrapper as deprecation
+            deprecation._PER_MODULE_WARNING_LIMIT = 0
+        tensorflow.compat.v1.logging.set_verbosity(tensorflow.compat.v1.logging.ERROR)
+        
+    session_conf = tensorflow.ConfigProto(intra_op_parallelism_threads=1,
+                                inter_op_parallelism_threads=1)
+    with capture_all() as _: #doesn't have quiet option
+        from keras import backend as K
+    tensorflow.set_random_seed(seed)
+    sess = tensorflow.Session(graph=tensorflow.get_default_graph(), config=session_conf)
+    K.set_session(sess)
+
+
 def Fixed_V_factory(V):
     """
     Return a MatchSpace function with user-supplied V over raw X.
@@ -79,8 +113,10 @@ def _MTLSTMMixed_MatchSpace(X, Y, fit_model_wrapper, T0=None, K_fixed=0, M_sizes
 
     if verbose==0:
         import os
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-        #Otherwise prints random info about CPU instruction sets
+        curr_level = os.environ['TF_CPP_MIN_LOG_LEVEL']
+        if curr_level!='2' and curr_level!='3':
+            os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+            #Otherwise prints random info about CPU instruction sets
 
     def _split_LSTM_x_data(X, T0, K_fixed=0):
         N, K = X.shape
