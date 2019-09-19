@@ -35,6 +35,8 @@ except ImportError:
 #import warnings
 #warnings.simplefilter("error")
 
+SparseSC.keras_reproducible() #for when I start testing for correctness
+
 # pylint: disable=missing-docstring
 
 class TestFitForErrors(unittest.TestCase):

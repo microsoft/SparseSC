@@ -292,10 +292,10 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
         X_v = X[fit_units, :]
         Y_v = Y[fit_units,:]
         def _fit_model_wrapper(MatchSpace, V): #disregard V
-            return fit(MatchSpace(X), Y, treated_units, w_pen, v_pen, grid, grid_min, grid_max, grid_length, stopping_rule, gradient_folds, w_pen_inner, **kwargs)
+            return fit(MatchSpace.transform(X), Y, treated_units, w_pen, v_pen, grid, grid_min, grid_max, grid_length, stopping_rule, gradient_folds, w_pen_inner, **kwargs)
         MatchSpace, _, _, MatchSpaceDesc = match_space_maker(X_v, Y_v, fit_model_wrapper=_fit_model_wrapper) #drop V, best_v_pen
 
-        M = MatchSpace(X)
+        M = MatchSpace.transform(X)
 
         fit_inner = fit(M, Y, treated_units, w_pen, v_pen, grid, grid_min, grid_max, grid_length, stopping_rule, gradient_folds, w_pen_inner, **kwargs)
         #fix-up
