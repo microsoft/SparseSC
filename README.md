@@ -74,6 +74,9 @@ documentation locally, you will need `sphinx`, `recommonmark`, and
 The documentation can be built locally using the `(n)make` target
 `htmldocs` and is generated in `docs/build/html/index.html`. 
 
+## Installation
+Currently you need to download the repo and build and install the package locally. The commands for building the package are in the makefile.
+
 ## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions

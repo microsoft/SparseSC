@@ -303,6 +303,7 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
         fit_inner.features = X
         match_space_trans = MatchSpace,
         fit_inner.match_space_desc = MatchSpaceDesc
+        return(fit_inner)
 
     # --------------------------------------------------
     # BUILD THE COORDINATE DESCENT PARAMETERS
