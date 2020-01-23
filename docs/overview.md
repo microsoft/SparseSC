@@ -32,7 +32,7 @@ If units experience treatment at different times, then we define consistent pre 
 
 ## SparseSC
 SparseSC makes a number of changes to Synthetic Controls. To avoid overfitting, ensure uniqueness of the solution, and allow for estimation on large datasets we:
-1. Automatically find a low-dimensional space to match in. We explicitly target a 'sparse' space so as to limit non-parametric bias that is typical in matching estimators. Using ML to find this space also removes ad-hoc decisions by analysist that can affect results. We provide two strategies: 
+1. Automatically find a low-dimensional space to match in. We explicitly target a 'sparse' space so as to limit non-parametric bias that is typical in matching estimators. Using ML to find this space also removes ad-hoc decisions by analysts that can affect results. We provide two strategies: 
    * Feature selection - We impose an `$L_1$` penalization on the existing [`$X$`, `$Y_{pre}$`] variables.
    * Feature learning/generation - We generate a low dimensional space `$M$` to match on using time-series neural-networks (LSTM). This exploits the time-series nature of the outcome.
 2. Impose an `$L_2$` penalization on weights as they deviate from `$1/N_{controls}$`. That is, in the absence of signal, we should resort to a simple comparison to the control group. This also implicitly penalizes weights whose sums is different than one.
