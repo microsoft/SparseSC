@@ -1,18 +1,23 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28010.2016
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29613.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "SparseSC", "src\SparseSC\SparseSC.pyproj", "{3FDC664A-C1C8-47F0-8D77-8E0679E53C82}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Misc", "Misc", "{AA17F266-A75A-4FDE-A774-168EADE9A32E}"
 	ProjectSection(SolutionItems) = preProject
+		docs\azure_batch.md = docs\azure_batch.md
 		CHANGELOG.md = CHANGELOG.md
 		docs\dev_notes.md = docs\dev_notes.md
+		docs\estimate-effects.md = docs\estimate-effects.md
 		example-code.py = example-code.py
 		examples\example_graphs.py = examples\example_graphs.py
 		docs\fit.md = docs\fit.md
 		examples\fit_poc.py = examples\fit_poc.py
+		docs\model-types.md = docs\model-types.md
+		docs\overview.md = docs\overview.md
+		docs\performance-notes.md = docs\performance-notes.md
 		README.md = README.md
 	EndProjectSection
 EndProject

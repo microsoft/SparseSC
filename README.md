@@ -48,7 +48,7 @@ The Fully Separate solution is fast and often quite good so we recommend startin
 ### Model types
 There are two main model-types (corresponding to different cuts of the data) that can be used to estimate treatment effects.
 1. Retrospective: The goal is to minimize squared prediction error of the control units on `Y_post` and the full-pre history of the outcome is used as features in fitting. This is the default and was used in the descriptive elements above.
-2. Prospective: We make an artificial split in time before any treatment actually happens (`Y_pre=[Y_train,Y_test]$`). The goal is to minimize squared prediction error of all units on `Y_test` and `Y_train` for all units is used as features in fitting.
+2. Prospective: We make an artificial split in time before any treatment actually happens (`Y_pre=[Y_train,Y_test]`). The goal is to minimize squared prediction error of all units on `Y_test` and `Y_train` for all units is used as features in fitting.
 
 Given the same amount of features, the two will only differ when there are a non-trivial number of treated units. In this case the prospective model may provide lower prediction error for the treated units, though at the cost of less pre-history data used for fitting. When there are a trivial number of units, the retrospective design will be the most efficient.
 
