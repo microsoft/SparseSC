@@ -9,6 +9,39 @@ import numpy as np
 from sklearn.linear_model import MultiTaskLassoCV, MultiTaskLasso
 from .misc import capture_all
 
+def keras_reproducible(seed=1234, verbose=0, TF_CPP_MIN_LOG_LEVEL='3'):
+    import random
+    random.seed(seed) 
+    np.random.seed(seed)
+    #https://keras.io/getting-started/faq/#how-can-i-obtain-reproducible-results-using-keras-during-development
+    import os
+    os.environ['PYTHONHASHSEED'] = '0' #might need to do this outside the script
+
+    if verbose==0:
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = TF_CPP_MIN_LOG_LEVEL #2 will print warnings
+        
+    import tensorflow
+    if verbose==0:
+        #https://github.com/tensorflow/tensorflow/issues/27023
+        try:
+            from tensorflow.python.util import deprecation
+            deprecation._PRINT_DEPRECATION_WARNINGS = False
+        except ImportError:
+            try:
+                from tensorflow.python.util import module_wrapper as deprecation
+            except ImportError:
+                from tensorflow.python.util import deprecation_wrapper as deprecation
+            deprecation._PER_MODULE_WARNING_LIMIT = 0
+        tensorflow.compat.v1.logging.set_verbosity(tensorflow.compat.v1.logging.ERROR)
+        
+    session_conf = tensorflow.ConfigProto(intra_op_parallelism_threads=1,
+                                inter_op_parallelism_threads=1)
+    with capture_all() as _: #doesn't have quiet option
+        from keras import backend as K
+    tensorflow.set_random_seed(seed)
+    sess = tensorflow.Session(graph=tensorflow.get_default_graph(), config=session_conf)
+    K.set_session(sess)
+
 def Fixed_V_factory(V):
     """
     Return a MatchSpace function with user-supplied V over raw X.
@@ -23,9 +56,11 @@ def Fixed_V_factory(V):
     return _Fixed_V_MatchSpace_wrapper
 
 def _Fixed_V_MatchSpace(X, Y, V, **kwargs): #pylint: disable=unused-argument
-    def _MT_Match(X):
+    return IdTransformer(), V, np.nan, V
+
+class IdTransformer:
+    def transform(self, X):
         return X
-    return _MT_Match, V, np.nan, V
 
 def MTLassoCV_MatchSpace_factory(v_pens=None, n_v_cv = 5):
     """
@@ -45,9 +80,15 @@ def _MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5, **kwargs): #pylint: dis
     V = np.sqrt(np.sum(np.square(varselectorfit.coef_), axis=0)) #n_tasks x n_features -> n_feature
     best_v_pen = varselectorfit.alpha_
     m_sel = (V!=0)
-    def _MT_Match(X):
-        return(X[:,m_sel])
-    return _MT_Match, V[m_sel], best_v_pen, V
+    transformer = SelMatchSpace(m_sel)
+    return transformer, V[m_sel], best_v_pen, V
+
+class SelMatchSpace:
+    def __init__(self, m_sel):
+        self.m_sel = m_sel
+
+    def transform(self, X):
+        return(X[:,self.m_sel])
 
 def MTLSTMMixed_MatchSpace_factory(T0=None, K_fixed=0, M_sizes=None, dropout_rate=0.2, epochs=2, verbose=0, hidden_length=100):
     """
@@ -67,6 +108,44 @@ def MTLSTMMixed_MatchSpace_factory(T0=None, K_fixed=0, M_sizes=None, dropout_rat
         return _MTLSTMMixed_MatchSpace(X, Y, fit_model_wrapper, T0=T0, K_fixed=K_fixed, M_sizes=M_sizes, dropout_rate=dropout_rate, epochs=epochs, verbose=verbose, hidden_length=hidden_length)
     return _MTLSTMMixed_MatchSpace_wrapper
 
+
+def _split_LSTM_x_data(X, T0, K_fixed=0):
+    N, K = X.shape
+
+    Cov_F = X[:,:K_fixed]
+
+    Cov_TV0 = X[:,K_fixed:(K-T0)]
+    assert Cov_TV0.shape[1] % T0 == 0, "Time-varying covariates not the right shape"
+    K_TV = int(Cov_TV0.shape[1]/T0)
+    Cov_TV = np.empty((N, T0, K_TV))
+    for i in range(K_TV):
+        Cov_TV[:,:,i] = Cov_TV0[:,(i*K_TV):((i+1)*K_TV)]
+
+    Out_pre = X[:,(K-T0):]
+    return Cov_F, Cov_TV, Out_pre
+
+def _shape_LSTM_x_data(Cov_F, Cov_TV, Out_pre):
+    N, K_fixed = Cov_F.shape
+    T0 = Out_pre.shape[1]
+    K_TV = Cov_TV.shape[2]
+    LSTM_K = K_fixed + K_TV + 1
+
+    LSTM_x = np.empty((N, T0, LSTM_K))
+    for t in range(T0):
+        LSTM_x[:,t,:K_fixed] = Cov_F
+        LSTM_x[:,t,K_fixed:(K_fixed+K_TV)] = Cov_TV[:,t,:]
+        LSTM_x[:,t,(K_fixed+K_TV):] = Out_pre[:,t, np.newaxis]
+    return LSTM_x
+    
+def _shape_LSTM_y_data(Y_pre, Y_post, T0):
+    _, T1 = Y_post.shape
+    Y = np.hstack((Y_pre, Y_post))
+
+    LSTM_y = []
+    for t in range(T1):
+        LSTM_y.append(Y[:,(t+1):(T0+t+1), np.newaxis] )
+    return LSTM_y
+
 def _MTLSTMMixed_MatchSpace(X, Y, fit_model_wrapper, T0=None, K_fixed=0, M_sizes=None, dropout_rate=0.2, epochs=2, verbose=0, hidden_length=100):
     # could have just used the LSTM state units direclty, but having this be big and then timeDistributed to narrow down is more expressive/powerful
     with capture_all() as _: #doesn't have quiet option
@@ -79,45 +158,9 @@ def _MTLSTMMixed_MatchSpace(X, Y, fit_model_wrapper, T0=None, K_fixed=0, M_sizes
 
     if verbose==0:
         import os
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-        #Otherwise prints random info about CPU instruction sets
-
-    def _split_LSTM_x_data(X, T0, K_fixed=0):
-        N, K = X.shape
-
-        Cov_F = X[:,:K_fixed]
-
-        Cov_TV0 = X[:,K_fixed:(K-T0)]
-        assert Cov_TV0.shape[1] % T0 == 0, "Time-varying covariates not the right shape"
-        K_TV = int(Cov_TV0.shape[1]/T0)
-        Cov_TV = np.empty((N, T0, K_TV))
-        for i in range(K_TV):
-            Cov_TV[:,:,i] = Cov_TV0[:,(i*K_TV):((i+1)*K_TV)]
-
-        Out_pre = X[:,(K-T0):]
-        return Cov_F, Cov_TV, Out_pre
-
-    def _shape_LSTM_x_data(Cov_F, Cov_TV, Out_pre):
-        N, K_fixed = Cov_F.shape
-        T0 = Out_pre.shape[1]
-        K_TV = Cov_TV.shape[2]
-        LSTM_K = K_fixed + K_TV + 1
-
-        LSTM_x = np.empty((N, T0, LSTM_K))
-        for t in range(T0):
-            LSTM_x[:,t,:K_fixed] = Cov_F
-            LSTM_x[:,t,K_fixed:(K_fixed+K_TV)] = Cov_TV[:,t,:]
-            LSTM_x[:,t,(K_fixed+K_TV):] = Out_pre[:,t, np.newaxis]
-        return LSTM_x
-        
-    def _shape_LSTM_y_data(Y_pre, Y_post, T0):
-        _, T1 = Y_post.shape
-        Y = np.hstack((Y_pre, Y_post))
-
-        LSTM_y = []
-        for t in range(T1):
-            LSTM_y.append(Y[:,(t+1):(T0+t+1), np.newaxis] )
-        return LSTM_y
+        if 'TF_CPP_MIN_LOG_LEVEL' in os.environ and os.environ['TF_CPP_MIN_LOG_LEVEL']!='2' and os.environ['TF_CPP_MIN_LOG_LEVEL']!='3':
+            os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+            #Otherwise prints random info about CPU instruction sets
 
     Cov_F, Cov_TV, Out_pre = _split_LSTM_x_data(X, T0, K_fixed=K_fixed)
     LSTM_x = _shape_LSTM_x_data(Cov_F, Cov_TV, Out_pre)
@@ -154,13 +197,9 @@ def _MTLSTMMixed_MatchSpace(X, Y, fit_model_wrapper, T0=None, K_fixed=0, M_sizes
             final_weights[t,:] = model.get_weights()[l_i][:,0]
         V_i = np.mean(np.abs(final_weights), axis=0)
         
-        def _MT_Match_i(X): #evaluated at call-time, not definition, but I call immediately so no problem
-            Cov_F, Cov_TV, Out_Pre = _split_LSTM_x_data(X, T0, K_fixed=K_fixed)
-            LSTM_x = _shape_LSTM_x_data(Cov_F, Cov_TV, Out_Pre)
-            M = intermediate_layer_model.predict(LSTM_x, batch_size=1)[:,T0-1,:] #pylint: disable=cell-var-from-loop
-            return M
+        transformer_i = LSTMTransformer(T0, K_fixed, intermediate_layer_model)
 
-        sc_fit_i = fit_model_wrapper(_MT_Match_i, V_i)
+        sc_fit_i = fit_model_wrapper(transformer_i, V_i)
         #fits_single[i] = sc_fit_i
         int_layer_single[i] = intermediate_layer_model
         Vs_single[i] = V_i
@@ -170,13 +209,21 @@ def _MTLSTMMixed_MatchSpace(X, Y, fit_model_wrapper, T0=None, K_fixed=0, M_sizes
     best_M_size = M_sizes[i_best]
     V_best = Vs_single[i_best]
     intermediate_layer_model = int_layer_single[i_best]
-    
-    def _MT_Match(X):
-        Cov_F, Cov_TV, Out_Pre = _split_LSTM_x_data(X, T0, K_fixed=K_fixed)
+    transformer = LSTMTransformer(T0, K_fixed, intermediate_layer_model)
+    return transformer, V_best, best_M_size, V_best
+
+class LSTMTransformer:
+    def __init__(self, T0, K_fixed, intermediate_layer_model):
+        self.T0 = T0
+        self.K_fixed = K_fixed
+        self.intermediate_layer_model = intermediate_layer_model
+
+    def transform(self, X):
+        Cov_F, Cov_TV, Out_Pre = _split_LSTM_x_data(X, self.T0, K_fixed=self.K_fixed)
         LSTM_x = _shape_LSTM_x_data(Cov_F, Cov_TV, Out_Pre)
-        M = intermediate_layer_model.predict(LSTM_x, batch_size=1)[:,T0-1,:]
+        M = self.intermediate_layer_model.predict(LSTM_x, batch_size=1)[:,self.T0-1,:]
         return M
-    return _MT_Match, V_best, best_M_size, V_best
+
 
 def MTLassoMixed_MatchSpace_factory(v_pens=None, n_v_cv = 5):
     """
@@ -193,12 +240,10 @@ def MTLassoMixed_MatchSpace_factory(v_pens=None, n_v_cv = 5):
 def _MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=None, n_v_cv = 5, **kwargs): #pylint: disable=missing-param-doc, unused-argument
     #Note that MultiTaskLasso(CV).path with the same alpha doesn't produce same results as MultiTaskLasso(CV)
     mtlasso_cv_fit = MultiTaskLassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X, Y)
-    V_cv = np.sqrt(np.sum(np.square(mtlasso_cv_fit.coef_), axis=0)) #n_tasks x n_features -> n_feature
+    #V_cv = np.sqrt(np.sum(np.square(mtlasso_cv_fit.coef_), axis=0)) #n_tasks x n_features -> n_feature
     #v_pen_cv = mtlasso_cv_fit.alpha_
-    m_sel_cv = (V_cv!=0)
-    def _MT_Match_cv(X):
-        return(X[:,m_sel_cv])
-    #sc_fit_cv = fit_model_wrapper(_MT_Match_cv, V_cv[m_sel_cv])
+    #m_sel_cv = (V_cv!=0)
+    #sc_fit_cv = fit_model_wrapper(SelMatchSpace(m_sel_cv), V_cv[m_sel_cv])
 
     v_pens = mtlasso_cv_fit.alphas_
     #fits_single = {}
@@ -209,9 +254,7 @@ def _MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=None, n_v_cv = 5, *
         mtlasso_i_fit = MultiTaskLasso(alpha=v_pen, normalize=True).fit(X, Y)
         V_i = np.sqrt(np.sum(np.square(mtlasso_i_fit.coef_), axis=0))
         m_sel_i = (V_i!=0)
-        def _MT_Match_i(X): #evaluated at call-time, not definition, but I call immediately so no problem
-            return(X[:,m_sel_i]) #pylint: disable=cell-var-from-loop
-        sc_fit_i = fit_model_wrapper(_MT_Match_i, V_i[m_sel_i])
+        sc_fit_i = fit_model_wrapper(SelMatchSpace(m_sel_i), V_i[m_sel_i])
         #fits_single[i] = sc_fit_i
         Vs_single[i] = V_i
         scores[i] = sc_fit_i.score
@@ -224,6 +267,4 @@ def _MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=None, n_v_cv = 5, *
     best_v_pen = v_pens[i_best]
     V_best = Vs_single[i_best]
     m_sel_best = (V_best!=0)
-    def _MT_Match_best(X):
-        return X[:,m_sel_best]
-    return _MT_Match_best, V_best[m_sel_best], best_v_pen, V_best
+    return SelMatchSpace(m_sel_best), V_best[m_sel_best], best_v_pen, V_best

@@ -65,8 +65,8 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
     :type custom_donor_pool: boolean, default = ``None``
 
     :param match_space_maker: Function with signature
-        MatchSpace_fn, V_vector, best_v_pen, V desc = match_space_maker(X, Y, fit_model_wrapper)
-        where we can call fit_model_wrapper(MatchSpace_fn, V_vector).
+        MatchSpace_transformer, V_vector, best_v_pen, V desc = match_space_maker(X, Y, fit_model_wrapper)
+        where we can call fit_model_wrapper(MatchSpace_transformer, V_vector).
         Default is MTLassoCV_MatchSpace_factory().
 
     :param kwargs: Additional parameters so that one can easily switch between fit() and fit_fast()
@@ -108,10 +108,10 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
     Y_v = Y[fit_units,:]
 
     def _fit_fast_wrapper(MatchSpace, V):
-        return _fit_fast_inner(X, MatchSpace(X), Y, V, model_type, treated_units, w_pens=w_pens, custom_donor_pool=custom_donor_pool, w_pen_inner=w_pen_inner)
+        return _fit_fast_inner(X, MatchSpace.transform(X), Y, V, model_type, treated_units, w_pens=w_pens, custom_donor_pool=custom_donor_pool, w_pen_inner=w_pen_inner)
     MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, fit_model_wrapper=_fit_fast_wrapper)
 
-    M = MatchSpace(X)
+    M = MatchSpace.transform(X)
 
     return _fit_fast_inner(X, M, Y, V, model_type, treated_units, best_v_pen, w_pens, custom_donor_pool, MatchSpace, MatchSpaceDesc, w_pen_inner=w_pen_inner)
 

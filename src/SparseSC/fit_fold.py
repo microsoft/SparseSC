@@ -418,7 +418,7 @@ def fold_v_matrix(
     # CALCULATE weights AND ts_score
     if w_pen_inner:
         from .utils.penalty_utils import RidgeCVSolution
-        new_w_pen = RidgeCVSolution(X, control_units, True, None, v_mat)
+        new_w_pen = RidgeCVSolution(np.asarray(X), control_units, True, None, np.diag(v_mat))
         weights, _, _ = _weights_varying(v_mat, new_w_pen)
         w_pen = new_w_pen
     else:
