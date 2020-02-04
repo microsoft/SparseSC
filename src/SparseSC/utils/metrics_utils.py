@@ -1,6 +1,7 @@
 """ Utility functions
 """
 import numpy as np
+import pandas as pd
 import itertools
 from warnings import warn
 
@@ -126,6 +127,44 @@ class PlaceboResults(object):
         self.rms_joint_effect = rms_joint_effect
         self.N_placebo = N_placebo
 
+class AA_results:
+    def __init__(self, diffs_pre, diffs_post, level = 0.95, sym_CI = True):
+        pre_index = diffs_pre.columns if isinstance(diffs_pre, pd.DataFrame) else None
+        self.pl_res_pre = _gen_AA_placebo_stats_from_diffs(diffs_pre,
+                                                           level = level,
+                                                           vec_index = pre_index,
+                                                           sym_CI = sym_CI)
+        post_eval_index = diffs_post.columns if isinstance(diffs_post, pd.DataFrame) else None
+        self.pl_res_post = _gen_AA_placebo_stats_from_diffs(diffs_post,
+                                                            level = level,
+                                                            vec_index = post_eval_index,
+                                                            sym_CI = sym_CI)
+
+
+
+
+def _gen_AA_placebo_stats_from_diffs(control_effect_vecs,
+                                     level = 0.95,
+                                     vec_index = None,
+                                     sym_CI = True):
+    """Generates placebo distribution stats to compare effects against. 
+    Generates 2-sided p-values
+
+    :param control_effect_vecs:
+    :param level: 
+    :param vec_index: Index to use for pandas vector
+    :param sym_CI: Return symmetric CI
+
+    :returns: PlaceboResults, the Placebo test results
+    """
+    if sym_CI:
+        t_vec = np.zeros((1,control_effect_vecs.shape[1]))
+    else:
+        t_vec = np.mean(control_effect_vecs, axis=0) #show the mean of the distribution
+    plac_results = _gen_placebo_stats_from_diffs(control_effect_vecs, t_vec, 0,
+                                         False, True, level, vec_index, sym_CI)
+
+    return plac_results
 
 def _gen_placebo_stats_from_diffs(
     control_effect_vecs,
@@ -145,9 +184,9 @@ def _gen_placebo_stats_from_diffs(
 
     :param effect_vecs:
     :param control_effect_vecs:
-    :param max_n_pl:
-    :param ret_pl:
-    :param ret_CI:
+    :param max_n_pl: Set to 0 if you want all
+    :param ret_pl: Return placebo distribution
+    :param ret_CI: Return confidence intervals
     :param level:
     :param vec_index:
     :param sym_CI: Return symmetric CI
