@@ -12,6 +12,7 @@
     <Name>test</Name>
     <RootNamespace>test</RootNamespace>
     <InterpreterId>CondaEnv|CondaEnv|SparseSC_35</InterpreterId>
+    <SuppressConfigureTestFrameworkPrompt>true</SuppressConfigureTestFrameworkPrompt>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>

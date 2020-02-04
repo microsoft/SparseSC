@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 
 
 def raw(Y, treated_units_idx, control_units_idx, treatment_period):
+    N1 = len(treated_units_idx)
     fig, ax = plt.subplots(num="raw")
     # Individual controls & treated
     if len(treated_units_idx) > 1:
@@ -24,19 +25,21 @@ def raw(Y, treated_units_idx, control_units_idx, treatment_period):
         plt.plot(Y.iloc[control_units_idx[0], :], color="lightgray", label="Controls")
         plt.plot(np.mean(Y.iloc[control_units_idx, :], axis=0), "kx--", color="dimgray", label="Mean Control")
         plt.axvline(x=treatment_period, linestyle="--")
-        plt.plot(np.transpose(Y.iloc[treated_units_idx, :]), color="black")
-        plt.plot(Y.iloc[treated_units_idx[0], :], color="black", label=lbl_t)
-        if len(treated_units_idx) > 1:
-            plt.plot(np.mean(Y.iloc[treated_units_idx, :], axis=0), color="black", label=lbl_mt)
+        if N1>0:
+            plt.plot(np.transpose(Y.iloc[treated_units_idx, :]), color="black")
+            plt.plot(Y.iloc[treated_units_idx[0], :], color="black", label=lbl_t)
+            if N1 > 1:
+                plt.plot(np.mean(Y.iloc[treated_units_idx, :], axis=0), color="black", label=lbl_mt)
     else:
         plt.plot(np.transpose(Y[control_units_idx, :]), color="lightgray")
         plt.plot(Y[control_units_idx[0], :], color="lightgray", label="Controls")
         plt.plot(np.mean(Y[control_units_idx, :], axis=0), "kx--", color="dimgray", label="Mean Control")
         plt.axvline(x=treatment_period, linestyle="--")
-        plt.plot(np.transpose(Y[treated_units_idx, :]), color="black")
-        plt.plot(Y[treated_units_idx[0], :], color="black", label=lbl_t)
-        if len(treated_units_idx) > 1:
-            plt.plot(np.mean(Y[treated_units_idx, :], axis=0), "kx--", color="black", label=lbl_mt)
+        if N1>0:
+            plt.plot(np.transpose(Y[treated_units_idx, :]), color="black")
+            plt.plot(Y[treated_units_idx[0], :], color="black", label=lbl_t)
+            if N1> 1:
+                plt.plot(np.mean(Y[treated_units_idx, :], axis=0), "kx--", color="black", label=lbl_mt)
     plt.xlabel("Time")
     plt.ylabel("Outcome")
     plt.legend(loc=1)
@@ -112,6 +115,19 @@ def sc_raw(est_ret, treatment_date, unit_idx, treatment_date_fit=None):
     plt.legend(loc=1)
     return fig, ax
 
+def te_plot_aa(est_ret, treatment_date):
+    fig, ax = plt.subplots(num="te_plot_aa")
+    ci0 = (pl_res_pre.effect_vec.ci.ci_low)
+    ci1 = (pl_res_pre.effect_vec.ci.ci_high)
+    base = ci0.index if isinstance(pl_res_pre.effect_vec.ci.ci_low, pd.Series) else range(len(ci0))
+    plt.fill_between(base, ci0, ci1, facecolor="gray", label="CI")
+
+    plt.axvline(x=treatment_date, linestyle="--")
+    plt.axhline(y=0, linestyle="--")
+    plt.xlabel("Time")
+    plt.ylabel("Real-SC Outcome Difference")
+    plt.legend(loc=1)
+    return fig, ax
 
 def te_plot(est_ret, treatment_date, treatment_date_fit=None):
     fig, ax = plt.subplots(num="te_plot")
@@ -149,8 +165,9 @@ def te_plot(est_ret, treatment_date, treatment_date_fit=None):
 
 def diffs_plot(diffs, treated_units_idx, control_units_idx, treatment_date, est_ret=None, treatment_date_fit=None):
     #include est_ret for CI (usefull for combining Diff and TE graphs when 1 treated unit)
+    N1 = len(treated_units_idx)
     fig, ax = plt.subplots(num="diffs_plot")
-    if len(treated_units_idx) > 1:
+    if N1 > 1:
         lbl_t = "Treated Diffs"
     else:
         lbl_t = "Treated Diff"
@@ -171,9 +188,9 @@ def diffs_plot(diffs, treated_units_idx, control_units_idx, treatment_date, est_
                                 est_ret.pl_res_post.effect_vec.ci.ci_high))
             plt.plot(ci0, color="dimgray")
             plt.plot(ci1, color="dimgray", label="CI")
-
-        plt.plot(diffs.iloc[treated_units_idx, :].T, color="black")
-        plt.plot(diffs.iloc[treated_units_idx[0], :], color="black", label=lbl_t)
+        if N1>0:
+            plt.plot(diffs.iloc[treated_units_idx, :].T, color="black")
+            plt.plot(diffs.iloc[treated_units_idx[0], :], color="black", label=lbl_t)
     else:
         plt.plot(np.transpose(diffs[control_units_idx, :]), alpha=0.5, color="lightgray")
         plt.plot(diffs[control_units_idx[0], :], alpha=0.5, color="lightgray", label="Control Diffs")
@@ -186,9 +203,9 @@ def diffs_plot(diffs, treated_units_idx, control_units_idx, treatment_date, est_
             plt.plot(range(len(ci0)), ci0, color="dimgray")
             plt.plot(range(len(ci0)), ci1, color="dimgray", label="CI")
 
-        
-        plt.plot(np.transpose(diffs[treated_units_idx, :]), color="black")
-        plt.plot(diffs[treated_units_idx[0], :], color="black", label=lbl_t)
+        if N1>0:
+            plt.plot(np.transpose(diffs[treated_units_idx, :]), color="black")
+            plt.plot(diffs[treated_units_idx[0], :], color="black", label=lbl_t)
     plt.xlabel("Time")
     plt.ylabel("Real-SC Outcome Difference")
     plt.legend(loc=1)
