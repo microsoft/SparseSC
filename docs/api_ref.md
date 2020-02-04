@@ -37,6 +37,12 @@
 
 ```
 
+```eval_rst
+.. autoclass:: SparseSC.utils.metrics_utils.AA_results
+    :members:
+    :show-inheritance:
+
+```
 
 
 ## Fit a Synthetic Controls Model (Slow, Joint)
@@ -63,14 +69,28 @@
 ```
 
 ```eval_rst
-.. autoclass:: SparseSC.fit_fast.MTLassoCV_MatchSpace
+.. autoclass:: SparseSC.utils.match_space.Fixed_V_factory
     :members:
     :show-inheritance:
 
 ```
 
 ```eval_rst
-.. autoclass:: SparseSC.fit_fast.MTLassoMixed_MatchSpace
+.. autoclass:: SparseSC.utils.match_space.MTLassoCV_MatchSpace_factory
+    :members:
+    :show-inheritance:
+
+```
+
+```eval_rst
+.. autoclass:: SparseSC.utils.match_space.MTLSTMMixed_MatchSpace_factory
+    :members:
+    :show-inheritance:
+
+```
+
+```eval_rst
+.. autoclass:: SparseSC.utils.match_space.MTLassoMixed_MatchSpace_factory
     :members:
     :show-inheritance:
 

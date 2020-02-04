@@ -46,6 +46,7 @@
     <Compile Include="utils\AzureBatch\__init__.py" />
     <Compile Include="utils\batch_gradient.py" />
     <Compile Include="utils\local_grad_daemon.py" />
+    <Compile Include="utils\match_space.py" />
     <Compile Include="utils\metrics_utils.py">
       <SubType>Code</SubType>
     </Compile>

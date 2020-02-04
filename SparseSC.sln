@@ -7,6 +7,7 @@ Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "SparseSC", "src\SparseSC\Sp
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Misc", "Misc", "{AA17F266-A75A-4FDE-A774-168EADE9A32E}"
 	ProjectSection(SolutionItems) = preProject
+		docs\api_ref.md = docs\api_ref.md
 		docs\azure_batch.md = docs\azure_batch.md
 		CHANGELOG.md = CHANGELOG.md
 		docs\dev_notes.md = docs\dev_notes.md

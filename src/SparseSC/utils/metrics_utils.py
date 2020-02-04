@@ -1,7 +1,6 @@
 """ Utility functions
 """
 import numpy as np
-import pandas as pd
 import itertools
 from warnings import warn
 
@@ -128,13 +127,32 @@ class PlaceboResults(object):
         self.N_placebo = N_placebo
 
 class AA_results:
+    """
+    Constructs simple results object from AA test that has already been fit (model_type="full") and diffs constructed.
+    """
     def __init__(self, diffs_pre, diffs_post, level = 0.95, sym_CI = True):
-        pre_index = diffs_pre.columns if isinstance(diffs_pre, pd.DataFrame) else None
+        """ Provides typical stats for sims of estimation
+        :param diffs_pre: Pre-treatment diffs
+        :param diffs_post: vector of CI lower bounds
+        :param level: level
+        :param sym_CI: Return symmetric CIs. Will also set "treatment" effect to 0 rather than mean of placebo diffs.
+        :returns: AA_results
+        """
+        import pandas as pd
+        if isinstance(diffs_pre, pd.DataFrame):
+            pre_index = diffs_pre.columns
+            diffs_pre = diffs_pre.values
+        else:
+            pre_index = None
         self.pl_res_pre = _gen_AA_placebo_stats_from_diffs(diffs_pre,
                                                            level = level,
                                                            vec_index = pre_index,
                                                            sym_CI = sym_CI)
-        post_eval_index = diffs_post.columns if isinstance(diffs_post, pd.DataFrame) else None
+        if isinstance(diffs_post, pd.DataFrame):
+            post_eval_index = diffs_post.columns  
+            diffs_post = diffs_post.values
+        else:
+            post_eval_index = None
         self.pl_res_post = _gen_AA_placebo_stats_from_diffs(diffs_post,
                                                             level = level,
                                                             vec_index = post_eval_index,
@@ -153,7 +171,7 @@ def _gen_AA_placebo_stats_from_diffs(control_effect_vecs,
     :param control_effect_vecs:
     :param level: 
     :param vec_index: Index to use for pandas vector
-    :param sym_CI: Return symmetric CI
+    :param sym_CI: Return symmetric CIs. Will also set "treatment" effect to 0 rather than mean of placebo diffs.
 
     :returns: PlaceboResults, the Placebo test results
     """
