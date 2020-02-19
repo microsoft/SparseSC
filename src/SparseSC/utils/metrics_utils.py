@@ -178,7 +178,7 @@ def _gen_AA_placebo_stats_from_diffs(control_effect_vecs,
     if sym_CI:
         t_vec = np.zeros((1,control_effect_vecs.shape[1]))
     else:
-        t_vec = np.mean(control_effect_vecs, axis=0) #show the mean of the distribution
+        t_vec = np.mean(control_effect_vecs, axis=0, keepdims=True) #show the mean of the distribution
     plac_results = _gen_placebo_stats_from_diffs(control_effect_vecs, t_vec, 0,
                                          False, True, level, vec_index, sym_CI)
 
