@@ -16,7 +16,8 @@
 
 from __future__ import print_function  # for compatibility with python 2.7
 import numpy as np
-import sys, os, random
+import sys
+import random
 import unittest
 import warnings
 from os.path import expanduser, join
@@ -82,6 +83,7 @@ class TestFit(unittest.TestCase):
                 pass
             except Exception as exc:
                 print("Failed with %s: %s" % (exc.__class__.__name__, str(exc)))
+                raise exc
 
     def test_retrospective(self):
         TestFit.run_test(self, "retrospective")
