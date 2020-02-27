@@ -2,7 +2,7 @@
 CONTSTANTS USED BY THIS MODULE
 """
 
-_DOCKER_CONTAINER = "jdthorpe/sparsesc"
+_DOCKER_IMAGE = "jdthorpe/sparsesc"
 _STANDARD_OUT_FILE_NAME = "stdout.txt"  # Standard Output file
 _CONTAINER_OUTPUT_FILE = "output.yaml"  # Standard Output file
 _CONTAINER_INPUT_FILE = "input.yaml"  # Standard Output file

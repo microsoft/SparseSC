@@ -15,7 +15,7 @@
 # --------------------------------------------------------------------------------
 # pylint: disable=multiple-imports, missing-docstring, no-self-use
 """
-USAGE:
+USAGE (CMD):
 
 az login
 
@@ -26,7 +26,6 @@ for /f %i in ('az batch account keys list -n %name% -g %rgname% --query primary'
 for /f %i in ('az batch account show -n %name% -g %rgname% --query accountEndpoint') do @set BATCH_ACCOUNT_ENDPOINT=%i
 for /f %i in ('az storage account keys list -n %name% --query [0].value') do @set STORAGE_ACCOUNT_KEY=%i
 for /f %i in ('az storage account show-connection-string --name %name% --query connectionString') do @set STORAGE_ACCOUNT_CONNECTION_STRING=%i
-$env:STORAGE_ACCOUNT_CONNECTION_STRING= () -replace '"',''
 
 # clean up the quotes
 set BATCH_ACCOUNT_KEY=%BATCH_ACCOUNT_KEY:"=%
@@ -34,6 +33,11 @@ set BATCH_ACCOUNT_ENDPOINT=%BATCH_ACCOUNT_ENDPOINT:"=%
 set STORAGE_ACCOUNT_KEY=%STORAGE_ACCOUNT_KEY:"=%
 set STORAGE_ACCOUNT_CONNECTION_STRING=%STORAGE_ACCOUNT_CONNECTION_STRING:"=%
 
+cd test\AzureBatch
+rm -rf data
+python test_batch_build.py
+python test_batch_run.py
+python test_batch_aggregate.py
 """
 
 from __future__ import print_function  # for compatibility with python 2.7
@@ -102,10 +106,6 @@ class TestFit(unittest.TestCase):
             BATCH_DIRECTORY=batch_dir,
             DOCKER_IMAGE=DOCKER_IMAGE_NAME,
         )
-
-        import pdb
-
-        pdb.set_trace()
 
         create_job(batch_client, batch_dir)
         batch_client.run()

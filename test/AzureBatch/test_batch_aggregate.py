@@ -103,9 +103,6 @@ class TestFit(unittest.TestCase):
                     np.abs(model_a.scores - model_b.scores) < 1e-14
                 ), "model scores are not within rounding error"
 
-                import pdb
-
-                pdb.set_trace()
                 if verbose:
                     print("DONE")
             except LineSearchWarning:

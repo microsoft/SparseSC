@@ -65,7 +65,7 @@ setup(
         "Topic :: Utilities",
     ],
     keywords=["Sparse", "Synthetic", "Controls"],
-    install_requires=["numpy", "Scipy", "scikit-learn", "pandas"],
+    install_requires=["numpy", "Scipy", "scikit-learn", "pandas", "pyyaml"],
     entry_points={
         "console_scripts": [
             "scgrad=SparseSC.cli.scgrad:main",
