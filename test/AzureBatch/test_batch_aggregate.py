@@ -65,8 +65,12 @@ class TestFit(unittest.TestCase):
             print("Calling fit with `model_type  = '%s'`..." % (model_type,), end="")
         sys.stdout.flush()
 
-        batchdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "batchTest")
-        assert os.path.exists(batchdir), "Batch Directory '{}' does not exist".format(batchdir)
+        batchdir = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), "data", "batchTest"
+        )
+        assert os.path.exists(batchdir), "Batch Directory '{}' does not exist".format(
+            batchdir
+        )
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=PendingDeprecationWarning)
@@ -74,8 +78,8 @@ class TestFit(unittest.TestCase):
             try:
                 verbose = 0
                 model_a = fit(
-                    X=obj.X,
-                    Y=obj.Y,
+                    features=obj.X,
+                    targets=obj.Y,
                     model_type=model_type,
                     treated_units=obj.treated_units
                     if model_type
@@ -99,6 +103,9 @@ class TestFit(unittest.TestCase):
                     np.abs(model_a.scores - model_b.scores) < 1e-14
                 ), "model scores are not within rounding error"
 
+                import pdb
+
+                pdb.set_trace()
                 if verbose:
                     print("DONE")
             except LineSearchWarning:
@@ -110,9 +117,11 @@ class TestFit(unittest.TestCase):
                     "Failed with %s(%s)"
                     % (exc.__class__.__name__, getattr(exc, "message", ""))
                 )
+                raise exc
 
     def test_retrospective(self):
         TestFit.run_test(self, "retrospective")
+
 
 # --     def test_prospective(self):
 # --         TestFit.run_test(self, "prospective")

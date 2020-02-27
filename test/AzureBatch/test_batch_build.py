@@ -47,15 +47,18 @@ class TestFit(unittest.TestCase):
             print("Calling fit with `model_type  = '%s'`..." % (model_type,), end="")
         sys.stdout.flush()
 
-        batchdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "batchTest")
+        batchdir = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), "data", "batchTest"
+        )
+        print("dumping batch artifacts to: {}'".format(batchdir))
 
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore",category=PendingDeprecationWarning)
-            warnings.filterwarnings("ignore",category=LineSearchWarning)
+            warnings.filterwarnings("ignore", category=PendingDeprecationWarning)
+            warnings.filterwarnings("ignore", category=LineSearchWarning)
             try:
                 fit(
-                    X=obj.X,
-                    Y=obj.Y,
+                    features=obj.X,
+                    targets=obj.Y,
                     model_type=model_type,
                     treated_units=obj.treated_units
                     if model_type
@@ -69,33 +72,35 @@ class TestFit(unittest.TestCase):
                     min_iter=-1,
                     tol=1,
                     verbose=0,
-                    batchDir=batchdir
+                    batchDir=batchdir,
                 )
                 if verbose:
                     print("DONE")
             except LineSearchWarning:
                 pass
-            except PendingDeprecationWarning: 
+            except PendingDeprecationWarning:
                 pass
             except Exception as exc:  # pylint: disable=broad-except
                 print(
                     "Failed with %s(%s)"
                     % (exc.__class__.__name__, getattr(exc, "message", ""))
                 )
+                raise exc
 
     def test_retrospective(self):
         TestFit.run_test(self, "retrospective")
 
-#--     def test_prospective(self):
-#--         TestFit.run_test(self, "prospective")
-#-- 
-#--     def test_prospective_restrictive(self):
-#--         # Catch the LineSearchWarning silently, but allow others
-#-- 
-#--         TestFit.run_test(self, "prospective-restricted")
-#-- 
-#--     def test_full(self):
-#--         TestFit.run_test(self, "full")
+
+# --     def test_prospective(self):
+# --         TestFit.run_test(self, "prospective")
+# --
+# --     def test_prospective_restrictive(self):
+# --         # Catch the LineSearchWarning silently, but allow others
+# --
+# --         TestFit.run_test(self, "prospective-restricted")
+# --
+# --     def test_full(self):
+# --         TestFit.run_test(self, "full")
 
 
 if __name__ == "__main__":

@@ -15,34 +15,39 @@
 # --------------------------------------------------------------------------------
 # pylint: disable=multiple-imports, missing-docstring, no-self-use
 """
-usage 
+USAGE:
 
 az login
 
-name="rundammit2"
-location="westus2"
+set name=sparsescbatchtesting
+set rgname=SparseSC-batch-testing
+set BATCH_ACCOUNT_NAME=%name%
+for /f %i in ('az batch account keys list -n %name% -g %rgname% --query primary') do @set BATCH_ACCOUNT_KEY=%i
+for /f %i in ('az batch account show -n %name% -g %rgname% --query accountEndpoint') do @set BATCH_ACCOUNT_ENDPOINT=%i
+for /f %i in ('az storage account keys list -n %name% --query [0].value') do @set STORAGE_ACCOUNT_KEY=%i
+for /f %i in ('az storage account show-connection-string --name %name% --query connectionString') do @set STORAGE_ACCOUNT_CONNECTION_STRING=%i
+$env:STORAGE_ACCOUNT_CONNECTION_STRING= () -replace '"',''
 
-export BATCH_ACCOUNT_NAME=$name
-export BATCH_ACCOUNT_KEY=$(az batch account keys list -n $name -g $name --query primary)
-export BATCH_ACCOUNT_URL="https://$name.$location.batch.azure.com"
-export STORAGE_ACCOUNT_NAME=$name
-export STORAGE_ACCOUNT_KEY=$(az storage account keys list -n $name --query [0].value)
+# clean up the quotes
+set BATCH_ACCOUNT_KEY=%BATCH_ACCOUNT_KEY:"=%
+set BATCH_ACCOUNT_ENDPOINT=%BATCH_ACCOUNT_ENDPOINT:"=%
+set STORAGE_ACCOUNT_KEY=%STORAGE_ACCOUNT_KEY:"=%
+set STORAGE_ACCOUNT_CONNECTION_STRING=%STORAGE_ACCOUNT_CONNECTION_STRING:"=%
 
 """
 
 from __future__ import print_function  # for compatibility with python 2.7
 import os, unittest, datetime
+from os.path import join, realpath, dirname, exists
+from super_batch import Client
 
-try:
-    from SparseSC.utils.AzureBatch import BatchConfig, run as run_batch_job, load_results
-except ImportError:
-    raise RuntimeError("SparseSC is not installed. use 'pip install -e .' to install")
-
-timestamp = datetime.datetime.utcnow().strftime("%H%M%S")
+from SparseSC.utils.AzureBatch import (
+    DOCKER_IMAGE_NAME,
+    create_job,
+)
 
 
 class TestFit(unittest.TestCase):
-
     def test_retrospective_no_wait(self):
         """
         test the no-wait and load_results API
@@ -53,21 +58,26 @@ class TestFit(unittest.TestCase):
             raise RuntimeError(
                 "Please create an environment variable called 'name' as en the example docs"
             )
-        batchdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "batchTest")
-        assert os.path.exists(batchdir), "Batch Directory '{}' does not exist".format(batchdir)
+        batch_dir = join(dirname(realpath(__file__)), "data", "batchTest")
+        assert exists(batch_dir), "Batch Directory '{}' does not exist".format(
+            batch_dir
+        )
 
-        my_config = BatchConfig(
+        timestamp = datetime.datetime.utcnow().strftime("%H%M%S")
+
+        batch_client = Client(
             POOL_ID=name,
             POOL_LOW_PRIORITY_NODE_COUNT=5,
             POOL_VM_SIZE="STANDARD_A1_v2",
             JOB_ID=name + timestamp,
-            CONTAINER_NAME=name,
-            BATCH_DIRECTORY=batchdir,
-            DOCKER_CONTAINER="jdthorpe/sparsesc:latest",
+            BLOB_CONTAINER_NAME=name,
+            BATCH_DIRECTORY=batch_dir,
+            DOCKER_IMAGE=DOCKER_IMAGE_NAME,
         )
+        create_job(batch_client, batch_dir)
 
-        run_batch_job(my_config,wait=False)
-        load_results(my_config)
+        batch_client.run(wait=False)
+        batch_client.load_results()
 
     def test_retrospective(self):
 
@@ -76,20 +86,29 @@ class TestFit(unittest.TestCase):
             raise RuntimeError(
                 "Please create an environment variable called 'name' as en the example docs"
             )
-        batchdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "batchTest")
-        assert os.path.exists(batchdir), "Batch Directory '{}' does not exist".format(batchdir)
+        batch_dir = join(dirname(realpath(__file__)), "data", "batchTest")
+        assert exists(batch_dir), "Batch Directory '{}' does not exist".format(
+            batch_dir
+        )
 
-        my_config = BatchConfig(
+        timestamp = datetime.datetime.utcnow().strftime("%H%M%S")
+
+        batch_client = Client(
             POOL_ID=name,
             POOL_LOW_PRIORITY_NODE_COUNT=5,
             POOL_VM_SIZE="STANDARD_A1_v2",
             JOB_ID=name + timestamp,
-            CONTAINER_NAME=name,
-            BATCH_DIRECTORY=batchdir,
-            DOCKER_CONTAINER="jdthorpe/sparsesc:latest",
+            BLOB_CONTAINER_NAME=name,
+            BATCH_DIRECTORY=batch_dir,
+            DOCKER_IMAGE=DOCKER_IMAGE_NAME,
         )
 
-        run_batch_job(my_config)
+        import pdb
+
+        pdb.set_trace()
+
+        create_job(batch_client, batch_dir)
+        batch_client.run()
 
 
 if __name__ == "__main__":
