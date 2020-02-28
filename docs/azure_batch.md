@@ -21,7 +21,7 @@ Also note that this module has only been tested with Python 3.7
 
 Running SparseSC with Azure Batch requires a an Azure account and handful of
 resources and credentials. These can be set up by following along with
-section 4 of [the super-batch README](https://github.com/jdthorpe/batch-config#step-4-create-the-required-azure-resources).
+[section 4 of the super-batch README](https://github.com/jdthorpe/batch-config#step-4-create-the-required-azure-resources).
 
 ### Prepare parameters for the Batch Job
 
@@ -38,10 +38,10 @@ fit(x, y, ... , batchDir = batch_dir)
 
 ### Executing the Batch Job
 
-In the following Python script, a Batch configuration is created and the batch
-job is executed with Azure Batch. Note that the Batch Account and Storage
-Account details can be provided directly to the BatchConfig, with default
-values taken from the system environment.
+In the following Python script, a Batch configuration is created and the
+batch job is executed with Azure Batch. Note that in the following script,
+the various Batch Account and Storage Account credentials are taken from
+system environment varables, as in the [super-batch readme](https://github.com/jdthorpe/batch-config#step-4-create-the-required-azure-resources).
 
 ```python
 import os
@@ -89,21 +89,9 @@ fitted_model = aggregate_batch_results(batch_dir)
 
 ## Cleaning Up
 
-In order to prevent unexpected charges, the resource group, including all the
-resources it contains, such as the storge account and batch pools, can be
-removed with the following command.
-
-### Powershell and Bash
-
-```ps1
-az group delete -n $name
-```
-
-### CMD
-
-```bat
-az group delete -n %name%
-```
+When you are done fitting your model with Azure Batch be sure to 
+[clean up your Azure Resources](https://github.com/jdthorpe/batch-config#step-6-clean-up)
+in order to prevent unexpected charges on your Azure account.
 
 ## Solving
 
@@ -115,21 +103,22 @@ simplex constraint for the V matrix as then it will be missing one degree of fre
 1. What if I get disconnected while the batch job is running?
 
     Once the pool and the job are created, they will keep running until the
-    job completes, or your delete the resources.  You can reconnect to the
-    job and download the results with
+    job completes, or your delete the resources. You can reconnect create the
+    `batch_client` as in the example above and then reconnect to the job and
+    download the results with:
 
     ```python
-    from SparseSC.utils.AzureBatch import load_results
-    load_results(my_config)
+    batch_client.load_results()
+    fitted_model = aggregate_batch_results(batch_dir)
     ```
 
     In fact, if you'd rather not wait for the job to compelte, you can
-    add the parameter `run_batch_job(... ,wait=False)` and the
+    add the parameter `batch_client.run(... ,wait=False)` and the
     `run_batch_job` will return as soon as the job and pool configuration
     have been createdn in Azure.
 
-1. `run()` or `load_results()` complain that the results are in complete.
-   What happened?
+1. `batch_client.run()` or `batch_client.load_results()` complain that the
+    results are in complete. What happened?
 
    Typically this means that one or more of the jobs failed, and a common
    reason for the job to fail is that the VM runs out of memory while
