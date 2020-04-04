@@ -24,6 +24,7 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
     custom_donor_pool=None,  
     match_space_maker = None,
     w_pen_inner=True,
+    verbose=0,
     **kwargs #keep so that calls can switch easily between fit() and fit_fast()
 ):
     r"""
@@ -112,6 +113,8 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
     MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, fit_model_wrapper=_fit_fast_wrapper)
 
     M = MatchSpace.transform(X)
+    if verbose>0:
+        print("Completed calculation of MatchSpace/V.")
 
     return _fit_fast_inner(X, M, Y, V, model_type, treated_units, best_v_pen, w_pens, custom_donor_pool, MatchSpace, MatchSpaceDesc, w_pen_inner=w_pen_inner)
 
