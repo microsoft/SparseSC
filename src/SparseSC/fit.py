@@ -860,6 +860,7 @@ class SparseSCFit(object):
         # primary fit parameters
         V,
         sc_weights,
+        targets_sc=None,
         # fitting parameters:
         fitted_v_pen = None,
         fitted_w_pen = None,
@@ -916,7 +917,10 @@ class SparseSCFit(object):
         self.match_space_desc = match_space_desc
         
         fit_units = _get_fit_units(model_type, control_units, treated_units, targets.shape[0])
-        targets_sc = sc_weights.dot(targets[control_units, :])
+        if targets_sc is None:
+            targets_sc = sc_weights.dot(targets[control_units, :])
+        elif sc_weights is None:
+            self.targets_sc = targets_sc
         self.score_R2 = r2_score(targets[fit_units,:].flatten(), targets_sc[fit_units,:].flatten())
 
     @property
@@ -961,6 +965,8 @@ class SparseSCFit(object):
 
         :raises ValueError: When ``targets.shape[0]`` is inconsistent with the fitted model.
         """
+        if targets is None and self.sc_weights is None:
+            return self.targets_sc
         if targets is None:
             targets = self.targets
         else:

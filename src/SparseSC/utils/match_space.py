@@ -83,6 +83,23 @@ def _MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5, **kwargs): #pylint: dis
     transformer = SelMatchSpace(m_sel)
     return transformer, V[m_sel], best_v_pen, V
 
+def MTLassoCV_Sample_MatchSpace_factory(v_pens=None, n_v_cv = 5, sample_frac=.1):
+    """
+    Return a MatchSpace function that will fit a MultiTaskLassoCV for Y ~ X for a random subsample
+
+    :param v_pens: Penalties to evaluate (default is to automatically determince)
+    :param n_v_cv: Number of Cross-Validation folds
+    :param sample_frac: Fraction of the data to sample
+    :returns: MatchSpace fn, V vector, best_v_pen, V
+    """
+    def _MTLassoCV_MatchSpace_wrapper(X, Y, **kwargs):
+        N_full = X.shape[0]
+        sample = np.random.choice(N_full, int(sample_frac*N_full), replace=False)
+        X = X[sample, :]
+        Y = Y[sample, :]
+        return _MTLassoCV_MatchSpace(X, Y, v_pens=v_pens, n_v_cv = n_v_cv, **kwargs)
+    return _MTLassoCV_MatchSpace_wrapper
+
 class SelMatchSpace:
     def __init__(self, m_sel):
         self.m_sel = m_sel
