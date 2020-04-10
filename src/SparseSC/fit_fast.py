@@ -251,7 +251,7 @@ def _fit_fast_inner(
             allowed = custom_donor_pool[i,:]
             weights_i[0,allowed] = 1/np.sum(allowed)
             if not avoid_NxN_mats:
-                sc_weights[i,allowed] = weights_i
+                sc_weights[i,:] = weights_i
             Y_sc[i,:] = weights_i.dot(Y_c)
         log_if_necessary("Completed calculation of sc_weights", verbose)
     else:
