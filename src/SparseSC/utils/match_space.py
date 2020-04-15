@@ -154,8 +154,8 @@ def MTLSTMMixed_MatchSpace_factory(T0=None, K_fixed=0, M_sizes=None, dropout_rat
     :param hidden_length:
     :returns: MatchSpace fn, V vector, best_M_size, V
     """
-    def _MTLSTMMixed_MatchSpace_wrapper(X, Y, fit_model_wrapper):
-        return _MTLSTMMixed_MatchSpace(X, Y, fit_model_wrapper, T0=T0, K_fixed=K_fixed, M_sizes=M_sizes, dropout_rate=dropout_rate, epochs=epochs, verbose=verbose, hidden_length=hidden_length)
+    def _MTLSTMMixed_MatchSpace_wrapper(X, Y, fit_model_wrapper, **kwargs):
+        return _MTLSTMMixed_MatchSpace(X, Y, fit_model_wrapper, T0=T0, K_fixed=K_fixed, M_sizes=M_sizes, dropout_rate=dropout_rate, epochs=epochs, verbose=verbose, hidden_length=hidden_length, **kwargs)
     return _MTLSTMMixed_MatchSpace_wrapper
 
 
@@ -196,7 +196,7 @@ def _shape_LSTM_y_data(Y_pre, Y_post, T0):
         LSTM_y.append(Y[:,(t+1):(T0+t+1), np.newaxis] )
     return LSTM_y
 
-def _MTLSTMMixed_MatchSpace(X, Y, fit_model_wrapper, T0=None, K_fixed=0, M_sizes=None, dropout_rate=0.2, epochs=2, verbose=0, hidden_length=100):
+def _MTLSTMMixed_MatchSpace(X, Y, fit_model_wrapper, T0=None, K_fixed=0, M_sizes=None, dropout_rate=0.2, epochs=2, verbose=0, hidden_length=100, **kwargs):
     # could have just used the LSTM state units direclty, but having this be big and then timeDistributed to narrow down is more expressive/powerful
     with capture_all() as _: #doesn't have quiet option
         import keras
@@ -283,8 +283,8 @@ def MTLassoMixed_MatchSpace_factory(v_pens=None, n_v_cv = 5):
     :param n_v_cv: Number of Cross-Validation folds
     :returns: MatchSpace fn, V vector, best_v_pen, V
     """
-    def _MTLassoMixed_MatchSpace_wrapper(X, Y, fit_model_wrapper):
-        return _MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=v_pens, n_v_cv = n_v_cv)
+    def _MTLassoMixed_MatchSpace_wrapper(X, Y, fit_model_wrapper, **kwargs):
+        return _MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=v_pens, n_v_cv = n_v_cv, **kwargs)
     return _MTLassoMixed_MatchSpace_wrapper
 
 def _MTLassoMixed_MatchSpace(X, Y, fit_model_wrapper, v_pens=None, n_v_cv = 5, **kwargs): #pylint: disable=missing-param-doc, unused-argument
