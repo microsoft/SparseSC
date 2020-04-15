@@ -30,7 +30,6 @@ try:
     import SparseSC
     from SparseSC.fit import fit
     from SparseSC.fit_fast import fit_fast
-    from SparseSC.utils.match_space import D_LassoCV_MatchSpace_factory
 except ImportError:
     raise RuntimeError("SparseSC is not installed. use 'pip install -e .' from repo root to install in dev mode")
 #import warnings
@@ -153,13 +152,12 @@ class TestFitFastForErrors(unittest.TestCase):
         )
 
     def test_all(self):
-        TestFitFastForErrors.run_test(self, "retrospective", D_LassoCV_MatchSpace_factory())
         for model_type in ["prospective", "prospective-restricted", "full"]: #"retrospective", (tested below)
             TestFitFastForErrors.run_test(self, model_type, None)
 
         model_type="retrospective"
         for match_maker in (None, SparseSC.MTLassoMixed_MatchSpace_factory(), SparseSC.MTLassoCV_MatchSpace_factory(), 
-                            SparseSC.MTLSTMMixed_MatchSpace_factory(), D_LassoCV_MatchSpace_factory(), 
+                            SparseSC.MTLSTMMixed_MatchSpace_factory(), SparseSC.D_LassoCV_MatchSpace_factory(), 
                             SparseSC.Fixed_V_factory(np.full(self.X.shape[1], 1))): #, 
             TestFitFastForErrors.run_test(self, model_type, match_maker)
 
