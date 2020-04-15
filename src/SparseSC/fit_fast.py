@@ -108,6 +108,9 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
         control_units = [u for u in range(Y.shape[0])]
         N0, N1 = Y.shape[0], 0
     N = N0 + N1
+
+    D = np.full(N, True)
+    D[control_units] = False
     
     if custom_donor_pool is not None:
         assert custom_donor_pool.shape == (N,N0)
@@ -122,7 +125,7 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
     
     def _fit_fast_wrapper(MatchSpace, V):
         return _fit_fast_inner(X, MatchSpace.transform(X), Y, V, model_type, treated_units, w_pens=w_pens, custom_donor_pool=custom_donor_pool, w_pen_inner=w_pen_inner)
-    MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, fit_model_wrapper=_fit_fast_wrapper)
+    MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, fit_model_wrapper=_fit_fast_wrapper, X_full=X, D_full=D)
 
     M = MatchSpace.transform(X)
     log_if_necessary("Completed calculation of MatchSpace/V", verbose)

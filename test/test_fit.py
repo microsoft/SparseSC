@@ -9,11 +9,11 @@ Tests the fit methods
 #
 # Test all model types
 #
-#     \SpasrseSC > python -m unittest test/test_fit.py
+#     \SparseSC > python -m unittest test/test_fit.py
 #
 # Test a specific model type (e.g. "prospective-restricted"):
 #
-#     \SpasrseSC > python -m unittest test.test_fit.TestFit.test_retrospective
+#     \SparseSC > python -m unittest test.test_fit.TestFit.test_retrospective
 #
 # --------------------------------------------------------------------------------
 
@@ -30,6 +30,7 @@ try:
     import SparseSC
     from SparseSC.fit import fit
     from SparseSC.fit_fast import fit_fast
+    from SparseSC.utils.match_space import D_LassoCV_MatchSpace_factory
 except ImportError:
     raise RuntimeError("SparseSC is not installed. use 'pip install -e .' from repo root to install in dev mode")
 #import warnings
@@ -152,11 +153,14 @@ class TestFitFastForErrors(unittest.TestCase):
         )
 
     def test_all(self):
+        TestFitFastForErrors.run_test(self, "retrospective", D_LassoCV_MatchSpace_factory())
         for model_type in ["prospective", "prospective-restricted", "full"]: #"retrospective", (tested below)
             TestFitFastForErrors.run_test(self, model_type, None)
 
         model_type="retrospective"
-        for match_maker in [None, SparseSC.MTLassoMixed_MatchSpace_factory(), SparseSC.MTLassoCV_MatchSpace_factory(), SparseSC.MTLSTMMixed_MatchSpace_factory(), SparseSC.Fixed_V_factory(np.full(self.X.shape[1], 1))]: #, 
+        for match_maker in (None, SparseSC.MTLassoMixed_MatchSpace_factory(), SparseSC.MTLassoCV_MatchSpace_factory(), 
+                            SparseSC.MTLSTMMixed_MatchSpace_factory(), D_LassoCV_MatchSpace_factory(), 
+                            SparseSC.Fixed_V_factory(np.full(self.X.shape[1], 1))): #, 
             TestFitFastForErrors.run_test(self, model_type, match_maker)
 
         TestFitFastForErrors.run_test(self, model_type, w_pen_inner=False) #default is, w_pen_inner=True

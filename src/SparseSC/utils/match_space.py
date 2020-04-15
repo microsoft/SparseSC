@@ -6,7 +6,7 @@
 #   (Though some coefficients aren't well estimated we don't want to just take t-stats as we still want to be fit-based.
 #   Ideally we'd have something like marginal R2, but the initial method is probably fine for most uses. (We could standardize input features).)
 import numpy as np
-from sklearn.linear_model import MultiTaskLassoCV, MultiTaskLasso
+from sklearn.linear_model import MultiTaskLassoCV, MultiTaskLasso, LassoCV
 from .misc import capture_all
 
 def keras_reproducible(seed=1234, verbose=0, TF_CPP_MIN_LOG_LEVEL='3'):
@@ -62,30 +62,9 @@ class IdTransformer:
     def transform(self, X):
         return X
 
-def MTLassoCV_MatchSpace_factory(v_pens=None, n_v_cv = 5):
+def MTLassoCV_MatchSpace_factory(v_pens=None, n_v_cv = 5, sample_frac=1):
     """
     Return a MatchSpace function that will fit a MultiTaskLassoCV for Y ~ X
-
-    :param v_pens: Penalties to evaluate (default is to automatically determince)
-    :param n_v_cv: Number of Cross-Validation folds
-    :returns: MatchSpace fn, V vector, best_v_pen, V
-    """
-    def _MTLassoCV_MatchSpace_wrapper(X, Y, **kwargs):
-        return _MTLassoCV_MatchSpace(X, Y, v_pens=v_pens, n_v_cv = n_v_cv, **kwargs)
-    return _MTLassoCV_MatchSpace_wrapper
-
-def _MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5, **kwargs): #pylint: disable=missing-param-doc, unused-argument
-    #A fake MT would do Lasso on y_mean = Y.mean(axis=1)
-    varselectorfit = MultiTaskLassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X, Y)
-    V = np.sqrt(np.sum(np.square(varselectorfit.coef_), axis=0)) #n_tasks x n_features -> n_feature
-    best_v_pen = varselectorfit.alpha_
-    m_sel = (V!=0)
-    transformer = SelMatchSpace(m_sel)
-    return transformer, V[m_sel], best_v_pen, V
-
-def MTLassoCV_Sample_MatchSpace_factory(v_pens=None, n_v_cv = 5, sample_frac=.1):
-    """
-    Return a MatchSpace function that will fit a MultiTaskLassoCV for Y ~ X for a random subsample
 
     :param v_pens: Penalties to evaluate (default is to automatically determince)
     :param n_v_cv: Number of Cross-Validation folds
@@ -93,12 +72,66 @@ def MTLassoCV_Sample_MatchSpace_factory(v_pens=None, n_v_cv = 5, sample_frac=.1)
     :returns: MatchSpace fn, V vector, best_v_pen, V
     """
     def _MTLassoCV_MatchSpace_wrapper(X, Y, **kwargs):
-        N_full = X.shape[0]
-        sample = np.random.choice(N_full, int(sample_frac*N_full), replace=False)
+        return _MTLassoCV_MatchSpace(X, Y, v_pens=v_pens, n_v_cv = n_v_cv, sample_frac=sample_frac, **kwargs)
+    return _MTLassoCV_MatchSpace_wrapper
+
+def _MTLassoCV_MatchSpace(X, Y, v_pens=None, n_v_cv = 5, sample_frac=1, **kwargs): #pylint: disable=missing-param-doc, unused-argument
+    #A fake MT would do Lasso on y_mean = Y.mean(axis=1)
+    if sample_frac<1:
+        N = X.shape[0]
+        sample = np.random.choice(N, int(sample_frac*N), replace=False)
         X = X[sample, :]
         Y = Y[sample, :]
-        return _MTLassoCV_MatchSpace(X, Y, v_pens=v_pens, n_v_cv = n_v_cv, **kwargs)
-    return _MTLassoCV_MatchSpace_wrapper
+    varselectorfit = MultiTaskLassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X, Y)
+    V = np.sqrt(np.sum(np.square(varselectorfit.coef_), axis=0)) #n_tasks x n_features -> n_feature
+    best_v_pen = varselectorfit.alpha_
+    m_sel = (V!=0)
+    transformer = SelMatchSpace(m_sel)
+    return transformer, V[m_sel], best_v_pen, V
+    
+
+def D_LassoCV_MatchSpace_factory(v_pens=None, n_v_cv = 5, sample_frac=1, y_V_share=0.5):
+    """
+    Return a MatchSpace function that will fit a MultiTaskLassoCV for Y ~ X and Lasso of D_full ~ X_full
+    and then combines the coefficients into weights using y_V_share
+
+    :param v_pens: Penalties to evaluate (default is to automatically determince)
+    :param n_v_cv: Number of Cross-Validation folds
+    :param sample_frac: Fraction of the data to sample
+    :param y_V_share: The fraction of the V weight that goes to the variables weights from the Y~X problem.
+    :returns: MatchSpace fn, V vector, best_v_pen, V
+    """
+    def _D_LassoCV_MatchSpace_wrapper(X, Y, **kwargs):
+        return _D_LassoCV_MatchSpace(X, Y, v_pens=v_pens, n_v_cv = n_v_cv, sample_frac=sample_frac, y_V_share=y_V_share, **kwargs)
+    return _D_LassoCV_MatchSpace_wrapper
+
+def _D_LassoCV_MatchSpace(X, Y, X_full, D_full, v_pens=None, n_v_cv = 5, sample_frac=1, y_V_share=0.5, **kwargs): #pylint: disable=missing-param-doc, unused-argument
+    if sample_frac<1:
+        N_y = X.shape[0]
+        sample_y = np.random.choice(N_y, int(sample_frac*N_y), replace=False)
+        X = X[sample_y, :]
+        Y = Y[sample_y, :]
+        N_d = D_full.shape[0]
+        sample_d = np.random.choice(N_d, int(sample_frac*N_d), replace=False)
+        X_full = X_full[sample_d, :]
+        D_full = D_full[sample_d]
+    y_varselectorfit = MultiTaskLassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X, Y)
+    y_V = np.sqrt(np.sum(np.square(y_varselectorfit.coef_), axis=0)) #n_tasks x n_features -> n_feature
+    best_y_v_pen = y_varselectorfit.alpha_
+
+    d_varselectorfit = LassoCV(normalize=True, cv=n_v_cv, alphas = v_pens).fit(X_full, D_full)
+    d_V = np.abs(d_varselectorfit.coef_)
+    best_d_v_pen = d_varselectorfit.alpha_
+
+    m_sel = ((y_V+d_V)!=0)
+    transformer = SelMatchSpace(m_sel)
+    if y_V.sum()==0:
+        V = d_V
+    elif d_V.sum()==0:
+        V = y_V
+    else:
+        V = y_V_share*y_V/(y_V.sum()) + (1-y_V_share)*d_V/(2*d_V.sum())
+    return transformer, V[m_sel], (best_y_v_pen,best_d_v_pen), V
 
 class SelMatchSpace:
     def __init__(self, m_sel):
