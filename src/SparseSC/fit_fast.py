@@ -1,6 +1,7 @@
 """ Fast API providing a single call for fitting SC Models
 
 """
+import tracemalloc
 
 import numpy as np
 import scipy.linalg #superset of np.linalg and also optimized compiled
@@ -9,10 +10,7 @@ from .fit import SparseSCFit
 from .utils.penalty_utils import RidgeCVSolution
 from .utils.match_space import MTLassoCV_MatchSpace_factory
 from .utils.misc import _ensure_good_donor_pool, _get_fit_units
-
-
-# To do:
-# - Check weights are the same from RidgeCV solution
+from .utils.print_progress import print_memory_snapshot, log_if_necessary, print_progress
 
 #not documenting the error for when trying to two function signatures (think of better way to do that)
 def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
@@ -24,6 +22,8 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
     custom_donor_pool=None,  
     match_space_maker = None,
     w_pen_inner=True,
+    avoid_NxN_mats=False,
+    verbose=0,
     **kwargs #keep so that calls can switch easily between fit() and fit_fast()
 ):
     r"""
@@ -69,6 +69,17 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
         where we can call fit_model_wrapper(MatchSpace_transformer, V_vector).
         Default is MTLassoCV_MatchSpace_factory().
 
+    :param avoid_NxN_mats: There are several points where typically a matrices on the order of NxN would
+        be made (either N or N_c). With a large number of units these can be quite big. These can be avoided.
+        One consequence is that the full unit-level weights will not be kept and just the built Synthetic Control
+        outcome will be return.
+    :type avoid_NxN_mats: bool, default=False
+
+    :param verbose: Verbosity level. 0 means no printouts. 1 will note times of 
+        completing each of the 3 main stages and some loop progress bars. 
+        2 will print memory snapshots (Optionally out to a file if the env var SparseSC_log_file is set).
+    :type verbose: int, default=0
+
     :param kwargs: Additional parameters so that one can easily switch between fit() and fit_fast()
 
     :returns: A :class:`SparseSCFit` object containing details of the fitted model.
@@ -77,6 +88,8 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
     :raises ValueError: when ``treated_units`` is not None and not an
             ``iterable``, or when model_type is not one of the allowed values
     """
+    if verbose>1:
+        tracemalloc.start()
     X = features
     Y = targets
     try:
@@ -95,6 +108,9 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
         control_units = [u for u in range(Y.shape[0])]
         N0, N1 = Y.shape[0], 0
     N = N0 + N1
+
+    D = np.full(N, True)
+    D[control_units] = False
     
     if custom_donor_pool is not None:
         assert custom_donor_pool.shape == (N,N0)
@@ -106,14 +122,17 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
     fit_units = _get_fit_units(model_type, control_units, treated_units, N)
     X_v = X[fit_units, :]
     Y_v = Y[fit_units,:]
-
+    
     def _fit_fast_wrapper(MatchSpace, V):
         return _fit_fast_inner(X, MatchSpace.transform(X), Y, V, model_type, treated_units, w_pens=w_pens, custom_donor_pool=custom_donor_pool, w_pen_inner=w_pen_inner)
-    MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, fit_model_wrapper=_fit_fast_wrapper)
+    MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, fit_model_wrapper=_fit_fast_wrapper, X_full=X, D_full=D)
 
     M = MatchSpace.transform(X)
+    log_if_necessary("Completed calculation of MatchSpace/V", verbose)
 
-    return _fit_fast_inner(X, M, Y, V, model_type, treated_units, best_v_pen, w_pens, custom_donor_pool, MatchSpace, MatchSpaceDesc, w_pen_inner=w_pen_inner)
+    return _fit_fast_inner(X, M, Y, V, model_type, treated_units, best_v_pen, w_pens, custom_donor_pool, 
+                           MatchSpace, MatchSpaceDesc, w_pen_inner=w_pen_inner, avoid_NxN_mats=avoid_NxN_mats, 
+                           verbose=verbose)
 
 
 def _weights(V , X_treated, X_control, w_pen):
@@ -133,12 +152,64 @@ def _weights(V , X_treated, X_control, w_pen):
         raise exc
     return b
 
-def _sc_weights_trad(M, M_c, V, N, N0, custom_donor_pool, best_w_pen):
+def _sc_weights_trad(M, M_c, V, N, N0, custom_donor_pool, best_w_pen, verbose=0):
+    """ Traditional matrix solving. Requires making NxN0 matrices.
+    """
+    #Potentially could be decomposed to not build NxN0 matrix, but the RidgeSolution works fine for that.
     sc_weights = np.full((N,N0), 0.)
+    weight_log_inc = max(int(N/100), 1)
     for i in range(N):
+        if ((i % weight_log_inc) == 0 and verbose>0):
+            print_progress(i, N)
+            if verbose > 1:
+                print_memory_snapshot(extra_str="Loop " + str(i))
         allowed = custom_donor_pool[i,:]
         sc_weights[i,allowed] = _weights(V, M[i,:], M_c[allowed,:], best_w_pen)
     return sc_weights
+
+def _RidgeSolution(M, control_units, V, w_pen, custom_donor_pool, ret_weights=True, Y_c=None, verbose=0):
+    """ Newer ridge solution. Does not require making NxN0 matrices.
+    """
+    from sklearn.linear_model import Ridge
+    #Could return the weights too
+    M_c = M[control_units,:]
+    N = M.shape[0]
+    N_c = M_c.shape[0]
+    weight_log_inc = max(int(N/100), 1)
+    if ret_weights:
+        weights = np.full((N,N_c), 0.)
+    if Y_c is not None:
+        Y_sc = np.full((N, Y_c.shape[1]), 0.)
+    for i in range(N):
+        if ((i % weight_log_inc) == 0 and verbose > 0):
+            print_progress(i, N)
+            if verbose > 1:
+                print_memory_snapshot(extra_str="Loop " + str(i))
+        if i in control_units:
+            c_i = control_units.index(i)
+            M_c_i = np.delete(M_c, c_i, axis=0)
+            features_i = (M_c_i*np.sqrt(V)).T #K* x (N0-1) 
+            targets_i = ((M_c[c_i,:]-M_c_i.mean(axis=0))*np.sqrt(V)).T #K*1
+            offset = 1/(N_c-1)
+        else:
+            features_i = (M_c*np.sqrt(V)).T #K* x (N0-1) 
+            targets_i = ((M[i,:]-M_c.mean(axis=0))*np.sqrt(V)).T #K*x1
+            offset = 1/N_c
+        weights_i = np.full((1,N_c), 0.)
+        allowed = custom_donor_pool[i,:]
+        ridgefit_i = Ridge(alpha=w_pen, fit_intercept=False, solver='cholesky').fit(features_i, targets_i) #'svd' is more stable but 'choleskly' is closed-form
+        weights_i[0,allowed] = ridgefit_i.coef_ + offset
+        if ret_weights:
+            weights[i, :] = weights_i
+        if Y_c is not None:
+            Y_sc[i,:] = weights_i.dot(Y_c)
+
+    ret = ()
+    if ret_weights:
+        ret = (*ret, weights)
+    if Y_c is not None:
+        ret = (*ret, Y_sc)
+    return ret
 
 def _fit_fast_inner(
     X, 
@@ -152,7 +223,9 @@ def _fit_fast_inner(
     custom_donor_pool=None,
     match_space_trans = None,
     match_space_desc = None,
-    w_pen_inner=True
+    w_pen_inner=True,
+    avoid_NxN_mats=False,
+    verbose=0
 ):
     #returns in-sample score
     if treated_units is not None:
@@ -172,21 +245,30 @@ def _fit_fast_inner(
     
     if len(V) == 0 or M.shape[1]==0:
         best_v_pen, best_w_pen, M = None, None, None
-        sc_weights = np.full((N,N0), 0.)
+        log_if_necessary("Completed calculation of best_w_pen", verbose)
+        sc_weights = None if avoid_NxN_mats else np.full((N,N0), 0.)
+        Y_c = Y[control_units, :]
+        Y_sc = np.full((N, Y_c.shape[1]), 0.)
         for i in range(N):
+            weights_i = np.full((1,N0), 0.)
             allowed = custom_donor_pool[i,:]
-            sc_weights[i,allowed] = 1/np.sum(allowed)
+            weights_i[0,allowed] = 1/np.sum(allowed)
+            if not avoid_NxN_mats:
+                sc_weights[i,:] = weights_i
+            Y_sc[i,:] = weights_i.dot(Y_c)
+        log_if_necessary("Completed calculation of sc_weights", verbose)
     else:
         M_c = M[control_units,:]
+        separate_calcs = True if avoid_NxN_mats else None
         if w_pen_inner:
             if model_type=="retrospective":
-                best_w_pen = RidgeCVSolution(M, control_units, True, None, V, w_pens)
+                best_w_pen = RidgeCVSolution(M, control_units, True, None, V, w_pens, separate=separate_calcs)
             elif model_type=="prospective":
-                best_w_pen = RidgeCVSolution(M, control_units, True, treated_units, V, w_pens)
+                best_w_pen = RidgeCVSolution(M, control_units, True, treated_units, V, w_pens, separate=separate_calcs)
             elif model_type=="prospective-restricted:":
-                best_w_pen = RidgeCVSolution(M, control_units, False, treated_units, V, w_pens)
+                best_w_pen = RidgeCVSolution(M, control_units, False, treated_units, V, w_pens, separate=separate_calcs)
             else: #model_type=="full"
-                best_w_pen = RidgeCVSolution(M, control_units, True, None, V, w_pens)
+                best_w_pen = RidgeCVSolution(M, control_units, True, None, V, w_pens, separate=separate_calcs)
         else:
             best_w_pen = None
             best_w_pen_score = np.Inf
@@ -197,11 +279,21 @@ def _fit_fast_inner(
                 if mscore<best_w_pen_score:
                     best_w_pen = w_pen
                     best_w_pen_score = mscore
-
-        sc_weights = _sc_weights_trad(M, M_c, V, N, N0, custom_donor_pool, best_w_pen)
-
-    Y_sc = sc_weights.dot(Y[control_units, :])
-    
+        log_if_necessary("Completed calculation of best_w_pen", verbose)
+            
+        Y_c = Y[control_units, :]
+        if not avoid_NxN_mats:
+            sc_weights = _sc_weights_trad(M, M_c, V, N, N0, custom_donor_pool, best_w_pen, verbose=verbose)
+            log_if_necessary("Completed calculation of sc_weights", verbose)
+            Y_sc = sc_weights.dot(Y_c)
+        else:
+            sc_weights = None
+            Y_sc = _RidgeSolution(M, control_units, V, best_w_pen, custom_donor_pool, Y_c=Y_c, ret_weights=False, 
+                                  verbose=verbose)[0]
+            log_if_necessary("Completed calculation of (temp.) sc_weights", verbose)
+        
+        
+    log_if_necessary("Completed calculation of synthetic controls", verbose)
     mscore = np.sum(np.square(Y[fit_units,:] - Y_sc[fit_units,:]))
 
     fit_obj = SparseSCFit(
@@ -214,6 +306,7 @@ def _fit_fast_inner(
         fitted_w_pen=best_w_pen,
         V=np.diag(V),
         sc_weights=sc_weights,
+        targets_sc=Y_sc,
         score=mscore, 
         match_space_trans = match_space_trans,
         match_space = M,
