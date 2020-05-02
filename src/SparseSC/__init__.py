@@ -4,7 +4,10 @@
 # PRIMARY FITTING FUNCTIONS
 from SparseSC.fit import fit
 from SparseSC.fit_fast import fit_fast
-from SparseSC.utils.match_space import keras_reproducible, MTLassoCV_MatchSpace_factory, MTLassoMixed_MatchSpace_factory, MTLSTMMixed_MatchSpace_factory, Fixed_V_factory
+from SparseSC.utils.match_space import (
+    keras_reproducible, MTLassoCV_MatchSpace_factory, MTLassoMixed_MatchSpace_factory, MTLSTMMixed_MatchSpace_factory, 
+    Fixed_V_factory, D_LassoCV_MatchSpace_factory
+)
 from SparseSC.estimate_effects import estimate_effects
 from SparseSC.fit_loo import loo_v_matrix, loo_weights, loo_score
 from SparseSC.fit_ct import ct_v_matrix, ct_weights, ct_score
@@ -20,4 +23,4 @@ from SparseSC.weights import weights
 from SparseSC.utils.penalty_utils import get_max_w_pen, get_max_v_pen, w_pen_guestimate
 
 # The version as used in the setup.py
-__version__ = "0.1.0"
+__version__ = "0.2.0"

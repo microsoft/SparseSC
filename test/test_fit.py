@@ -9,11 +9,11 @@ Tests the fit methods
 #
 # Test all model types
 #
-#     \SpasrseSC > python -m unittest test/test_fit.py
+#     \SparseSC > python -m unittest test/test_fit.py
 #
 # Test a specific model type (e.g. "prospective-restricted"):
 #
-#     \SpasrseSC > python -m unittest test.test_fit.TestFit.test_retrospective
+#     \SparseSC > python -m unittest test.test_fit.TestFit.test_retrospective
 #
 # --------------------------------------------------------------------------------
 
@@ -137,7 +137,7 @@ class TestFitFastForErrors(unittest.TestCase):
         self.treated_units = np.arange(treated_units)
 
     @classmethod
-    def run_test(cls, obj, model_type="retrospective", match_maker=None, w_pen_inner=True):
+    def run_test(cls, obj, model_type="retrospective", match_maker=None, w_pen_inner=True, avoid_NxN_mats=False):
         fit_fast(
             features=obj.X,
             targets=obj.Y,
@@ -147,7 +147,8 @@ class TestFitFastForErrors(unittest.TestCase):
             in ("retrospective", "prospective", "prospective-restricted")
             else None,
             match_space_maker=match_maker,
-            w_pen_inner=w_pen_inner
+            w_pen_inner=w_pen_inner,
+            avoid_NxN_mats=True
         )
 
     def test_all(self):
@@ -155,10 +156,13 @@ class TestFitFastForErrors(unittest.TestCase):
             TestFitFastForErrors.run_test(self, model_type, None)
 
         model_type="retrospective"
-        for match_maker in [None, SparseSC.MTLassoMixed_MatchSpace_factory(), SparseSC.MTLassoCV_MatchSpace_factory(), SparseSC.MTLSTMMixed_MatchSpace_factory(), SparseSC.Fixed_V_factory(np.full(self.X.shape[1], 1))]: #, 
+        for match_maker in (None, SparseSC.MTLassoMixed_MatchSpace_factory(), SparseSC.MTLassoCV_MatchSpace_factory(), 
+                            SparseSC.MTLSTMMixed_MatchSpace_factory(), SparseSC.D_LassoCV_MatchSpace_factory(), 
+                            SparseSC.Fixed_V_factory(np.full(self.X.shape[1], 1))): #, 
             TestFitFastForErrors.run_test(self, model_type, match_maker)
 
         TestFitFastForErrors.run_test(self, model_type, w_pen_inner=False) #default is, w_pen_inner=True
+        TestFitFastForErrors.run_test(self, model_type, avoid_NxN_mats=True) #default is avoid_NxN_mats=True
 
 class TestFitForCorrectness(unittest.TestCase):
     @staticmethod
