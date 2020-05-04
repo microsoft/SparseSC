@@ -70,6 +70,7 @@ from .constants import (
     _BATCH_CV_FILE_NAME,
 )
 
+FOLD_FILE_PATTERN = "fold_{}.yaml"
 # pylint: disable=bad-continuation, invalid-name, protected-access, line-too-long, fixme
 
 
@@ -131,7 +132,7 @@ def build_output_file(container_sas_url, fold_number):
     """
     # where to store the outputs
     container_dest = models.OutputFileBlobContainerDestination(
-        container_url=container_sas_url, path="fold_{}.yaml".format(fold_number)
+        container_url=container_sas_url, path=FOLD_FILE_PATTERN.format(fold_number)
     )
     dest = models.OutputFileDestination(container=container_dest)
 
@@ -401,22 +402,19 @@ def _read_stream_as_string(stream, encoding):
 
 
 def _download_files(config, _blob_client, out_path, count):
-    # ptrn = re.compile(r"^fold_\d+.yaml$")
-    ptrn = "fold_{}.yaml"
 
     pathlib.Path(config.BATCH_DIRECTORY).mkdir(parents=True, exist_ok=True)
     blob_names = [b.name for b in _blob_client.list_blobs(config.CONTAINER_NAME)]
 
     for i in range(count):
-        blob_name = ptrn.format(i)
+        blob_name = FOLD_FILE_PATTERN.format(i)
         if not blob_name in blob_names:
             raise RuntimeError("incomplete blob set: missing blob {}".format(blob_name))
         out_path = os.path.join(config.BATCH_DIRECTORY, blob_name)
         _blob_client.get_blob_to_path(config.CONTAINER_NAME, blob_name, out_path)
 
 
-def _download_results(config, _blob_client, out_path, count, ptrn="fold_{}.yaml"):
-    # ptrn = re.compile(r"^fold_\d+.yaml$")
+def _download_results(config, _blob_client, out_path, count, ptrn=FOLD_FILE_PATTERN):
 
     pathlib.Path(config.BATCH_DIRECTORY).mkdir(parents=True, exist_ok=True)
     blob_names = [b.name for b in _blob_client.list_blobs(config.CONTAINER_NAME)]

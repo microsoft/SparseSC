@@ -52,8 +52,8 @@ class TestFit(unittest.TestCase):
             warnings.filterwarnings("ignore", category=LineSearchWarning)
             try:
                 Model1 = fit(
-                    X=obj.X,
-                    Y=obj.Y,
+                    features=obj.X,
+                    targets=obj.Y,
                     model_type=model_type,
                     treated_units=obj.treated_units
                     if model_type
@@ -69,8 +69,8 @@ class TestFit(unittest.TestCase):
                     verbose=0,
                 )
                 Model2 = fit(
-                    X=obj.X,
-                    Y=obj.Y,
+                    features=obj.X,
+                    targets=obj.Y,
                     model_type=model_type,
                     treated_units=obj.treated_units
                     if model_type
@@ -86,7 +86,6 @@ class TestFit(unittest.TestCase):
                     verbose=0,
                     batch_client_config="sg_daemon",
                 )
-                import pdb; pdb.set_trace()
                 if verbose:
                     print("DONE")
             except LineSearchWarning:
@@ -94,7 +93,11 @@ class TestFit(unittest.TestCase):
             except PendingDeprecationWarning:
                 pass
             except Exception as exc:
-                print("Failed with %s: %s" % (exc.__class__.__name__, getattr(exc,"message","<>")))
+                print(
+                    "Failed with %s: %s"
+                    % (exc.__class__.__name__, getattr(exc, "message", "<>"))
+                )
+                raise exc
 
     def test_retrospective(self):
         TestFit.run_test(self, "retrospective")

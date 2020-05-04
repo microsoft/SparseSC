@@ -3,13 +3,15 @@ aggregate batch results, and optionally use batch to compute the final gradient 
 """
 import numpy as np
 import os
-#$ from ...cross_validation import _score_from_batch
+
+# $ from ...cross_validation import _score_from_batch
 from ...fit import _which, SparseSCFit
 from ...weights import weights
 from ...tensor import tensor
 from .constants import _BATCH_CV_FILE_NAME, _BATCH_FIT_FILE_NAME
 
-def aggregate_batch_results(batchDir,batch_client_config=None, choice=None):
+
+def aggregate_batch_results(batchDir, batch_client_config=None, choice=None):
     """
     Aggregate results from a batch run 
     """
@@ -36,7 +38,13 @@ def aggregate_batch_results(batchDir,batch_client_config=None, choice=None):
 
     choice = choice if choice is not None else _fit_params["choice"]
     X, Y, treated_units, custom_donor_pool, model_type, kwargs = pluck(
-        _fit_params, "X", "Y", "treated_units", "custom_donor_pool", "model_type" , "kwargs"
+        _fit_params,
+        "X",
+        "Y",
+        "treated_units",
+        "custom_donor_pool",
+        "model_type",
+        "kwargs",
     )
 
     # this is on purpose (allows for debugging remote sessions at no cost to the local console user)
@@ -88,7 +96,6 @@ def aggregate_batch_results(batchDir,batch_client_config=None, choice=None):
     else:
         control_units = None
 
-
     if model_type == "prospective-restricted":
         best_V = tensor(
             X=X_cv,
@@ -99,7 +106,7 @@ def aggregate_batch_results(batchDir,batch_client_config=None, choice=None):
             X_treat=Xtest,
             Y_treat=Ytest,
             #
-            batch_client_config= batch_client_config, # TODO: not sure if this makes sense...
+            batch_client_config=batch_client_config,  # TODO: not sure if this makes sense...
             **_fit_params["kwargs"]
         )
     else:
@@ -112,7 +119,7 @@ def aggregate_batch_results(batchDir,batch_client_config=None, choice=None):
             grad_splits=grad_splits,
             random_state=random_state,
             #
-            batch_client_config= batch_client_config,
+            batch_client_config=batch_client_config,
             **_fit_params["kwargs"]
         )
 
@@ -144,8 +151,8 @@ def aggregate_batch_results(batchDir,batch_client_config=None, choice=None):
         )
 
     return SparseSCFit(
-        X=X,
-        Y=Y,
+        features=X,
+        targets=Y,
         control_units=control_units,
         treated_units=treated_units,
         model_type=model_type,
@@ -161,8 +168,6 @@ def aggregate_batch_results(batchDir,batch_client_config=None, choice=None):
         scores=scores,
         selected_score=which,
     )
-
-
 
 
 def _score_from_batch(batchDir, config):
@@ -219,7 +224,4 @@ def _score_from_batch(batchDir, config):
         se = np.sqrt(len(scores)) * np.std(scores)
 
     return total_score, se
-
-
-
 

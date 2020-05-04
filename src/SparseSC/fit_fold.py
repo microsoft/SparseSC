@@ -116,7 +116,9 @@ def fold_v_matrix(
     except ValueError:
         raise ValueError("Y is not coercible to a numpy float64")
 
-    Y = np.asmatrix(Y) # this needs to be deprecated properly -- bc Array.dot(Array) != matrix(Array).dot(matrix(Array)) -- not even close !!!
+    Y = np.asmatrix(
+        Y
+    )  # this needs to be deprecated properly -- bc Array.dot(Array) != matrix(Array).dot(matrix(Array)) -- not even close !!!
     X = np.asmatrix(X)
 
     if X.shape[1] == 0:
@@ -279,18 +281,7 @@ def fold_v_matrix(
         dGamma0_dV_term2 = daemon_client.do_grad(
             {"A": A, "weights": weights, "b_i": b_i}
         )
-        # --         thisgrad = v_pen + dGamma0_dV_term2
-        # --         defgrad = _grad_default(V)
-        # --         batgrad = _grad_batch(V)
-        # --         if not np.all(defgrad == thisgrad) or not np.all(defgrad == batgrad ):
-        # --             import pdb; pdb.set_trace();
         return v_pen + dGamma0_dV_term2
-
-        # matricies:
-        # A [45,45]
-        # dA_dV_ki[0][0] [40,40]
-        # dB_dV_ki[0][0] [40,5]
-        # weights [45,45]
 
     def close():
         pass
@@ -399,9 +390,9 @@ def fold_v_matrix(
     if return_max_v_pen:
         grad0 = _grad(zeros(K))
         grad0neg = grad0[grad0 < 0]
-        if len(grad0neg)==0:
+        if len(grad0neg) == 0:
             print("return_max_v_pen: No valid component. Returning 1.")
-            return 1 #not sure what else
+            return 1  # not sure what else
         return -grad0neg.min()
 
     # DO THE OPTIMIZATION
@@ -418,7 +409,10 @@ def fold_v_matrix(
     # CALCULATE weights AND ts_score
     if w_pen_inner:
         from .utils.penalty_utils import RidgeCVSolution
-        new_w_pen = RidgeCVSolution(np.asarray(X), control_units, True, None, np.diag(v_mat))
+
+        new_w_pen = RidgeCVSolution(
+            np.asarray(X), control_units, True, None, np.diag(v_mat)
+        )
         weights, _, _ = _weights_varying(v_mat, new_w_pen)
         w_pen = new_w_pen
     else:

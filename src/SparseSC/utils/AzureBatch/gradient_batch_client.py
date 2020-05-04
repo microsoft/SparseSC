@@ -3,20 +3,20 @@ gradient level batching
 """
 # pylint: disable=differing-type-doc, differing-param-doc, missing-param-doc, missing-raises-doc, missing-return-doc
 from __future__ import print_function
-import pdb
 import datetime
 import azure.storage.blob as azureblob
 import azure.batch.batch_service_client as batch
 import azure.batch.batch_auth as batch_auth
 import azure.batch.models as models
 from .BatchConfig import BatchConfig, validate_config
-from .azure_batch_client import (
-    build_output_sas_url,
-    create_pool,
-    create_job,
-    wait_for_tasks_to_complete,
-    _download_results,
-)
+
+# from .azure_batch_client import (
+#     build_output_sas_url,
+#     create_pool,
+#     create_job,
+#     wait_for_tasks_to_complete,
+#     _download_results,
+# )
 
 from yaml import dump
 
@@ -26,6 +26,8 @@ except ImportError:
     from yaml import Dumper
 
 from .constants import _CONTAINER_OUTPUT_FILE, _GRAD_COMMON_FILE, _GRAD_PART_FILE
+
+OUTPUT_FILE_PATTERN = "grad_{}.yml"
 
 
 class gradient_batch_client:
@@ -89,6 +91,9 @@ class gradient_batch_client:
         JOB_ID = self.config.JOB_ID + timestamp
         try:
 
+            global_parameters_resource = batch_client.build_resource_file(
+                _GRAD_PART_FILE, part_data
+            )
             # Upload the part file
             part_file = self.upload_object_to_container(
                 self.blob_client, self.config.CONTAINER_NAME, _GRAD_PART_FILE, part_data
@@ -112,7 +117,7 @@ class gradient_batch_client:
                 self.blob_client,
                 self.config.BATCH_DIRECTORY,
                 self.K,
-                self.output_file_pattern,
+                OUTPUT_FILE_PATTERN,
             )
             print("_downloaded_results")
 
@@ -125,14 +130,11 @@ class gradient_batch_client:
 
         except Exception as err:
 
-            pdb.set_trace()
             raise RuntimeError(
                 "something went wrong: {}({})".format(
                     err.__class__.__name__, getattr(err, "message", "")
                 )
             )
-
-    output_file_pattern = "grad_{}.yml"
 
     def add_tasks(self, part_file, JOB_ID):
         """
@@ -153,12 +155,11 @@ class gradient_batch_client:
                     registry_server=self.config.REGISTRY_SERVER,
                 )
                 task_container_settings = models.TaskContainerSettings(
-                    image_name=self.config.DOCKER_CONTAINER, registry=registry
+                    image_name=self.config.DOCKER_IMAGE, registry=registry
                 )
-                # pdb.set_trace()
             else:
                 task_container_settings = models.TaskContainerSettings(
-                    image_name=self.config.DOCKER_CONTAINER
+                    image_name=self.config.DOCKER_IMAGE
                 )
 
             tasks.append(
@@ -183,8 +184,7 @@ class gradient_batch_client:
         """
         # where to store the outputs
         container_dest = models.OutputFileBlobContainerDestination(
-            container_url=self.CONTAINER_SAS_URL,
-            path=self.output_file_pattern.format(i),
+            container_url=self.CONTAINER_SAS_URL, path=OUTPUT_FILE_PATTERN.format(i),
         )
         dest = models.OutputFileDestination(container=container_dest)
 
@@ -224,7 +224,8 @@ class gradient_batch_client:
             container_name,
             blob_name,
             permission=azureblob.BlobPermissions.READ,
-            expiry=datetime.datetime.utcnow() + datetime.timedelta(hours=self.config.STORAGE_ACCESS_DURATION_HRS),
+            expiry=datetime.datetime.utcnow()
+            + datetime.timedelta(hours=self.config.STORAGE_ACCESS_DURATION_HRS),
         )
 
         sas_url = block_blob_client.make_blob_url(

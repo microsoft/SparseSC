@@ -16,10 +16,11 @@
 
 from __future__ import print_function  # for compatibility with python 2.7
 import numpy as np
-import sys, os, random
+import sys
+import random
 import unittest
 import warnings
-from os.path import expanduser,join
+from os.path import expanduser, join
 from scipy.optimize.linesearch import LineSearchWarning
 
 try:
@@ -49,8 +50,8 @@ class TestFit(unittest.TestCase):
         sys.stdout.flush()
 
         with warnings.catch_warnings():
-            warnings.filterwarnings("ignore",category=PendingDeprecationWarning)
-            warnings.filterwarnings("ignore",category=LineSearchWarning)
+            warnings.filterwarnings("ignore", category=PendingDeprecationWarning)
+            warnings.filterwarnings("ignore", category=LineSearchWarning)
             try:
                 fit(
                     X=obj.X,
@@ -67,17 +68,22 @@ class TestFit(unittest.TestCase):
                     min_iter=-1,
                     tol=1,
                     verbose=0,
-                    batchFile=join(expanduser("~"),"temp","%s_batch_params.py" % model_type)
+                    batchFile=join(
+                        expanduser("~"), "temp", "%s_batch_params.py" % model_type
+                    ),
                 )
-                import pdb; pdb.set_trace()
+                import pdb
+
+                pdb.set_trace()
                 if verbose:
                     print("DONE")
             except LineSearchWarning:
                 pass
-            except PendingDeprecationWarning: 
+            except PendingDeprecationWarning:
                 pass
             except Exception as exc:
                 print("Failed with %s: %s" % (exc.__class__.__name__, str(exc)))
+                raise exc
 
     def test_retrospective(self):
         TestFit.run_test(self, "retrospective")
