@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 <!--## [Unreleased] >
 <!-- Separate headings for Added/Changed/Removed/Fixed/Deprecated/Security -->
 
-## 0.2.0 - 2020-04-09
+## 0.2.0 - 2020-05-06
 ### Added
-- Added tools too to use `fit_fast()` with large datasets. This includes `sample_frac` options to  `MTLassoCV_MatchSpace_factory()` to estimate the match space on a subset of the data and the `fit_fast()` option `avoid_NxN_mats` which will avoid making large matrices (at the expense of only returning the Synthetic control outcomes and not the full weight matrix)
+- Added tools too to use `fit_fast()` with large datasets. This includes the `sample_frac` option to  `MTLassoCV_MatchSpace_factory()` to estimate the match space on a subset of the observations. It also includes `fit_fast()` option `avoid_NxN_mats` which will avoid making large matrices (at the expense of only returning the Synthetic control `targets` and `targets_aux` and not the full weight matrix)
 - Added logging in `fit_fast` via the `verbose` numerical option. This can help identify out-of-memory errors.
 - Added a pseudo-Doubly robust match space maker `D_LassoCV_MatchSpace_factory`. It apporptions some of the normalized variable V weight to those variables that are good predictors of treatment. This should only be done if there are many treated units so that one can reasonably model this relationship. 
 

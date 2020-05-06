@@ -148,7 +148,7 @@ class TestFitFastForErrors(unittest.TestCase):
             else None,
             match_space_maker=match_maker,
             w_pen_inner=w_pen_inner,
-            avoid_NxN_mats=True
+            avoid_NxN_mats=avoid_NxN_mats
         )
 
     def test_all(self):
@@ -162,7 +162,7 @@ class TestFitFastForErrors(unittest.TestCase):
             TestFitFastForErrors.run_test(self, model_type, match_maker)
 
         TestFitFastForErrors.run_test(self, model_type, w_pen_inner=False) #default is, w_pen_inner=True
-        TestFitFastForErrors.run_test(self, model_type, avoid_NxN_mats=True) #default is avoid_NxN_mats=True
+        TestFitFastForErrors.run_test(self, model_type, avoid_NxN_mats=True) #default is avoid_NxN_mats=False
 
 class TestFitForCorrectness(unittest.TestCase):
     @staticmethod

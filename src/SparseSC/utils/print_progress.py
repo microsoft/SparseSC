@@ -10,7 +10,7 @@ def print_progress(iteration, total=100, prefix='', suffix='', decimals=1, bar_l
     Call in a loop to create progress bar. If this isn't a tty-like (re-writable) output then 
     no percent-complete number will be outputted.
     @params:
-    iteration   - Required  : current iteration (Int)
+    iteration   - Required  : current iteration (Int) (typically 1 is first possible)
     total       - Required  : total iterations (Int)
     prefix      - Optional  : prefix string (Str)
     suffix      - Optional  : suffix string (Str)
@@ -32,7 +32,7 @@ def print_progress(iteration, total=100, prefix='', suffix='', decimals=1, bar_l
         sys.stdout.flush()
     else: # Can't do interactive re-writing (e.g. w/ the /r character)
         global SparseSC_prev_iteration
-        if iteration == 0:
+        if iteration == 1:
             sys.stdout.write('%s |' % (prefix))
         else:
             if iteration <= SparseSC_prev_iteration:
@@ -48,7 +48,7 @@ def print_progress(iteration, total=100, prefix='', suffix='', decimals=1, bar_l
         sys.stdout.flush()
 
 def log_if_necessary(str_note_start, verbose):
-    str_note = str_note_start + ": " + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    str_note = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ": " + str_note_start 
     if verbose>0:
         print(str_note)
     if verbose>1:
