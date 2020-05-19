@@ -95,27 +95,51 @@ class IdTransformer:
     def transform(self, X):
         return X
 
+def _neg_se_rule(lasso_fit=None, mse_path=None, alphas=None, alpha_min=None, factor = 1):
+    from statsmodels.stats.weightstats import DescrStatsW
+    if lasso_fit is not None:
+        mse_path = lasso_fit.mse_path_
+        alphas = lasso_fit.alphas_
+        alpha_min = lasso_fit.alpha_
+    alpha_min_i = np.where(alphas == alpha_min)
+    dw = DescrStatsW(mse_path[alpha_min_i,:].T)
+    mse_mean = mse_path.mean(axis=1)
+    allowed = mse_mean<=(mse_mean[alpha_min_i] + factor*dw.std_mean[0])
+    new_alpha_i = max(np.where(allowed)[0])
+    return alphas[new_alpha_i]
 
-def MTLassoCV_MatchSpace_factory(v_pens=None, n_v_cv=5, sample_frac=1):
+def _block_summ_cols(Y, Y_col_block_size):
+    """Block averages a Y np.array. E.g., convert 150->5 where each is a 30-day average.  so that MTLasso could be faster
+    """
+    if Y_col_block_size is not None:
+        if (Y.shape[1] % Y_col_block_size) == 0:
+            # Can just change the dim on the ndarray (which doesn't shuffle data) to add a new dim and then average across it.
+            return Y.reshape(Y.shape[0], Y.shape[1]//Y_col_block_size, Y_col_block_size).mean(axis=2)
+        print("Can only average target across columns blocks if blocks fit evenly")
+    return Y
+
+def MTLassoCV_MatchSpace_factory(v_pens=None, n_v_cv=5, sample_frac=1, Y_col_block_size=None, se_factor=None, normalize=True):
     """
     Return a MatchSpace function that will fit a MultiTaskLassoCV for Y ~ X
 
     :param v_pens: Penalties to evaluate (default is to automatically determince)
     :param n_v_cv: Number of Cross-Validation folds
     :param sample_frac: Fraction of the data to sample
+    :param se_factor: Allows taking a different penalty than the min mse. Similar to the lambda.1se rule,
+        if not None, it will take the max lambda that has mse < min_mse + se_factor*(MSE standard error).
     :returns: MatchSpace fn, V vector, best_v_pen, V
     """
 
     def _MTLassoCV_MatchSpace_wrapper(X, Y, **kwargs):
         return _MTLassoCV_MatchSpace(
-            X, Y, v_pens=v_pens, n_v_cv=n_v_cv, sample_frac=sample_frac, **kwargs
+            X, Y, v_pens=v_pens, n_v_cv=n_v_cv, sample_frac=sample_frac, Y_col_block_size=Y_col_block_size, se_factor=se_factor, normalize=normalize, **kwargs
         )
 
     return _MTLassoCV_MatchSpace_wrapper
 
 
 def _MTLassoCV_MatchSpace(
-    X, Y, v_pens=None, n_v_cv=5, sample_frac=1, **kwargs
+    X, Y, v_pens=None, n_v_cv=5, sample_frac=1, Y_col_block_size=None, se_factor=None, normalize=True, **kwargs
 ):  # pylint: disable=missing-param-doc, unused-argument
     # A fake MT would do Lasso on y_mean = Y.mean(axis=1)
     if sample_frac < 1:
@@ -123,13 +147,18 @@ def _MTLassoCV_MatchSpace(
         sample = np.random.choice(N, int(sample_frac * N), replace=False)
         X = X[sample, :]
         Y = Y[sample, :]
-    varselectorfit = MultiTaskLassoCV(normalize=True, cv=n_v_cv, alphas=v_pens).fit(
+    if Y_col_block_size is not None:
+        Y = _block_summ_cols(Y, Y_col_block_size)
+    varselectorfit = MultiTaskLassoCV(normalize=normalize, cv=n_v_cv, alphas=v_pens).fit(
         X, Y
     )
+    best_v_pen = varselectorfit.alpha_
+    if se_factor is not None:
+        best_v_pen = _neg_se_rule(varselectorfit, factor=se_factor)
+        varselectorfit = MultiTaskLasso(alpha=best_v_pen, normalize=normalize).fit(X, Y)
     V = np.sqrt(
         np.sum(np.square(varselectorfit.coef_), axis=0)
     )  # n_tasks x n_features -> n_feature
-    best_v_pen = varselectorfit.alpha_
     m_sel = V != 0
     transformer = SelMatchSpace(m_sel)
     return transformer, V[m_sel], best_v_pen, V
