@@ -73,6 +73,9 @@ class SSC_DescrStat(object):
     def __repr__(self):
         return "%s(nobs=%s, mean=%s, M2=%s)" % (self.__class__.__name__, self.nobs, self.mean, self.M2)
 
+    def __eq__(self, obj):
+        return isinstance(obj, SSC_DescrStat) and np.array_equal(obj.nobs,self.nobs) and np.array_equal(obj.mean, self.mean) and np.array_equal(obj.M2, self.M2)
+
     @staticmethod
     def from_data(data):
         """
@@ -108,6 +111,8 @@ class SSC_DescrStat(object):
         """
         # See https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Welford's_online_algorithm
         self.nobs += 1
+        if len(obs.shape)==2 and obs.shape[0]==1:
+            obs = obs[0,:]
         delta = obs - self.mean
         self.mean += delta*1./self.nobs
         self.M2 += delta*(obs - self.mean)

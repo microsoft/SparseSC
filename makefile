@@ -65,7 +65,7 @@ examples:
 
 #Python 2.7 can do 'test.test_fit' but not 'test/test_fit.py'
 tests:
-	python -m unittest test.test_fit.TestFitForErrors test.test_fit.TestFitFastForErrors test.test_estimation.TestEstimationForErrors
+	python -m unittest test.test_fit.TestFitForErrors test.test_fit.TestFitFastForErrors test.test_normal.TestNormalForErrors test.test_estimation.TestEstimationForErrors
 
 #tests_both:
 #	activate SparseSC_27 && python -m unittest test.test_fit
