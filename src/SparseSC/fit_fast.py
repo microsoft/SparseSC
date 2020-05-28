@@ -128,13 +128,16 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
     def _fit_fast_wrapper(MatchSpace, V):
         return _fit_fast_inner(X, MatchSpace.transform(X), Y, V, model_type, treated_units, w_pens=w_pens, custom_donor_pool=custom_donor_pool, w_pen_inner=w_pen_inner)
     MatchSpace, V, best_v_pen, MatchSpaceDesc = match_space_maker(X_v, Y_v, fit_model_wrapper=_fit_fast_wrapper, X_full=X, D_full=D)
+    match_fit = None
+    if isinstance(MatchSpaceDesc, tuple): #unpack if necessary
+        MatchSpaceDesc, match_fit = MatchSpaceDesc
 
     M = MatchSpace.transform(X)
     log_if_necessary("Completed calculation of MatchSpace/V", verbose)
 
     return _fit_fast_inner(X, M, Y, V, model_type, treated_units, best_v_pen, w_pens, custom_donor_pool, 
                            MatchSpace, MatchSpaceDesc, w_pen_inner=w_pen_inner, avoid_NxN_mats=avoid_NxN_mats, 
-                           verbose=verbose, Y_aux=targets_aux)
+                           verbose=verbose, Y_aux=targets_aux, match_fit=match_fit)
 
 
 def _weights(V , X_treated, X_control, w_pen):
@@ -233,6 +236,7 @@ def _fit_fast_inner(
     avoid_NxN_mats=False,
     verbose=0,
     Y_aux=None,
+    match_fit=None
 ):
     #returns in-sample score
     if treated_units is not None:
@@ -278,7 +282,7 @@ def _fit_fast_inner(
             
     return _fit_fast_match(X, M, Y, V, model_type, treated_units, best_v_pen, best_w_pen, custom_donor_pool, 
                            match_space_trans, match_space_desc, w_pen_inner=w_pen_inner, avoid_NxN_mats=avoid_NxN_mats, 
-                           verbose=verbose, Y_aux=Y_aux)
+                           verbose=verbose, Y_aux=Y_aux, match_fit=match_fit)
 
 def _fit_fast_match(
     X, 
@@ -296,6 +300,7 @@ def _fit_fast_match(
     avoid_NxN_mats=False,
     verbose=0,
     Y_aux=None,
+    match_fit=None
 ):
     if treated_units is not None:
         control_units = [u for u in range(Y.shape[0]) if u not in treated_units]
@@ -368,5 +373,7 @@ def _fit_fast_match(
     )
     if Y_aux is not None:
         fit_obj.Y_aux_sc = Y_aux_sc
+    if match_fit is not None:
+        fit_obj.match_fit = match_fit
 
     return fit_obj

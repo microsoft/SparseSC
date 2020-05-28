@@ -161,7 +161,7 @@ def _MTLassoCV_MatchSpace(
     )  # n_tasks x n_features -> n_feature
     m_sel = V != 0
     transformer = SelMatchSpace(m_sel)
-    return transformer, V[m_sel], best_v_pen, V
+    return transformer, V[m_sel], best_v_pen, (V, varselectorfit)
 
 
 def D_LassoCV_MatchSpace_factory(v_pens=None, n_v_cv=5, sample_frac=1, y_V_share=0.5):
