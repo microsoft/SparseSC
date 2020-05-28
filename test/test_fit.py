@@ -31,7 +31,7 @@ try:
     from SparseSC.fit import fit
     from SparseSC.fit_fast import fit_fast
 except ImportError:
-    raise RuntimeError("SparseSC is not installed. use 'pip install -e .' from repo root to install in dev mode")
+    raise RuntimeError("SparseSC is not installed. Use 'pip install -e .' or 'conda develop .' from repo root to install in dev mode")
 #import warnings
 #warnings.simplefilter("error")
 

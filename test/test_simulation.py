@@ -4,7 +4,7 @@ import numpy as np
 try:
     import SparseSC as SC
 except ImportError:
-    raise RuntimeError("SparseSC is not installed. use 'pip install -e .' from repo root to install in dev mode")
+    raise RuntimeError("SparseSC is not installed. Use 'pip install -e .' or 'conda develop .' from repo root to install in dev mode")
 from SparseSC.fit import fit
 
 #For the synth comparisons you will need rpy2 and the Synth package loaded in there.
