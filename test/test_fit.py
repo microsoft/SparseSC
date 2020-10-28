@@ -163,6 +163,7 @@ class TestFitFastForErrors(unittest.TestCase):
 
         TestFitFastForErrors.run_test(self, model_type, w_pen_inner=False) #default is, w_pen_inner=True
         TestFitFastForErrors.run_test(self, model_type, avoid_NxN_mats=True) #default is avoid_NxN_mats=False
+        TestFitFastForErrors.run_test(self, model_type, avoid_NxN_mats=True, sc_Y_block_size=2) #default is avoid_NxN_mats=False
 
 class TestFitForCorrectness(unittest.TestCase):
     @staticmethod

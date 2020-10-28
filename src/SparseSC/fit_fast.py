@@ -173,6 +173,37 @@ def _sc_weights_trad(M, M_c, V, N, N0, custom_donor_pool, best_w_pen, verbose=0)
     if ((N-1) % weight_log_inc) != 0 and verbose > 0:
         print_progress(N, N)
     return sc_weights
+    
+def _sc_Y_trad(M, M_c, treated_units, control_units, V, custom_donor_pool, best_w_pen, Y_c, verbose=0, sc_Y_block_size=100):
+    """ Traditional matrix solving. Assumes trivial custom_donor_pool
+    """
+    #Potentially could be decomposed to not build NxN0 matrix, but the RidgeSolution works fine for that.
+    N = M.shape[0]
+    N0 = M_c.shape[0]
+    N1 = N-N0
+    Y_sc = np.full((N, Y_c.shape[1]), 0.)
+    # Go through the treateds
+    for i in range(0, N1, sc_Y_block_size):
+        size = min(N1-i, sc_Y_block_size)
+        sample_mask = treated_units[i:i+size]
+        sc_weights = _weights(V, M[sample_mask,:], M_c, best_w_pen)
+        Y_sc[sample_mask,:] = sc_weights.T.dot(Y_c)
+    sc_Y_block_size = max(min(sc_Y_block_size, N0//10), 1) #resize in case too big
+    for i in range(0, N0, sc_Y_block_size):
+        if i==0:
+            M_c_i = M_c[sc_Y_block_size:, :]
+            Y_c_i = Y_c[sc_Y_block_size:, :]
+        elif i<N0-sc_Y_block_size:
+            M_c_i = np.concatenate((M_c[:i, :], M_c[(i+sc_Y_block_size):, :]))
+            Y_c_i = np.concatenate((Y_c[:i, :], Y_c[(i+sc_Y_block_size):, :]))
+        else:
+            M_c_i = M_c[:i, :]
+            Y_c_i = Y_c[:i, :]
+        size = min(N0-i, sc_Y_block_size)
+        sample_mask = control_units[i:i+size]
+        sc_weights = _weights(V, M[sample_mask,:], M_c_i, best_w_pen)
+        Y_sc[sample_mask,:] = sc_weights.T.dot(Y_c_i)
+    return Y_sc
 
 def _RidgeSolution(M, control_units, V, w_pen, custom_donor_pool, ret_weights=True, Y_c=None, verbose=0):
     """ Newer ridge solution. Does not require making NxN0 matrices.
@@ -300,7 +331,8 @@ def _fit_fast_match(
     avoid_NxN_mats=False,
     verbose=0,
     Y_aux=None,
-    match_fit=None
+    match_fit=None,
+    sc_Y_block_size=None
 ):
     if treated_units is not None:
         control_units = [u for u in range(Y.shape[0]) if u not in treated_units]
@@ -342,13 +374,22 @@ def _fit_fast_match(
             sc_weights = _sc_weights_trad(M, M_c, V, N, N0, custom_donor_pool, best_w_pen, verbose=verbose)
             log_if_necessary("Completed calculation of sc_weights", verbose)
             Y_sc = sc_weights.dot(Y_c)
+            if Y_aux is not None:
+                Y_aux_sc = sc_weights.dot(Y_aux[control_units, :])
         else:
             sc_weights = None
-            Y_sc = _RidgeSolution(M, control_units, V, best_w_pen, custom_donor_pool, Y_c=Y_c, ret_weights=False, 
-                                  verbose=verbose)[0]
-            if Y_aux is not None:
-                Y_aux_sc = _RidgeSolution(M, control_units, V, best_w_pen, custom_donor_pool, Y_c=Y_aux[control_units, :], ret_weights=False, 
-                                      verbose=verbose)[0]
+            if sc_Y_block_size is None:
+                Y_sc = _RidgeSolution(M, control_units, V, best_w_pen, custom_donor_pool, Y_c=Y_c, ret_weights=False, 
+                                    verbose=verbose)[0]
+                if Y_aux is not None:
+                    Y_aux_sc = _RidgeSolution(M, control_units, V, best_w_pen, custom_donor_pool, Y_c=Y_aux[control_units, :], ret_weights=False, 
+                                        verbose=verbose)[0]
+            else:
+                Y_sc = _sc_Y_trad(M, M_c, treated_units, control_units, V, custom_donor_pool, best_w_pen, Y_c=Y_c, sc_Y_block_size=sc_Y_block_size,
+                                    verbose=verbose)
+                if Y_aux is not None:
+                    Y_aux_sc = _sc_Y_trad(M, M_c, treated_units, control_units, V, custom_donor_pool, best_w_pen, Y_c=Y_aux[control_units, :], sc_Y_block_size=sc_Y_block_size,
+                                        verbose=verbose)
             log_if_necessary("Completed calculation of (temp.) sc_weights", verbose)
 
 

@@ -40,7 +40,12 @@ def pooled_variances(sample_variances, sample_sizes):
     # https://en.wikipedia.org/wiki/Pooled_variance
     return np.average(sample_variances, weights=(sample_sizes-1), axis=0)
 
-Estimate = namedtuple('Estimate', 'effect pval') # can hold scalars or vectors
+
+class Estimate: # can hold scalars or vectors
+    def __init__(self, effect, pval, baseline=None):
+        self.effect = effect
+        self.pval = pval
+        self.baseline=baseline
 
 class SSC_DescrStat(object):
     """Stores mean and variance for a sample in a way that can be updated
