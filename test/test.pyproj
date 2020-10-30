@@ -23,6 +23,9 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="sc2010.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="test_simulation.py">
       <SubType>Code</SubType>
     </Compile>
@@ -35,7 +38,6 @@
     <Compile Include="dgp\__init__.py" />
   </ItemGroup>
   <ItemGroup>
-    <InterpreterReference Include="CondaEnv|CondaEnv|SparseSC_27" />
     <InterpreterReference Include="CondaEnv|CondaEnv|SparseSC_35" />
   </ItemGroup>
   <ItemGroup>
