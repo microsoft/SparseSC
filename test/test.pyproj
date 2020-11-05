@@ -23,9 +23,6 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="sc2010.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="test_simulation.py">
       <SubType>Code</SubType>
     </Compile>

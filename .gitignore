@@ -1,6 +1,6 @@
 # ignore testing data
 **/data/
-test/*.pkl
+replication/*.pkl
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
