@@ -63,12 +63,10 @@ examples:
 	python example-code.py
 	python examples/fit_poc.py
 
-#Python 2.7 can do 'test.test_fit' but not 'test/test_fit.py'
 tests:
 	python -m unittest test.test_fit.TestFitForErrors test.test_fit.TestFitFastForErrors test.test_normal.TestNormalForErrors test.test_estimation.TestEstimationForErrors
 
 #tests_both:
-#	activate SparseSC_27 && python -m unittest test.test_fit
 #	activate SparseSC_35 && python -m unittest test.test_fit
 
 #add examples here when working
@@ -93,9 +91,6 @@ gen_ipynb_output:
 #Have to cd into subfulder otherwise will pick up potential SparseSC pkg in build/
 #TODO: Make the prefix filter automatic
 #TODO: check if this way of doing phony targets for nmake works with make
-test/SparseSC_27.yml: .phony
-	activate SparseSC_27 && cd test && conda env export > SparseSC_27.yml
-	echo Make sure to remove the last prefix line and the pip sparsesc line, as user does pip install -e for that
 test/SparseSC_35.yml: .phony
 	activate SparseSC_35 && cd test && conda env export > SparseSC_35.yml
 	echo Make sure to remove the last prefix line and the pip sparsesc line, as user does pip install -e for that
@@ -111,13 +106,11 @@ test/SparseSC_36.yml: .phony
 #doc/rtd-requirements.txt:
 
 conda_env_upate:
-	deactivate && conda env update -f test/SparseSC_27.yml
 	deactivate && conda env update -f test/SparseSC_35.yml
 	deactivate && conda env update -f test/SparseSC_36.yml
 
 #Just needs to be done once
 conda_env_create:
-	conda env create -f test/SparseSC_27.yml
 	conda env create -f test/SparseSC_35.yml
 	conda env create -f test/SparseSC_36.yml
 
