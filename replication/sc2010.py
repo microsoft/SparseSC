@@ -5,7 +5,10 @@ import scipy
 import numpy as np
 import pandas as pd
 
-import SparseSC as SC
+try:
+    import SparseSC as SC
+except ImportError:
+    raise RuntimeError("SparseSC is not installed. Use 'pip install -e .' or 'conda develop .' from repo root to install in dev mode")
 
 random.seed(12345)
 np.random.seed(101101001)
@@ -54,6 +57,9 @@ X_Y_pre = np.concatenate((X_full, Y_pre), axis=1)
 X_Y_pre_names = X_full_names + Y_pre_names
 X_Y_pre_names_arr = np.array(X_Y_pre_names)
 
+
+# Fast  ----------------------#
+
 fast_fit = SC.fit_fast(X_Y_pre, Y_post, treated_units=[i_t])
 #print(len(np.diag(fast_fit.V)))
 #print(np.diag(fast_fit.V))
@@ -65,6 +71,7 @@ fast_fit = SC.fit_fast(X_Y_pre, Y_post, treated_units=[i_t])
 #print(post_mse) #129.190437803
 #print(X_Y_pre_names_arr[fast_fit.match_space_desc>0])
 
+# Full  ----------------------#
 
 full_fit = SC.fit(X_Y_pre, Y_post, treated_units=[i_t])
 print(np.diag(full_fit.V))
@@ -87,8 +94,28 @@ print(full_post_mse) #142.422049057
 
 print(X_Y_pre_names_arr[np.diag(full_fit.V)>0])
 
+# Full - Flat ----------------------#
+
+full_fit_flat = SC._fit_fast_inner(X_Y_pre, X_Y_pre, Y_post, V=np.repeat(1,X_Y_pre.shape[1]), treated_units=[i_t])
+
+full_Y_post_sc = full_fit_flat.predict(Y_post)
+full_Y_pre_sc = full_fit_flat.predict(Y_pre)
+full_Y_pre_effect = Y_pre - full_Y_pre_sc
+full_Y_post_effect = Y_post - full_Y_post_sc
+
+print(full_Y_pre_effect[control_units, :].mean()) #0.00351336303993
+print(scipy.stats.ttest_1samp(full_Y_pre_effect[control_units, :].flatten(), popmean=0)) #Ttest_1sampResult(statistic=0.050337513196736801, pvalue=0.95986737195005822)
+full_pre_mse = np.mean(np.power(full_Y_pre_effect[control_units, :], 2))
+print(full_pre_mse) #3.51236252311
+
+print(full_Y_post_effect[control_units, :].mean()) #-0.402068307329
+print(scipy.stats.ttest_1samp(full_Y_post_effect[control_units, :].flatten(), popmean=0)) #Ttest_1sampResult(statistic=-0.72604957692076211, pvalue=0.46818168129036042)
+full_post_mse = np.mean(np.power(full_Y_post_effect[control_units, :], 2))
+print(full_post_mse) #139.695171265
+
+
 with open(pkl_file, "wb" ) as output_file:
-    pickle.dump( (fast_fit, full_fit),  output_file)
+    pickle.dump( (fast_fit, full_fit, full_fit_flat),  output_file)
 
 with open(pkl_file, "rb" ) as input_file:
-    fast_fit, full_fit = pickle.load(input_file)
+    fast_fit, full_fit, full_fit_flat = pickle.load(input_file)
