@@ -9,10 +9,13 @@ import pandas as pd
 from .utils.metrics_utils import _gen_placebo_stats_from_diffs
 from .fit import fit
 from .fit_fast import fit_fast
+from .utils.print_progress import print_progress
 
 #Note https://stackoverflow.com/questions/31917964/
 # - that pandas can only store datetime[ns]
 # - that iterating through it normally with give Timestamps, so use .values first to stay in datetime[ns]
+# - Allow honest control predictions from full refitting
+# - When using main hyper-parameter values for cross-fitting, remove potential w_pen, v_pen from kwargs
 
 
 def _convert_dt_to_idx(dt, dt_index): 
@@ -22,6 +25,52 @@ def _convert_dt_to_idx(dt, dt_index):
     else:
         idx_list = np.where(dt_index==dt)[0]
         return np.nan if len(idx_list)==0 else idx_list[0]
+
+    
+def get_c_predictions_honest(X_and_Y_pre_c, Y_post_c, Y_c, model_type= "retrospective", cf_folds = 10, cf_seed=110011, fast = True, verbose=1, **kwargs):
+    r"""
+    Cross-fits the model across the controls for single considered treatment period
+
+    :param X_and_Y_pre_c:
+    :param Y_post_c:
+    :param Y_c:
+    :param model_type: Model type
+    :param cf_folds: Number of cross-fit folds for getting honest placebo effects
+    :param cf_seed: Seed for cross-fit fold splitting    
+    :param fast: Whether to use the fast approximate solution (fit_fast() rather than fit())
+    :type fast: bool
+    :param kwargs: Additional parameters passed to fit() or fit_fast()
+
+    :returns: Y_local_c_sc_honest, [(f_train_fit, f_test_idxs) for f in folds]
+    """
+    # TODO: Maybe build this into the FitResults object or the fit methods?
+    fit_fn = fit_fast if fast else fit
+    try:
+        iter(cf_folds)
+    except TypeError:
+        from sklearn.model_selection import KFold
+        cf_folds = KFold(cf_folds, shuffle=True, random_state=cf_seed).split(np.arange(Y_c.shape[0]))
+    train_test_splits = list(cf_folds)
+            
+    Y_c_sc_honest = Y_c
+    fits = []
+    for fold, (train, test) in enumerate(train_test_splits):
+        if verbose==1:
+            print_progress(fold+1, len(train_test_splits))
+        elif verbose>1:
+            print("CROSS-FITTING: " + str(fold))
+        fit_k = fit_fn(
+            features=X_and_Y_pre_c,
+            targets=Y_post_c,
+            model_type=model_type,
+            treated_units=test,
+            verbose=verbose-1,
+            **kwargs
+            )
+        Y_c_sc_honest[test,:] = fit_k.predict(Y_c)[test,:]
+        fits.append((fit_k, test))
+    return Y_c_sc_honest, fits
+
 
 def estimate_effects(
     outcomes,
@@ -36,6 +85,8 @@ def estimate_effects(
     fast = True,
     model_type = "retrospective",
     T2 = None,
+    cf_folds = 10, #sync with helper
+    cf_seed=110011, #sync with helper
     **kwargs
 ):
     r"""
@@ -202,6 +253,7 @@ def estimate_effects(
         user_index = treatment_period if using_dt_index else treatment_period_idx
         c_units_mask_full, t_units_mask_full, ct_units_mask_full = get_sample_masks(unit_treatment_periods_idx_fit, treatment_period_idx_fit, Tpost)
         n_treated = np.sum(t_units_mask_full)
+        n_control = np.sum(c_units_mask_full)
         Y_local = Y[ct_units_mask_full,(treatment_period_idx_fit-T0):(treatment_period_idx_fit+Tpost)]
         if Y_df is not None:
             col_index = Y_df.columns[(treatment_period_idx_fit-T0):(treatment_period_idx_fit+Tpost)]
@@ -226,10 +278,13 @@ def estimate_effects(
             targets=Y_post_fit,
             model_type=model_type,
             treated_units=treated_units,
+            cv_folds=cv_folds,
+            cv_seed=cv_seed,
             **kwargs
         )
         fits[user_index] = fit_res
 
+        #Get the fit on match variables. Nothing was fit so that these would fit well, so don't worry about overfitting
         M = fit_res.match_space if fit_res.match_space is not None else fit_res.features
         if M is None or M.shape[1]==0 or len(fit_res.V) == 0: #think last test is redundant
             rmspe_M_w_p = np.nan
@@ -239,12 +294,17 @@ def estimate_effects(
             V_fit = np.diag(fit_res.V)
             V_fit_norm = V_fit / np.sum(V_fit)
             rmspe_M_w = np.sqrt(np.mean(np.asarray(M_diffs_2) * V_fit_norm, axis=1))
-
             rmspe_M_w_p = _gen_placebo_stats_from_diffs(rmspe_M_w[control_units,None], rmspe_M_w[treated_units,None], max_n_pl, False, True).rms_joint_effect.p
-
         setattr(fit_res, 'rmspe_M_w_p', rmspe_M_w_p)
 
-        Y_sc = fit_res.predict(Y_local)
+        #Get honest predictions (for honest placebo effects)
+        Y_sc = fit_res.predict(Y_local) #doesn't have honest ones for the control units
+        Y_sc[control_units:] = get_c_predictions_honest(X_and_Y_pre[control_units,:], Y_post_fit[control_units,:], Y_local[control_units,:], 
+                                                       model_type, cf_folds, cf_seed, w_pen=fit_res.initial_w_pen, v_pen=fit_res.initial_v_pen,
+                                                       cv_folds=cv_folds, cv_seed=cv_seed, **kwargs)
+
+
+        #Get statistical significance
         diffs = Y_local - Y_sc
         rmspes_pre = np.sqrt(np.mean(np.square(diffs[:,:T0]), axis=1))
         diffs_post_eval_scaled = np.diagflat(1/rmspes_pre).dot(diffs[:,T0+Tpost-Teval:T0+Tpost])
@@ -619,5 +679,4 @@ class _SparseSCPoolEstResults(object):
             str(self.pl_res_post_eval.avg_joint_effect),
             str(self.pl_res_post_eval.effect_vec),
         )
-    
     

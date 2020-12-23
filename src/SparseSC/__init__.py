@@ -13,7 +13,7 @@ from SparseSC.fit_loo import loo_v_matrix, loo_weights, loo_score
 from SparseSC.fit_ct import ct_v_matrix, ct_weights, ct_score
 
 # ESTIMATION FUNCTIONS
-from SparseSC.estimate_effects import estimate_effects
+from SparseSC.estimate_effects import estimate_effects, get_c_predictions_honest
 from SparseSC.utils.dist_summary import SSC_DescrStat, Estimate
 from SparseSC.utils.descr_sets import DescrSet, MatchingEstimate
 
