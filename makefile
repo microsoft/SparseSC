@@ -67,7 +67,7 @@ tests:
 	python -m unittest test.test_fit.TestFitForErrors test.test_fit.TestFitFastForErrors test.test_normal.TestNormalForErrors test.test_estimation.TestEstimationForErrors
 
 #tests_both:
-#	activate SparseSC_35 && python -m unittest test.test_fit
+#	activate SparseSC_36 && python -m unittest test.test_fit
 
 #add examples here when working
 check: pylint package_bdist_wheel tests_both
@@ -91,27 +91,23 @@ gen_ipynb_output:
 #Have to cd into subfulder otherwise will pick up potential SparseSC pkg in build/
 #TODO: Make the prefix filter automatic
 #TODO: check if this way of doing phony targets for nmake works with make
-test/SparseSC_35.yml: .phony
-	activate SparseSC_35 && cd test && conda env export > SparseSC_35.yml
-	echo Make sure to remove the last prefix line and the pip sparsesc line, as user does pip install -e for that
 test/SparseSC_36.yml: .phony
 	activate SparseSC_36 && cd test && conda env export > SparseSC_36.yml
 	echo Make sure to remove the last prefix line and the pip sparsesc line, as user does pip install -e for that
 .phony:
 
-#Don't generate requirements-rtd.txt from conda environments (e.g. pip freeze > rtd-requirements.txt)
+#Old:
+# Don't generate requirements-rtd.txt from conda environments (e.g. pip freeze > rtd-requirements.txt)
 # 1) Can be finicky to get working since using pip and docker images and don't need lots of packages (e.g. for Jupyter)
 # 2) Github compliains about requests<=2.19.1. Conda can't install 2.20 w/ Python <3.6. Our env is 3.5, but RTD uses Python3.7
 # Could switch to using conda 
 #doc/rtd-requirements.txt:
 
 conda_env_upate:
-	deactivate && conda env update -f test/SparseSC_35.yml
 	deactivate && conda env update -f test/SparseSC_36.yml
 
 #Just needs to be done once
 conda_env_create:
-	conda env create -f test/SparseSC_35.yml
 	conda env create -f test/SparseSC_36.yml
 
 jupyter_DifferentialTrends:

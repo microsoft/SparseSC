@@ -4,8 +4,6 @@
 
 You can create Anaconda environments using
 ```bash
-conda env create -f test/SparseSC_27.yml
-conda env create -f test/SparseSC_35.yml
 conda env create -f test/SparseSC_36.yml
 ```
 You can can do `update` rather than `create` to update existing ones (to avoid [potential bugs](https://stackoverflow.com/a/46114295/3429373) make sure the env isn't currently active).
