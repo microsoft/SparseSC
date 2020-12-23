@@ -20,7 +20,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Misc", "Misc", "{AA17F266-A
 		docs\overview.md = docs\overview.md
 		docs\performance-notes.md = docs\performance-notes.md
 		README.md = README.md
-		replication\sc2010.py = replication\sc2010.py
 	EndProjectSection
 EndProject
 Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "test", "test\test.pyproj", "{01446F94-F552-4EE1-90DC-E93A0DB22B4C}"
