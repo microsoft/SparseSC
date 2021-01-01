@@ -27,7 +27,7 @@ def _convert_dt_to_idx(dt, dt_index):
         return np.nan if len(idx_list)==0 else idx_list[0]
 
     
-def get_c_predictions_honest(X_and_Y_pre_c, Y_post_c, Y_c, model_type= "retrospective", cf_folds = 10, cf_seed=110011, fast = True, verbose=1, **kwargs):
+def get_c_predictions_honest(X_and_Y_pre_c, Y_post_c, Y_c, model_type= "retrospective", cf_folds = 10, cf_seed=110011, fast = True, verbose=1, progress=False, print_path=False, **kwargs):
     r"""
     Cross-fits the model across the controls for single considered treatment period
 
@@ -65,6 +65,8 @@ def get_c_predictions_honest(X_and_Y_pre_c, Y_post_c, Y_c, model_type= "retrospe
             model_type=model_type,
             treated_units=test,
             verbose=verbose-1,
+            print_path=print_path,
+            progress=progress,
             **kwargs
             )
         Y_c_sc_honest[test,:] = fit_k.predict(Y_c)[test,:]
