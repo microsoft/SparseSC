@@ -280,7 +280,7 @@ def estimate_effects(
             targets=Y_post_fit,
             model_type=model_type,
             treated_units=treated_units,
-            cv_folds=cv_folds,
+            cv_folds=cf_folds,
             cv_seed=cv_seed,
             **kwargs
         )
@@ -303,7 +303,7 @@ def estimate_effects(
         Y_sc = fit_res.predict(Y_local) #doesn't have honest ones for the control units
         Y_sc[control_units:] = get_c_predictions_honest(X_and_Y_pre[control_units,:], Y_post_fit[control_units,:], Y_local[control_units,:], 
                                                        model_type, cf_folds, cf_seed, w_pen=fit_res.initial_w_pen, v_pen=fit_res.initial_v_pen,
-                                                       cv_folds=cv_folds, cv_seed=cv_seed, **kwargs)
+                                                       cv_folds=cf_folds, cv_seed=cv_seed, **kwargs)
 
 
         #Get statistical significance
