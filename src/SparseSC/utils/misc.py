@@ -3,6 +3,7 @@
 import contextlib
 import sys
 
+from .print_progress import it_progressbar, it_progressmsg
 
 @contextlib.contextmanager
 def capture():
@@ -27,6 +28,33 @@ def capture_all():
         yield 
     finally:
         sys.stdout, sys.stderr = STDOUT, STDERR
+
+
+def par_map(part_fn, it, F, loop_verbose, n_multi=0, header="LOOP"):  
+    if n_multi>0:
+        from multiprocessing import Pool
+
+        with Pool(n_multi) as p:
+            #p.map evals the it so can't use it_progressbar(it)
+            if loop_verbose==1:
+                rets = []
+                print(header + ":")
+                for ret in it_progressbar(p.imap(part_fn, it), count=F):
+                    rets.append(ret)
+            elif loop_verbose==2:
+                rets = []
+                for ret in it_progressmsg(p.imap(part_fn, it), prefix=header, count=F):
+                    rets.append(ret)
+            else:
+                rets = p.map(part_fn, it)
+    else:
+        if loop_verbose==1:
+            print(header + ":")
+            it = it_progressbar(it, count=F)
+        elif loop_verbose==2:
+            it = it_progressmsg(it, prefix=header, count=F)
+        rets = list(map(part_fn, it))
+    return rets
 
 
 class PreDemeanScaler:

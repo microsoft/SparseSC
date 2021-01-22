@@ -207,7 +207,6 @@ class TestFitForCorrectness(unittest.TestCase):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 fit_res = fit(Y[:, :T0], Y[:, T0:], treated_units, model_type="retrospective", 
-                              constrain="simplex", 
                               stopping_rule=4, progress=False, verbose=0, print_path=False)
             Y_sc = fit_res.predict(Y)
             treated_diff = (Y - Y_sc)[0, :]

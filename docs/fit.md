@@ -182,6 +182,8 @@ efficient to constrain V to the simplex. When solving using Azure Batch
 then only a single penalty parameter is varied so then V should only be constrained
 to the non-negative orthant.
 
+The `"simplex"` constraint is the default when not using Azure batch.
+
 #### Fold Parameters
 
 The data are split into folds both purpose of calculating the cross fold

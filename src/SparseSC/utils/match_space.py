@@ -2,6 +2,7 @@
 
 """
 # To do:
+# - Hve the factories return partial objects rather than anonymous functions. That way they can be pickled and parallelized in get_c_predictions_honest
 # - Implement Post-lasso versions. Could do MT OLS as fully separate then aggregate coefs like with Lasso.
 #   (Though some coefficients aren't well estimated we don't want to just take t-stats as we still want to be fit-based.
 #   Ideally we'd have something like marginal R2, but the initial method is probably fine for most uses. (We could standardize input features).)
@@ -163,6 +164,45 @@ def _MTLassoCV_MatchSpace(
     transformer = SelMatchSpace(m_sel)
     return transformer, V[m_sel], best_v_pen, (V, varselectorfit)
 
+def MTLasso_MatchSpace_factory(v_pen, sample_frac=1, Y_col_block_size=None, se_factor=None, normalize=True):
+    """
+    Return a MatchSpace function that will fit a MultiTaskLasso for Y ~ X
+
+    :param v_pen: Penalty
+    :param sample_frac: Fraction of the data to sample
+    :param se_factor: Allows taking a different penalty than the min mse. Similar to the lambda.1se rule,
+        if not None, it will take the max lambda that has mse < min_mse + se_factor*(MSE standard error).
+    :returns: MatchSpace fn, V vector, best_v_pen, V
+    """
+
+    def _MTLasso_MatchSpace_wrapper(X, Y, **kwargs):
+        return _MTLasso_MatchSpace(
+            X, Y, v_pen=v_pen, sample_frac=sample_frac, Y_col_block_size=Y_col_block_size, se_factor=se_factor, normalize=normalize, **kwargs
+        )
+
+    return _MTLasso_MatchSpace_wrapper
+
+
+def _MTLasso_MatchSpace(
+    X, Y, v_pen, sample_frac=1, Y_col_block_size=None, se_factor=None, normalize=True, **kwargs
+):  # pylint: disable=missing-param-doc, unused-argument
+    # A fake MT would do Lasso on y_mean = Y.mean(axis=1)
+    if sample_frac < 1:
+        N = X.shape[0]
+        sample = np.random.choice(N, int(sample_frac * N), replace=False)
+        X = X[sample, :]
+        Y = Y[sample, :]
+    if Y_col_block_size is not None:
+        Y = _block_summ_cols(Y, Y_col_block_size)
+    varselectorfit = MultiTaskLasso(normalize=normalize, alpha=v_pen).fit(
+        X, Y
+    )
+    V = np.sqrt(
+        np.sum(np.square(varselectorfit.coef_), axis=0)
+    )  # n_tasks x n_features -> n_feature
+    m_sel = V != 0
+    transformer = SelMatchSpace(m_sel)
+    return transformer, V[m_sel], v_pen, (V, varselectorfit)
 
 def D_LassoCV_MatchSpace_factory(v_pens=None, n_v_cv=5, sample_frac=1, y_V_share=0.5):
     """

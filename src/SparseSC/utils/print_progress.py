@@ -5,7 +5,7 @@
 import sys
 import datetime
 SparseSC_prev_iteration = 0
-def print_progress(iteration, total=100, prefix='', suffix='', decimals=1, bar_length=100):
+def print_progress(iteration, total=100, prefix='', suffix='', decimals=1, bar_length=100, file=sys.stdout):
     """
     Call in a loop to create progress bar. If this isn't a tty-like (re-writable) output then 
     no percent-complete number will be outputted.
@@ -16,36 +16,79 @@ def print_progress(iteration, total=100, prefix='', suffix='', decimals=1, bar_l
     suffix      - Optional  : suffix string (Str)
     decimals    - Optional  : positive number of decimals in percent complete (Int)
     bar_length  - Optional  : character length of bar (Int)
+    file        - Optional  : file descriptor for output
     """
     fill_char = '>' # Note that the "█" character is not compatible with every platform...
+    empty_char = '-'
     filled_length = int(round(bar_length * iteration / float(total)))
-    if sys.stdout.isatty():
+    if file.isatty():
         str_format = "{0:." + str(decimals) + "f}"
         percents = str_format.format(100 * (iteration / float(total)))
         
-        progress_bar = fill_char * filled_length + '-' * (bar_length - filled_length) 
+        progress_bar = fill_char * filled_length + empty_char * (bar_length - filled_length) 
 
-        sys.stdout.write('\r%s |%s| %s%s %s' % (prefix, progress_bar, percents, '%', suffix))
+        file.write('\r%s |%s| %s%s %s' % (prefix, progress_bar, percents, '%', suffix))
 
         if iteration == total:
-            sys.stdout.write('\n')
-        sys.stdout.flush()
+            file.write('\n')
+        file.flush()
     else: # Can't do interactive re-writing (e.g. w/ the /r character)
         global SparseSC_prev_iteration
         if iteration == 1:
-            sys.stdout.write('%s |' % (prefix))
+            file.write('%s |' % (prefix))
         else:
             if iteration <= SparseSC_prev_iteration:
                 SparseSC_prev_iteration = 0
             prev_fill_length = int(round(bar_length * SparseSC_prev_iteration / float(total)))
             progress_bar = fill_char * (filled_length-prev_fill_length)
 
-            sys.stdout.write('%s' % (progress_bar))
+            file.write('%s' % (progress_bar))
 
             if iteration == total:
-                sys.stdout.write('| %s\n' % (suffix))
+                file.write('| %s\n' % (suffix))
         SparseSC_prev_iteration = iteration
-        sys.stdout.flush()
+        file.flush()
+
+def it_progressmsg(it, prefix="Loop", file=sys.stdout, count=None):
+    for i, item in enumerate(it):
+        if count is None:
+            file.write(prefix + ": " + i + "\n")
+        else:
+            file.write(prefix + ": " + i + " of " + count + "\n")
+        file.flush()
+        yield item
+    file.write(prefix + ": FINISHED\n")
+    file.flush()
+
+#Similar to above, but you wrap an iterator
+def it_progressbar(it, prefix="", suffix='', decimals=1, bar_length=100, file=sys.stdout, count=None):
+    if count is None:
+        count = len(it)
+    def show(j):
+        fill_char = '>'
+        empty_char = '-'
+        x = int(bar_length*j/count)
+        str_format = "{0:." + str(decimals) + "f}"
+        percents = str_format.format(100 * (j / float(count)))
+        progress_bar = fill_char * x + empty_char * (bar_length - x) 
+        if file.isatty():
+            file.write("%s |%s| %s%s %s\r" % (prefix, progress_bar, percents, '%', suffix))
+            file.flush()
+        else: # Can't do interactive re-writing (e.g. w/ the /r character)
+            if j == 0:
+                file.write('%s |' % (prefix))
+            else: 
+                prev_x = int(bar_length*(j-1)/count)
+                progress_bar = fill_char * (x-prev_x)
+                file.write('%s' % (progress_bar))
+                if j == count:
+                    file.write('| %s' % (suffix))
+    show(0)
+    for i, item in enumerate(it):
+        yield item
+        show(i+1)
+    file.write("\n")
+    file.flush()
 
 def log_if_necessary(str_note_start, verbose):
     str_note = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S') + ": " + str_note_start 

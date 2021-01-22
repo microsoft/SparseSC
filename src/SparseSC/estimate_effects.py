@@ -9,7 +9,7 @@ import pandas as pd
 from .utils.metrics_utils import _gen_placebo_stats_from_diffs
 from .fit import fit
 from .fit_fast import fit_fast
-from .utils.print_progress import print_progress
+from .utils.misc import par_map
 
 #Note https://stackoverflow.com/questions/31917964/
 # - that pandas can only store datetime[ns]
@@ -26,8 +26,13 @@ def _convert_dt_to_idx(dt, dt_index):
         idx_list = np.where(dt_index==dt)[0]
         return np.nan if len(idx_list)==0 else idx_list[0]
 
+#Used by par_map so needs f to be the first argument
+def _fit_p_wrapper(f, test_folds, fit_fn, **kwargs):
+    test = test_folds[f]
+
+    return (fit_fn(treated_units=test, **kwargs), test)
     
-def get_c_predictions_honest(X_and_Y_pre_c, Y_post_c, Y_c, model_type= "retrospective", cf_folds = 10, cf_seed=110011, fast = True, verbose=1, progress=False, print_path=False, **kwargs):
+def get_c_predictions_honest(X_and_Y_pre_c, Y_post_c, Y_c, model_type= "retrospective", cf_folds = 10, cf_seed=110011, fast = True, verbose=1, progress=False, print_path=False, n_multi=0, **kwargs):
     r"""
     Cross-fits the model across the controls for single considered treatment period
 
@@ -39,11 +44,13 @@ def get_c_predictions_honest(X_and_Y_pre_c, Y_post_c, Y_c, model_type= "retrospe
     :param cf_seed: Seed for cross-fit fold splitting    
     :param fast: Whether to use the fast approximate solution (fit_fast() rather than fit())
     :type fast: bool
+    :param n_multi: Number of processes use (0=single threaded)
     :param kwargs: Additional parameters passed to fit() or fit_fast()
 
     :returns: Y_local_c_sc_honest, [(f_train_fit, f_test_idxs) for f in folds]
     """
     # TODO: Maybe build this into the FitResults object or the fit methods?
+    from functools import partial
     fit_fn = fit_fast if fast else fit
     try:
         iter(cf_folds)
@@ -51,26 +58,23 @@ def get_c_predictions_honest(X_and_Y_pre_c, Y_post_c, Y_c, model_type= "retrospe
         from sklearn.model_selection import KFold
         cf_folds = KFold(cf_folds, shuffle=True, random_state=cf_seed).split(np.arange(Y_c.shape[0]))
     train_test_splits = list(cf_folds)
-            
+    F = len(train_test_splits)
+    test_folds = [test for (_, test) in train_test_splits]
+    part_fn = partial(_fit_p_wrapper, test_folds=test_folds, fit_fn=fit_fn, features=X_and_Y_pre_c,
+    targets=Y_post_c,
+    model_type=model_type,
+    verbose=verbose-1,
+    print_path=print_path,
+    progress=progress,
+    **kwargs)
+
+    fits = par_map(part_fn, range(F), F, verbose, n_multi=n_multi, header="CROSS-FITTING")
+        
     Y_c_sc_honest = Y_c
-    fits = []
-    for fold, (train, test) in enumerate(train_test_splits):
-        if verbose==1:
-            print_progress(fold+1, len(train_test_splits))
-        elif verbose>1:
-            print("CROSS-FITTING: " + str(fold))
-        fit_k = fit_fn(
-            features=X_and_Y_pre_c,
-            targets=Y_post_c,
-            model_type=model_type,
-            treated_units=test,
-            verbose=verbose-1,
-            print_path=print_path,
-            progress=progress,
-            **kwargs
-            )
+    for fold, (_, test) in enumerate(train_test_splits):
+        fit_k, _ = fits[fold]
         Y_c_sc_honest[test,:] = fit_k.predict(Y_c)[test,:]
-        fits.append((fit_k, test))
+
     return Y_c_sc_honest, fits
 
 
@@ -216,8 +220,6 @@ def estimate_effects(
         kwargs['tol'] = 1
     if 'choice' not in kwargs:
         kwargs['choice'] = "min"
-    if 'constrain' not in kwargs:
-        kwargs['constrain'] = 'simplex'
     
     #pullout hidden ones
     if 'treatment_unit_size' in kwargs and kwargs['treatment_unit_size'] is not None:
@@ -301,7 +303,7 @@ def estimate_effects(
 
         #Get honest predictions (for honest placebo effects)
         Y_sc = fit_res.predict(Y_local) #doesn't have honest ones for the control units
-        Y_sc[control_units:] = get_c_predictions_honest(X_and_Y_pre[control_units,:], Y_post_fit[control_units,:], Y_local[control_units,:], 
+        Y_sc[control_units:], _ = get_c_predictions_honest(X_and_Y_pre[control_units,:], Y_post_fit[control_units,:], Y_local[control_units,:], 
                                                        model_type, cf_folds, cf_seed, w_pen=fit_res.initial_w_pen, v_pen=fit_res.initial_v_pen,
                                                        cv_folds=cv_folds, cv_seed=cv_seed, **kwargs)
 

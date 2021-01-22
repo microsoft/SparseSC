@@ -5,7 +5,7 @@
 from SparseSC.fit import fit, TrivialUnitsWarning
 from SparseSC.fit_fast import fit_fast, _fit_fast_inner, _fit_fast_match
 from SparseSC.utils.match_space import (
-    keras_reproducible, MTLassoCV_MatchSpace_factory, MTLassoMixed_MatchSpace_factory, MTLSTMMixed_MatchSpace_factory, 
+    keras_reproducible, MTLassoCV_MatchSpace_factory, MTLasso_MatchSpace_factory, MTLassoMixed_MatchSpace_factory, MTLSTMMixed_MatchSpace_factory, 
     Fixed_V_factory, D_LassoCV_MatchSpace_factory
 )
 from SparseSC.utils.penalty_utils import RidgeCVSolution

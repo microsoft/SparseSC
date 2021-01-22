@@ -220,7 +220,7 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
         pass
     else:
         if v_pen is None:
-            raise ValueError("When v_pen is an iterable, v_pen must be provided")
+            raise ValueError("When w_pen is an iterable, v_pen must be provided")
         w_pen_is_iterable = True
 
     v_pen_is_iterable = False
@@ -234,7 +234,8 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
             raise ValueError("When v_pen is an iterable, w_pen must be provided")
 
     if v_pen_is_iterable and w_pen_is_iterable:
-        raise ValueError("Features and Weights penalties are both iterables")
+        #We should be able to swap these in for the grids below and still do coordinate-descent.
+        raise ValueError("Feature weight and unit weight penalties are both iterables and this is not currently implemented.")
 
     if (
         v_pen_is_iterable
@@ -246,6 +247,12 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
     if treated_units is not None:
         control_units = [u for u in range(Y.shape[0]) if u not in treated_units]
 
+    model_type = kwargs.get("model_type", "retrospective")
+    if "batchDir" not in kwargs: #set the default constraint
+        if "constrain" in kwargs and (kwargs['constrain'] is None or kwargs['constrain']==""): #allow default to be overridden
+            del kwargs['constrain']
+        elif "constrain" not in kwargs:
+            kwargs['constrain'] = "simplex"
     # --------------------------------------------------
     # Solve null-model case
     # --------------------------------------------------
@@ -256,7 +263,6 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
         N0 = len(control_units)
         custom_donor_pool = kwargs.get("custom_donor_pool", np.full((N,N0), True))
         assert custom_donor_pool.shape == (N,N0)
-        model_type = kwargs.get("model_type", "retrospective")
         custom_donor_pool = _ensure_good_donor_pool(custom_donor_pool, control_units)
         sc_weights = np.full((N,N0), 0.)
         for i in range(N):
@@ -286,7 +292,6 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
     # --------------------------------------------------
     if match_space_maker is not None:
         assert "batchDir" not in kwargs, "Can't combine batchDir with match_space_maker yet"
-        model_type = kwargs.get("model_type", "retrospective")
         N = Y.shape[0]
         fit_units = _get_fit_units(model_type, control_units, treated_units, N)
         X_v = X[fit_units, :]
@@ -319,16 +324,16 @@ def fit(  # pylint: disable=differing-type-doc, differing-param-doc
     # Herein, either v_pen or w_pen is None (possibly both)
     if w_pen_inner:
         N, K = X.shape
-        if kwargs['model_type']=="full":
+        if model_type=="full":
             control_units = range(N)
         from .utils.penalty_utils import RidgeCVSolution
         base_v = np.full((K), 1/K)
 
-        if kwargs['model_type']=="retrospective" or kwargs['model_type']=="full":
+        if model_type=="retrospective" or model_type=="full":
             base_w_pen = RidgeCVSolution(np.asarray(X), control_units, True, None, base_v)
-        elif kwargs['model_type']=="prospective":
+        elif model_type=="prospective":
             base_w_pen = RidgeCVSolution(np.asarray(X), control_units, True, treated_units, base_v)
-        else: # kwargs['model_type']=="prospective-restricted:":
+        else: # model_type'=="prospective-restricted:":
             base_w_pen = RidgeCVSolution(np.asarray(X), control_units, False, treated_units, base_v)
 
     # --------------------------------------------------

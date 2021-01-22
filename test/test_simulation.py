@@ -172,7 +172,7 @@ class Simulation(unittest.TestCase):
     @staticmethod
     def fitSparseSC_wrapper(Y_pre, Y_post, treated_units):
         return(fit(X=Y_pre, Y=Y_post, treated_units=treated_units, 
-                              model_type="retrospective", constrain="simplex",
+                              model_type="retrospective",
                               print_path = False, progress = False, verbose=0))
 
     @staticmethod

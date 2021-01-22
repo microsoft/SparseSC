@@ -189,7 +189,6 @@ class TestDGPs(unittest.TestCase):
             Out_post,
             treated_units,
             Cov,
-            # constrain="simplex", -- handled by argparse now..
             **command_line_options,
         )
 
@@ -205,7 +204,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(prog="PROG", allow_abbrev=False)
     parser.add_argument(
-        "--constrain", choices=["orthant", "simplex"], default="orthant"
+        "--constrain", choices=["orthant", "simplex"], default="simplex"
     )
     args = parser.parse_args()
     command_line_options.update(vars(args))
