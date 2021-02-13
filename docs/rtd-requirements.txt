@@ -3,7 +3,7 @@ asn1crypto==0.24.0
 astroid==1.6.5
 Babel==2.6.0
 certifi==2018.8.24
-cffi==1.11.5
+cffi==1.12.3
 chardet==3.0.4
 colorama==0.3.9
 CommonMark==0.5.4

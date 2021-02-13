@@ -67,12 +67,7 @@ Parallelization
 * Additional Performance Considerations for `fit()`
 * Full parameter listings
 
-To build the
-documentation locally, you will need `sphinx`, `recommonmark`, and
-`sphinx-markdown-tables` (to incorporate .md files)
-
-The documentation can be built locally using the `(n)make` target
-`htmldocs` and is generated in `docs/build/html/index.html`. 
+To build the documentation see `docs/dev_notes.md`.
 
 ## Installation
 Currently you need to download the repo and build and install the package locally. The commands for building the package are in the makefile.
