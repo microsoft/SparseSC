@@ -11,8 +11,15 @@ You can can do `update` rather than `create` to update existing ones (to avoid [
 Note: When regenerating these files (`conda env export > test/SparseSC_*.yml`) make sure to remove the final `prefix` line since that's computer specific.
 
 ## Building the docs
-Requires Python >=3.6 and packages: `sphinx`, `recommonmark`, `sphinx-markdown-tables`.
-Index HTML file is at `docs/build/html/index.html`.
+Requires Python >=3.6 and packages: `sphinx`, `recommonmark`, `sphinx-markdown-tables`. 
+Use `(n)make htmldocs` and an index HTML file is madeat `docs/build/html/index.html`.
+
+To build a mini-RTD environment to test building docs:
+1) You can make a new environment with Python 3.7
+2) update `pip`
+3) `pip install --upgrade --no-cache-dir -r docs/rtd_base.txt`
+4) `pip install --exists-action=w --no-cache-dir -r docs/rtd-requirements.txt`
+
 There are some errors from our setup that aren't present in RTD (they use Python 3.7 and a pip environment with the latest packages).
 
 ## Running examples
