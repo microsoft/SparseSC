@@ -256,6 +256,8 @@ def estimate_effects(
             treatment_period = dt_index[treatment_period_idx]
         user_index = treatment_period if using_dt_index else treatment_period_idx
         c_units_mask_full, t_units_mask_full, ct_units_mask_full = get_sample_masks(unit_treatment_periods_idx_fit, treatment_period_idx_fit, Tpost)
+        c_units_mask_local = c_units_mask_full[ct_units_mask_full]
+        t_units_mask_local = t_units_mask_full[ct_units_mask_full]
         n_treated = np.sum(t_units_mask_full)
         n_control = np.sum(c_units_mask_full)
         Y_local = Y[ct_units_mask_full,(treatment_period_idx_fit-T0):(treatment_period_idx_fit+Tpost)]
@@ -263,8 +265,8 @@ def estimate_effects(
             col_index = Y_df.columns[(treatment_period_idx_fit-T0):(treatment_period_idx_fit+Tpost)]
         else:
             col_index = None
-        treated_units = t_units_mask_full[ct_units_mask_full].nonzero()[0]
-        control_units = c_units_mask_full[ct_units_mask_full].nonzero()[0]
+        treated_units = t_units_mask_local.nonzero()[0]
+        control_units = c_units_mask_local.nonzero()[0]
         if treatment_unit_size is not None:
             doses = treatment_unit_size[t_units_mask_full]
             doses[np.isnan(doses)] = 1
@@ -282,8 +284,8 @@ def estimate_effects(
             targets=Y_post_fit,
             model_type=model_type,
             treated_units=treated_units,
-            cv_folds=cv_folds,
-            cv_seed=cv_seed,
+            cv_folds=cf_folds,
+            cv_seed=cf_seed,
             **kwargs
         )
         fits[user_index] = fit_res
@@ -303,9 +305,9 @@ def estimate_effects(
 
         #Get honest predictions (for honest placebo effects)
         Y_sc = fit_res.predict(Y_local) #doesn't have honest ones for the control units
-        Y_sc[control_units:], _ = get_c_predictions_honest(X_and_Y_pre[control_units,:], Y_post_fit[control_units,:], Y_local[control_units,:], 
+        Y_sc[control_units,:], _ = get_c_predictions_honest(X_and_Y_pre[c_units_mask_local,:], Y_post_fit[c_units_mask_local,:], Y_local[c_units_mask_local,:], 
                                                        model_type, cf_folds, cf_seed, w_pen=fit_res.initial_w_pen, v_pen=fit_res.initial_v_pen,
-                                                       cv_folds=cv_folds, cv_seed=cv_seed, **kwargs)
+                                                       cv_seed=cf_seed, **kwargs)
 
 
         #Get statistical significance
