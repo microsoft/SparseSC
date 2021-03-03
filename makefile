@@ -52,6 +52,7 @@ BUILDDIR      = docs/build
 BUILDDIRHTML  = docs$(DIR_SEP)build$(DIR_SEP)html
 BUILDAPIDOCDIR= docs$(DIR_SEP)build$(DIR_SEP)apidoc
 
+#$(O) is meant as a shortcut for $(SPHINXOPTS).
 htmldocs:
 	-$(RMDIR_CMD) $(BUILDDIRHTML)
 	-$(RMDIR_CMD) $(BUILDAPIDOCDIR)
