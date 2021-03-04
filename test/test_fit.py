@@ -137,7 +137,7 @@ class TestFitFastForErrors(unittest.TestCase):
         self.treated_units = np.arange(treated_units)
 
     @classmethod
-    def run_test(cls, obj, model_type="retrospective", match_maker=None, w_pen_inner=True, avoid_NxN_mats=False):
+    def run_test(cls, obj, model_type="retrospective", match_maker=None, w_pen_inner=True, **kwargs):
         fit_fast(
             features=obj.X,
             targets=obj.Y,
@@ -148,7 +148,7 @@ class TestFitFastForErrors(unittest.TestCase):
             else None,
             match_space_maker=match_maker,
             w_pen_inner=w_pen_inner,
-            avoid_NxN_mats=avoid_NxN_mats
+            **kwargs
         )
 
     def test_all(self):
