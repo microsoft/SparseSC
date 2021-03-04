@@ -18,7 +18,7 @@ To build a mini-RTD environment to test building docs:
 1) You can make a new environment with Python 3.7 (`conda create -n SparseSC_37_rtd python=3.7`)
 2) update `pip` (likely fine).
 3) `pip install --upgrade --no-cache-dir -r docs/rtd-base.txt` . This file is loosely kept in sync by looking at the install commands on the rtd run.
-4) `pip install --exists-action=w --no-cache-dir -r docs/rtd-requirements.txt` . This file doesn't list the full environment versions because that causes headaches when the rtd base environment got updated. It downgrades Sphinx to a known good version that allows markdown files to have math in code quotes (there might be higher ones that also work, didn't try). 
+4) `pip install --exists-action=w --no-cache-dir -r docs/rtd-requirements.txt` . This file doesn't list the full environment versions because that causes headaches when the rtd base environment got updated. It downgrades Sphinx to a known good version that allows markdown files to have math in code quotes ([GH Issues](https://github.com/readthedocs/recommonmark/issues/133)) (there might be higher ones that also work, didn't try). 
 
 ## Running examples
 The Jupyter notebooks require `matplotlib`, `jupyter`, and `notebook`.
