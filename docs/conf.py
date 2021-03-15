@@ -90,12 +90,14 @@ todo_include_todos = False
 
 #Run apidoc from here rather than separate process (so that we can do Read the Docs easily)
 #https://github.com/rtfd/readthedocs.org/issues/1139
+#Used to exclude some files, but this caused warnings (they weren't removed from the auto-generated index)
+#  and instead we just made a currated api doc. Leave for now as we might go back.
 def run_apidoc(app):
     from sphinx.apidoc import main as apidoc_main
     cur_dir = os.path.abspath(os.path.dirname(__file__))
     buildapidocdir = os.path.join(app.outdir, "apidoc","SparseSC")
     module = os.path.join(cur_dir,"..","src","SparseSC")
-    to_excl = ["cross_validation","fit_ct","fit_fold", "fit_loo","optimizers","optimizers/cd_line_search","tensor","utils/ols_model","utils/penalty_utils","utils/print_progress","utils/sub_matrix_inverse","weights"]
+    to_excl = [] #"cross_validation","fit_ct","fit_fold", "fit_loo","optimizers","optimizers/cd_line_search","tensor","utils/ols_model","utils/penalty_utils","utils/print_progress","utils/sub_matrix_inverse","weights"]
     #Locally could wrap each to_excl with "*" "*" and put in the apidoc cmd and end and works as exclude patterns, but doesn't work on RTD
     #with capture() as out: #doesn't have quiet option
     apidoc_main([None, '-f', '-e', '-o', buildapidocdir, module])
