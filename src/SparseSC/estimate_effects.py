@@ -518,8 +518,9 @@ class SparseSCEstResults(object):
     
     def get_tr_time_info(self, treatment_period):
         """ Returns treatment info:
-            a) indexes for the time index (helpful if user used an np datetime index)
-            b) treatment period used in the call to fit (helpful if model is a prospective type)
+        a) indexes for the time index (helpful if user used an np datetime index)
+        b) treatment period used in the call to fit (helpful if model is a prospective type)
+        
         :param treatment_period: treatment period in the user's view (could be TimeIndex)
         :returns: (reatment_period_idx, treatment_period_idx_fit, treatment_period_fit)
         """
