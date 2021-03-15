@@ -1,12 +1,14 @@
 #On Windows can use 'nmake'
-#  Incl w/ VS 2015 or VS 2017 (w/ "Desktop development with C++" components)
+#  Incl w/ VS (w/ "Desktop development with C++" components)
 #  Incl in path or use the "Developer Command Prompt for VS...."
+#  If manually including the folder in path, this can change when VS's MSVC version gets bumped.
+#    So to always get it you can run (or change for your system):
+#    "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
 #  Can run 'nmake /NOLOGO ...' to remove logo output.
 #nmake can't do automatic (pattern) rules like make (has inference rules which aren't cross-platform)
 
 # For linux, can use Anaconda or if using virtualenv, install virtualenvwrapper 
 # and alias activate->workon.
-# TO DO: make activate read the env variables.
 
 help:
 	@echo "Use one of the common targets: pylint, package, readmedocs, htmldocs"
