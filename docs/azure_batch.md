@@ -15,7 +15,8 @@ can be installed with:
 pip install git+https://github.com/jdthorpe/batch-config.git
 ```
 
-Also note that this module has only been tested with Python 3.7
+Also note that this module has only been tested with Python 3.7. 
+You will also need `pyyaml` and `psutil`.
 
 ### Create the Required Azure resources
 

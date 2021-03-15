@@ -8,7 +8,7 @@ conda env create -f test/SparseSC_36.yml
 ```
 You can can do `update` rather than `create` to update existing ones (to avoid [potential bugs](https://stackoverflow.com/a/46114295/3429373) make sure the env isn't currently active).
 
-Note: When regenerating these files (`conda env export > test/SparseSC_*.yml`) make sure to remove the final `prefix` line since that's computer specific.
+Note: When regenerating these files (`conda env export > test/SparseSC_*.yml`) make sure to remove the final `prefix` line since that's computer specific. You can do this automatically on Linux by inserting `| grep -v "prefix"` and on Windows by inserting `| findstr -v "prefix"`.
 
 ## Building the docs
 Requires Python >=3.6 and packages: `sphinx`, `recommonmark`, `sphinx-markdown-tables`. 
