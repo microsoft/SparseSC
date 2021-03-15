@@ -35,7 +35,7 @@ def get_max_v_pen(X, Y, w_pen=None, X_treat=None, Y_treat=None, **kwargs):
     matrix (V) are not all zero conditional on the provided w_pen.  If w_pen is
     not provided, a guestimate is used.
 
-    Provides a unified wrapper to the various *_v_matrix functions, passing the
+    Provides a unified wrapper to the various \*_v_matrix functions, passing the
     parameter ``return_max_v_pen = True`` in order to obtain the gradient
     instead of he matrix
     """
