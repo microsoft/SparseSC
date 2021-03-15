@@ -4,3 +4,6 @@ scipy>=0.19.1
 Sphinx==1.6.3
 sphinx-markdown-tables==0.0.15
 statsmodels>=0.8.0
+pyyaml>=5.4.1
+psutil>=5.8.0
+git+git://github.com/jdthorpe/batch-config@7eae164#egg=batch-config
