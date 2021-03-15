@@ -5,10 +5,10 @@ gradient level batching
 from __future__ import print_function
 import datetime
 import azure.storage.blob as azureblob
-import azure.batch.batch_service_client as batch
+from azure.batch import BatchServiceClient
 import azure.batch.batch_auth as batch_auth
 import azure.batch.models as models
-from .BatchConfig import BatchConfig, validate_config
+from super_batch import BatchConfig
 
 # from .azure_batch_client import (
 #     build_output_sas_url,
@@ -39,9 +39,6 @@ class gradient_batch_client:
 
     def __init__(self, config: BatchConfig, common_data, K, verbose=True):
 
-        # replace any missing values in the configuration with environment variables
-        config = validate_config(config)
-
         self.config = config
         self.K = K
 
@@ -61,7 +58,7 @@ class gradient_batch_client:
             config.BATCH_ACCOUNT_NAME, config.BATCH_ACCOUNT_KEY
         )
 
-        self.batch_client = batch.BatchServiceClient(
+        self.batch_client = BatchServiceClient(
             self.credentials, batch_url=config.BATCH_ACCOUNT_URL
         )
 
@@ -149,7 +146,7 @@ class gradient_batch_client:
             )
 
             if self.config.REGISTRY_USERNAME:
-                registry = batch.models.ContainerRegistry(
+                registry = models.ContainerRegistry(
                     user_name=self.config.REGISTRY_USERNAME,
                     password=self.config.REGISTRY_PASSWORD,
                     registry_server=self.config.REGISTRY_SERVER,
@@ -163,7 +160,7 @@ class gradient_batch_client:
                 )
 
             tasks.append(
-                batch.models.TaskAddParameter(
+                models.TaskAddParameter(
                     id="grad_part_{}".format(i),
                     command_line=command_line,
                     resource_files=[self.common_file, part_file],
@@ -180,7 +177,7 @@ class gradient_batch_client:
 
         :rtype: `azure.batch.models.ResourceFile`
         :return: A ResourceFile initialized with a SAS URL appropriate for Batch
-        tasks.
+            tasks.
         """
         # where to store the outputs
         container_dest = models.OutputFileBlobContainerDestination(
@@ -212,7 +209,7 @@ class gradient_batch_client:
         :param str file_path: The local path to the file.
         :rtype: `azure.batch.models.ResourceFile`
         :return: A ResourceFile initialized with a SAS URL appropriate for Batch
-        tasks.
+            tasks.
         """
         # print("Uploading file {} to container [{}]...".format(blob_name, container_name))
 

@@ -29,8 +29,7 @@ my_config = BatchConfig(
     JOB_ID="my-job" + _TIMESTAMP,
     DELETE_JOB_WHEN_DONE=False,
     CONTAINER_NAME="my-blob-container",
-    BATCH_DIRECTORY=BATCH_DIR,
-)
+    BATCH_DIRECTORY=BATCH_DIR)
 
 run(my_config)
 
@@ -48,13 +47,13 @@ import pathlib
 import importlib
 from collections import defaultdict
 import azure.storage.blob as azureblob
-from azure.storage.blob.models import ContainerPermissions
-import azure.batch.batch_service_client as batch
+from azure.storage.blob import ContainerSasPermissions as ContainerPermissions
+from azure.batch import BatchServiceClient
 import azure.batch.batch_auth as batch_auth
 import azure.batch.models as models
 from SparseSC.cli.stt import get_config
 from ..print_progress import print_progress
-from .BatchConfig import BatchConfig, validate_config
+from super_batch import BatchConfig
 
 from yaml import load
 
@@ -128,7 +127,7 @@ def build_output_file(container_sas_url, fold_number):
 
     :rtype: `azure.batch.models.ResourceFile`
     :return: A ResourceFile initialized with a SAS URL appropriate for Batch
-    tasks.
+        tasks.
     """
     # where to store the outputs
     container_dest = models.OutputFileBlobContainerDestination(
@@ -159,7 +158,7 @@ def upload_file_to_container(block_blob_client, container_name, file_path, durat
     :param str file_path: The local path to the file.
     :rtype: `azure.batch.models.ResourceFile`
     :return: A ResourceFile initialized with a SAS URL appropriate for Batch
-    tasks.
+        tasks.
     """
     blob_name = os.path.basename(file_path)
 
@@ -204,23 +203,23 @@ def create_pool(config, batch_service_client):
     )
 
     if config.REGISTRY_USERNAME:
-        registry = batch.models.ContainerRegistry(
+        registry = models.ContainerRegistry(
             user_name=config.REGISTRY_USERNAME,
             password=config.REGISTRY_PASSWORD,
             registry_server=config.REGISTRY_SERVER,
         )
-        container_conf = batch.models.ContainerConfiguration(
+        container_conf = models.ContainerConfiguration(
             container_image_names=[config.DOCKER_CONTAINER],
             container_registries=[registry],
         )
     else:
-        container_conf = batch.models.ContainerConfiguration(
+        container_conf = models.ContainerConfiguration(
             container_image_names=[config.DOCKER_CONTAINER]
         )
 
-    new_pool = batch.models.PoolAddParameter(
+    new_pool = models.PoolAddParameter(
         id=config.POOL_ID,
-        virtual_machine_configuration=batch.models.VirtualMachineConfiguration(
+        virtual_machine_configuration=models.VirtualMachineConfiguration(
             image_reference=image_ref_to_use,
             container_configuration=container_conf,
             node_agent_sku_id="batch.node.ubuntu 16.04",
@@ -243,8 +242,8 @@ def create_job(batch_service_client, job_id, pool_id):
     """
     print("Creating job [{}]...".format(job_id))
 
-    job_description = batch.models.JobAddParameter(
-        id=job_id, pool_info=batch.models.PoolInformation(pool_id=pool_id)
+    job_description = models.JobAddParameter(
+        id=job_id, pool_info=models.PoolInformation(pool_id=pool_id)
     )
 
     batch_service_client.job.add(job_description)
@@ -267,7 +266,7 @@ def add_tasks(
     :param str job_id: The ID of the job to which to add the tasks.
     :param list input_files: The input files
     :param output_container_sas_token: A SAS token granting write access to
-    the specified Azure Blob storage container.
+        the specified Azure Blob storage container.
     """
 
     print("Adding {} tasks to job [{}]...".format(count, job_id))
@@ -286,7 +285,7 @@ def add_tasks(
         )
 
         tasks.append(
-            batch.models.TaskAddParameter(
+            models.TaskAddParameter(
                 id="Task_{}".format(fold_number),
                 command_line=command_line,
                 resource_files=[_input_file],
@@ -306,8 +305,8 @@ def wait_for_tasks_to_complete(batch_service_client, job_id, timeout):
     :type batch_service_client: `azure.batch.BatchServiceClient`
     :param str job_id: The id of the job whose tasks should be to monitored.
     :param timedelta timeout: The duration to wait for task completion. If all
-    tasks in the specified job do not reach Completed state within this time
-    period, an exception will be raised.
+        tasks in the specified job do not reach Completed state within this time
+        period, an exception will be raised.
     """
 
     _start_time = datetime.datetime.now()
@@ -444,9 +443,6 @@ def run(config: BatchConfig, wait=True) -> None:
     """
     # pylint: disable=too-many-locals
 
-    # replace any missing values in the configuration with environment variables
-    config = validate_config(config)
-
     start_time = datetime.datetime.now().replace(microsecond=0)
 
     print(
@@ -485,7 +481,7 @@ def run(config: BatchConfig, wait=True) -> None:
         config.BATCH_ACCOUNT_NAME, config.BATCH_ACCOUNT_KEY
     )
 
-    batch_client = batch.BatchServiceClient(
+    batch_client = BatchServiceClient(
         credentials, batch_url=config.BATCH_ACCOUNT_URL
     )
 
@@ -554,8 +550,6 @@ def load_results(config: BatchConfig) -> None:
     """
     # pylint: disable=too-many-locals
 
-    # replace any missing values in the configuration with environment variables
-    config = validate_config(config)
     start_time = datetime.datetime.now().replace(microsecond=0)
     print('Load result for job "{}" start time: {}'.format(config.JOB_ID, start_time))
     print()
@@ -578,7 +572,7 @@ def load_results(config: BatchConfig) -> None:
         config.BATCH_ACCOUNT_NAME, config.BATCH_ACCOUNT_KEY
     )
 
-    batch_client = batch.BatchServiceClient(
+    batch_client = BatchServiceClient(
         credentials, batch_url=config.BATCH_ACCOUNT_URL
     )
 
