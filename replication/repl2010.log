@@ -1,0 +1,1198 @@
+-----------------------------------------------------------------------------------------------
+      name:  repl2010
+       log:  F:\bquist\GitHub\SparseSC\replication\repl2010.log
+  log type:  text
+ opened on:  22 Jan 2021, 10:31:41
+
+. 
+. use smoking.dta, replace
+(Tobacco Sales in 39 US States)
+
+. tsset state year
+       panel variable:  state (strongly balanced)
+        time variable:  year, 1970 to 2000
+                delta:  1 unit
+
+. set seed 1337
+
+. loc vmatdir "vmats/"
+
+. loc dta_dir "dta_dir/"
+
+. 
+. cap program drop show_summ
+
+. program show_summ
+  1.         cap mat li e(failed_opt_targets)
+  2.         if _rc==0 {
+  3.                 mat li e(failed_opt_targets)
+  4.         }
+  5.         di "Pre: Bias and MSE"
+  6.         ttest effect==0 if state!=3 & year<1989
+  7.         gen pre_mspe = pre_rmspe^2
+  8.         summ pre_mspe if (state!=3) 
+  9.         drop pre_mspe
+ 10.         
+.         di "Pre: Bias and MSE (dropping NH outlier)"
+ 11.         ttest effect==0 if state!=3 & state!=22 & year<1989
+ 12.         gen pre_mspe = pre_rmspe^2
+ 13.         summ pre_mspe if (state!=3 &  state!=22) 
+ 14.         drop pre_mspe
+ 15. 
+.         di "Post: Bias and MSE"
+ 16.         ttest effect==0 if state!=3 & year>=1989
+ 17.         gen post_mspe = post_rmspe^2
+ 18.         summ post_mspe if state!=3
+ 19.         drop post_mspe
+ 20.         
+.         di "Post: Bias and MSE (dropping NH outlier)"
+ 21.         ttest effect==0 if state!=3 &  state!=22 & year>=1989
+ 22.         gen post_mspe = post_rmspe^2
+ 23.         summ post_mspe if state!=3 &  state!=22
+ 24.         drop post_mspe
+ 25. end
+
+. 
+. cap program drop show_summ_xf
+
+. program show_summ_xf
+  1.         gen spe = effect^2
+  2.         di "Pre: Bias and MSE"
+  3.         ttest effect==0 if state!=3 & year<1989
+  4.         summ spe if year<1989 & state!=3 
+  5.         
+.         di "Pre: Bias and MSE (dropping NH outlier)"
+  6.         ttest effect==0 if state!=3 & state!=22 & year<1989
+  7.         summ spe if year<1989 & state!=3 & state!=22
+  8. 
+.         di "Post: Bias and MSE"
+  9.         ttest effect==0 if state!=3 & year>=1989
+ 10.         summ spe if year>=1989 & state!=3
+ 11.         
+.         di "Post: Bias and MSE (dropping NH outlier)"
+ 12.         ttest effect==0 if state!=3 &  state!=22 & year>=1989
+ 13.         summ spe if year>=1989 & state!=3 &  state!=22
+ 14.         
+.         drop spe
+ 15. end
+
+. 
+. cap prog drop run_synth_xf_Vs_file
+
+. program run_synth_xf_Vs_file
+  1.         syntax , fname(string)
+  2.         qui gen cigsale_synth = .
+  3.         file open myfile using "`fname'", read
+  4.         file read myfile line
+  5.         while r(eof)==0 {
+  6.                 gettoken c_num V_names : line
+  7.                 file read myfile line
+  8.                 gettoken c_num V_values : line
+  9.                 if `c_num'!=3 {
+ 10.                         //tempfile soutput //This was causing errors in my current setup f
+> or some reason
+.                         local soutput "temp_gen.dta"
+ 11.                         preserve
+ 12.                         //di "Running for: `c_num'"
+.                         qui drop if state==3
+ 13.                         qui synth cigsale `V_names', xperiod(1980(1)1988) trunit(`c_num') 
+> trperiod(1989) customV(`V_values') keep(`soutput') replace
+ 14.                         restore
+ 15.                         get_synth_cf , trunit(`c_num') fname(`soutput')
+ 16.                 }
+ 17.                 
+.                 file read myfile line
+ 18.         }
+ 19.         file close myfile
+ 20.         
+.         qui gen effect = cigsale - cigsale_synth
+ 21.         //Don't make pre_rmspe post_rmspe lead (will get in summary)
+. end
+
+. 
+. //merge in the keep file from synth
+. cap prog drop get_synth_cf
+
+. prog get_synth_cf
+  1.         syntax, trunit(string) fname(string)
+  2.         
+.         preserve
+  3.         qui use `fname', clear
+  4.         qui drop if missing(_time)
+  5.         keep _time _Y_synthetic
+  6.         rename _time year
+  7.         gen state=`trunit'
+  8.         qui save `fname', replace
+  9.         restore
+ 10.         
+.         qui merge 1:1 state year using `fname', keep(match master)
+ 11.         qui replace cigsale_synth = _Y_synthetic if state==`trunit'
+ 12.         drop _Y_synthetic _merge
+ 13. end
+
+. 
+. //Get the V for a synth_runner execution from a file
+. cap program drop run_synth_V_file
+
+. program run_synth_V_file
+  1.         syntax, fname(string)
+  2. 
+.         file open myfile using "`fname'", read
+  3.         file read myfile V_names
+  4.         file read myfile V_values
+  5.         file close myfile
+  6. 
+.         synth_runner cigsale `V_names', trunit(3) trperiod(1989) customV(`V_values') gen_vars
+  7. 
+. end
+
+. 
+. 
+. //The results from nested most closely match the paper (and allopt doesn't change anything) s
+> o use nested
+. /*
+> synth cigsale beer(1984(1)1988) lnincome retprice age15to24 cigsale(1988) cigsale(1980) cigsa
+> le(1975), xperiod(1980(1)1988)  trunit(3) trperiod(1989) 
+> synth cigsale beer(1984(1)1988) lnincome retprice age15to24 cigsale(1988) cigsale(1980) cigsa
+> le(1975), xperiod(1980(1)1988)  trunit(3) trperiod(1989) nested
+> synth cigsale beer(1984(1)1988) lnincome retprice age15to24 cigsale(1988) cigsale(1980) cigsa
+> le(1975), xperiod(1980(1)1988)  trunit(3) trperiod(1989) nested allopt
+> */
+. 
+. 
+. // ----------- Fast Version --------------//
+. /*
+> synth_runner cigsale beer(1984(1)1988) lnincome retprice age15to24 cigsale(1988) cigsale(1980
+> ) cigsale(1975), xperiod(1980(1)1988) trunit(3) trperiod(1989) gen_vars
+> show_summ
+> //174.8333
+> 
+> //152.2567
+> rename (pre_rmspe post_rmspe lead effect cigsale_synth) fast_=
+> */
+. 
+. // ----------- V from SparseSC Fast --------------//
+. // Full-sample V
+. run_synth_V_file , fname("`vmatdir'fast_fit.txt")
+Estimating the treatment effects
+Estimating the possible placebo effects (one set for each of the 1 treatment periods)
+|                                    | Total: 38
+.....................................| 30.00s elapsed. 
+
+Conducting inference: 5 steps, and 38 placebo averages
+Step 1... Finished
+Step 2... Finished
+Step 3... Finished
+Step 4... Finished
+Step 5... Finished
+
+Post-treatment results: Effects, p-values, standardized p-values
+
+             | estimates      pvals  pvals_std 
+-------------+---------------------------------
+          c1 |  -24.4544   .1578947   .0263158 
+          c2 |  -23.2838   .1578947   .0526316 
+          c3 |  -25.6231   .1578947   .0263158 
+          c4 |  -25.2776   .1315789   .0263158 
+          c5 |  -26.3804   .1315789   .0526316 
+          c6 |  -30.5502   .1315789   .0263158 
+          c7 |  -33.6488   .1315789   .0526316 
+          c8 |  -33.4208   .1315789   .0526316 
+          c9 |  -36.1016   .1052632   .0789474 
+         c10 |  -34.6465   .1315789   .0263158 
+         c11 |  -37.3505   .1315789   .1315789 
+         c12 |  -39.1245   .1052632   .1052632 
+
+. show_summ
+Pre: Bias and MSE
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     722   -1.026059    1.253262    33.67522   -3.486537     1.43442
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =  -0.8187
+Ho: mean = 0                                     degrees of freedom =      721
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.2066         Pr(|T| > |t|) = 0.4132          Pr(T > t) = 0.7934
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+    pre_mspe |      1,178    1133.947    2781.265   7.427443   13156.69
+Pre: Bias and MSE (dropping NH outlier)
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     703   -3.830273     1.09704    29.08709   -5.984146     -1.6764
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =  -3.4915
+Ho: mean = 0                                     degrees of freedom =      702
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.0003         Pr(|T| > |t|) = 0.0005          Pr(T > t) = 0.9997
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+    pre_mspe |      1,147    859.8917    2255.694   7.427443   13156.69
+Post: Bias and MSE
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     456    2.462087    1.031574     22.0284    .4348465    4.489328
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =   2.3867
+Ho: mean = 0                                     degrees of freedom =      455
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.9913         Pr(|T| > |t|) = 0.0174          Pr(T > t) = 0.0087
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+   post_mspe |      1,178    490.2479    990.4479   3.596051   3877.148
+Post: Bias and MSE (dropping NH outlier)
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     444    1.248633    .9942084    20.94927   -.7053182    3.202584
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =   1.2559
+Ho: mean = 0                                     degrees of freedom =      443
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.8951         Pr(|T| > |t|) = 0.2098          Pr(T > t) = 0.1049
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+   post_mspe |      1,147    439.4426    953.5998   3.596051   3877.148
+
+. rename (pre_rmspe post_rmspe lead effect cigsale_synth) spfast_=
+
+. /*
+> loc sparseSC_fast_V = "0.51300713   22.96821089   66.11994103   20.37246761    0.39536433  14
+> 6.42793943    0.4007635     1.09141769    1.6124491"
+> loc sparseSC_fast_preds = "beer(1986) lnincome(1985) lnincome(1987) lnincome(1988) retprice(1
+> 985) age15to24(1988) cigsale(1986) cigsale(1987) cigsale(1988)"
+> synth_runner cigsale `sparseSC_fast_preds', trunit(3) trperiod(1989) customV(`sparseSC_fast_V
+> ') gen_vars
+> show_summ
+> //17, 34
+> 
+> //251.1117
+> 
+> //217.9936
+> */
+. // XF V
+. run_synth_xf_Vs_file , fname("`vmatdir'xf_fits_fast.txt")
+
+. show_summ_xf
+(62 missing values generated)
+Pre: Bias and MSE
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     703   -3.573777    1.172707    31.09333    -5.87621   -1.271343
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =  -3.0475
+Ho: mean = 0                                     degrees of freedom =      702
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.0012         Pr(|T| > |t|) = 0.0024          Pr(T > t) = 0.9988
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+         spe |        703    978.1917    2946.826   3.58e-06   22155.76
+Pre: Bias and MSE (dropping NH outlier)
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     684   -6.545546    .9731554    25.45132   -8.456282   -4.634811
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =  -6.7261
+Ho: mean = 0                                     degrees of freedom =      683
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.0000         Pr(|T| > |t|) = 0.0000          Pr(T > t) = 1.0000
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+         spe |        684    689.6666    2254.685   3.58e-06    21707.9
+Post: Bias and MSE
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     444     1.52136    .9161877    19.30527   -.2792541    3.321975
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =   1.6605
+Ho: mean = 0                                     degrees of freedom =      443
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.9512         Pr(|T| > |t|) = 0.0975          Pr(T > t) = 0.0488
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+         spe |        444    374.1687    969.3396    .000841   6207.107
+Post: Bias and MSE (dropping NH outlier)
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     432   -.0353522    .8160674    16.96164   -1.639319    1.568615
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =  -0.0433
+Ho: mean = 0                                     degrees of freedom =      431
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.4827         Pr(|T| > |t|) = 0.9655          Pr(T > t) = 0.5173
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+         spe |        432    287.0326    779.7084    .000841   5163.571
+
+. rename (effect cigsale_synth) spfast_xf_=
+
+. 
+. // XF2 V
+. run_synth_xf_Vs_file , fname("`vmatdir'xf_fits_fast2.txt")
+
+. show_summ_xf
+(62 missing values generated)
+Pre: Bias and MSE
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     703   -3.876346    1.053737    27.93894   -5.945199   -1.807492
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =  -3.6787
+Ho: mean = 0                                     degrees of freedom =      702
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.0001         Pr(|T| > |t|) = 0.0003          Pr(T > t) = 0.9999
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+         spe |        703       794.5    2647.984   .0006451   20265.92
+Pre: Bias and MSE (dropping NH outlier)
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     684    -6.66546    .8543875    22.34513   -8.343002   -4.987919
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =  -7.8014
+Ho: mean = 0                                     degrees of freedom =      683
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.0000         Pr(|T| > |t|) = 0.0000          Pr(T > t) = 1.0000
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+         spe |        684    543.0033     2084.73   .0006451   20265.92
+Post: Bias and MSE
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     444    .4773884    .8894174    18.74119   -1.270613     2.22539
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =   0.5367
+Ho: mean = 0                                     degrees of freedom =      443
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.7041         Pr(|T| > |t|) = 0.5917          Pr(T > t) = 0.2959
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+         spe |        444     350.669    907.2998   .0012247   6281.243
+Post: Bias and MSE (dropping NH outlier)
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     432   -1.067514    .7850595    16.31715   -2.610535    .4755074
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =  -1.3598
+Ho: mean = 0                                     degrees of freedom =      431
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.0873         Pr(|T| > |t|) = 0.1746          Pr(T > t) = 0.9127
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+         spe |        432    266.7728    709.8523   .0012247   4678.587
+
+. rename (effect cigsale_synth) spfast_xf2_=
+
+. 
+. 
+. // ----------- Flat V (I_55) V (all potential variables) --------------//
+. loc sparseSC_full_flatV = "1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 
+> 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1"
+
+. loc sparseSC_full_flatpreds = "beer lnincome retprice age15to24 beer(1984) beer(1985) beer(19
+> 86) beer(1987) beer(1988) lnincome(1980) lnincome(1981) lnincome(1982) lnincome(1983) lnincom
+> e(1984) lnincome(1985) lnincome(1986) lnincome(1987) lnincome(1988) retprice(1980) retprice(1
+> 981) retprice(1982) retprice(1983) retprice(1984) retprice(1985) retprice(1986) retprice(1987
+> ) retprice(1988) age15to24(1980) age15to24(1981) age15to24(1982) age15to24(1983) age15to24(19
+> 84) age15to24(1985) age15to24(1986) age15to24(1987) age15to24(1988) cigsale(1970) cigsale(197
+> 1) cigsale(1972) cigsale(1973) cigsale(1974) cigsale(1975) cigsale(1976) cigsale(1977) cigsal
+> e(1978) cigsale(1979) cigsale(1980) cigsale(1981) cigsale(1982) cigsale(1983) cigsale(1984) c
+> igsale(1985) cigsale(1986) cigsale(1987) cigsale(1988)"
+
+. 
+. synth_runner cigsale `sparseSC_full_flatpreds', trunit(3) trperiod(1989) customV(`sparseSC_fu
+> ll_flatV') gen_vars
+Estimating the treatment effects
+Estimating the possible placebo effects (one set for each of the 1 treatment periods)
+|                                    | Total: 38
+.....................................| 2.47m elapsed. 
+
+Conducting inference: 5 steps, and 38 placebo averages
+Step 1... Finished
+Step 2... Finished
+Step 3... Finished
+Step 4... Finished
+Step 5... Finished
+
+Post-treatment results: Effects, p-values, standardized p-values
+
+             | estimates      pvals  pvals_std 
+-------------+---------------------------------
+          c1 |  -15.5142   .1578947   .1052632 
+          c2 |  -14.1871   .1842105   .2368421 
+          c3 |  -19.7281   .0789474   .0789474 
+          c4 |  -18.8029   .1842105   .1315789 
+          c5 |  -21.7759   .0526316   .1315789 
+          c6 |  -25.4732   .0789474   .0526316 
+          c7 |  -26.9065   .1052632   .1578947 
+          c8 |  -26.6642   .1578947   .1578947 
+          c9 |  -27.1253   .1315789   .2105263 
+         c10 |  -27.5813   .1315789   .2105263 
+         c11 |  -30.0268   .1315789   .2105263 
+         c12 |  -32.4816   .0789474   .1315789 
+
+. show_summ
+Pre: Bias and MSE
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     722   -.3902378    .5631836    15.13278   -1.495913    .7154379
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =  -0.6929
+Ho: mean = 0                                     degrees of freedom =      721
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.2443         Pr(|T| > |t|) = 0.4886          Pr(T > t) = 0.7557
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+    pre_mspe |      1,178    228.5252    749.7708    5.65527   4410.413
+Pre: Bias and MSE (dropping NH outlier)
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     703   -2.115768    .3982737    10.55989   -2.897718   -1.333817
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =  -5.3123
+Ho: mean = 0                                     degrees of freedom =      702
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.0000         Pr(|T| > |t|) = 0.0000          Pr(T > t) = 1.0000
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+    pre_mspe |      1,147    115.5012    302.5082    5.65527    1816.68
+Post: Bias and MSE
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     456    .3554428    .7704108    16.45147   -1.158562    1.869448
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =   0.4614
+Ho: mean = 0                                     degrees of freedom =      455
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.6776         Pr(|T| > |t|) = 0.6448          Pr(T > t) = 0.3224
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+   post_mspe |      1,178    270.1838    455.2798   5.601509    2104.32
+Post: Bias and MSE (dropping NH outlier)
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     444   -.3307664    .7570711    15.95248   -1.818664    1.157131
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =  -0.4369
+Ho: mean = 0                                     degrees of freedom =      443
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.3312         Pr(|T| > |t|) = 0.6624          Pr(T > t) = 0.6688
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+   post_mspe |      1,147    254.0178    450.4967   5.601509    2104.32
+
+. //No failed targets. mat li e(failed_opt_targets) //
+. 
+. //mean=-.3902378, t-stat:-0.6929  (dof=721)
+. //228.5252
+. 
+. //mean=.3554428, t-stat:0.4614 (dof=455)
+. //270.1838
+. 
+. rename (pre_rmspe post_rmspe lead effect cigsale_synth) flat55_=
+
+. 
+. 
+. // ----------- Flat (I_7) V (all hand-picked variables)  --------------//
+. /*
+> synth_runner cigsale beer(1984(1)1988) lnincome retprice age15to24 cigsale(1988) cigsale(1980
+> ) cigsale(1975), xperiod(1980(1)1988) trunit(3) trperiod(1989) gen_vars customV(1 1 1 1 1 1 1
+> )
+> show_summ
+> // no failed targets. mat li e(failed_opt_targets)
+> 
+> //mean=-.7808893, t-stat: -1.3722 (dof=721)
+> //234.2147
+> 
+> 
+> //mean=.7111448, t-stat: 0.9186 (dof=455)
+> //273.183 
+> 
+> rename (pre_rmspe post_rmspe lead effect cigsale_synth) flat7_=
+> */
+. 
+. // ----------- V from SparseSC Full --------------//
+. // Full-sample V
+. run_synth_V_file , fname("`vmatdir'full_fit.txt")
+Estimating the treatment effects
+Estimating the possible placebo effects (one set for each of the 1 treatment periods)
+|                                    | Total: 38
+.....................................| 69.00s elapsed. 
+
+Conducting inference: 5 steps, and 38 placebo averages
+Step 1... Finished
+Step 2... Finished
+Step 3... Finished
+Step 4... Finished
+Step 5... Finished
+
+Post-treatment results: Effects, p-values, standardized p-values
+
+             | estimates      pvals  pvals_std 
+-------------+---------------------------------
+          c1 | -7.966796   .0789474   .0263158 
+          c2 | -9.078097   .2105263   .0789474 
+          c3 |  -12.7093   .1578947   .1052632 
+          c4 |  -14.0837   .1052632   .0789474 
+          c5 |  -17.9143   .0789474   .0526316 
+          c6 |  -22.6079   .0526316   .0526316 
+          c7 |  -23.5412   .0526316   .0789474 
+          c8 |   -24.545   .0526316   .0526316 
+          c9 |  -26.7405   .0789474   .0526316 
+         c10 |  -24.1234   .0526316   .0526316 
+         c11 |  -27.9608   .0526316   .0526316 
+         c12 |  -26.9564   .0789474   .0526316 
+
+. *loc sparseSC_full_V = "5.62581428e-06   1.67298271e-04   1.25447705e-04   2.83218864e-05 1.2
+> 0684653e-04   2.90538206e-05   1.68471635e-04   1.91157505e-04 1.95644283e-04   2.87258604e-0
+> 4   4.25739528e-04   4.62630652e-04 6.40482407e-04"
+. *loc sparseSC_full_preds = "cigsale(1976) cigsale(1977) cigsale(1978) cigsale(1979) cigsale(1
+> 980) cigsale(1981) cigsale(1982) cigsale(1983) cigsale(1984) cigsale(1985) cigsale(1986) cigs
+> ale(1987) cigsale(1988)"
+. *synth_runner cigsale `sparseSC_full_preds', trunit(3) trperiod(1989) customV(`sparseSC_full_
+> V') gen_vars
+. show_summ
+Pre: Bias and MSE
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     722    .6892171     .413273    11.10467   -.1221451    1.500579
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =   1.6677
+Ho: mean = 0                                     degrees of freedom =      721
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.9521         Pr(|T| > |t|) = 0.0958          Pr(T > t) = 0.0479
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+    pre_mspe |      1,178    123.5996    562.6347   .1964802   3485.457
+Pre: Bias and MSE (dropping NH outlier)
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     703    -.632696    .2146921    5.692379   -1.054212   -.2111804
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =  -2.9470
+Ho: mean = 0                                     degrees of freedom =      702
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.0017         Pr(|T| > |t|) = 0.0033          Pr(T > t) = 0.9983
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+    pre_mspe |      1,147    32.73863    105.4969   .1964802   593.7642
+Post: Bias and MSE
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     456   -.1888917     .590534    12.61035   -1.349404    .9716206
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =  -0.3199
+Ho: mean = 0                                     degrees of freedom =      455
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.3746         Pr(|T| > |t|) = 0.7492          Pr(T > t) = 0.6254
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+   post_mspe |      1,178     158.708    266.5802   3.124769   1483.746
+Post: Bias and MSE (dropping NH outlier)
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     444    .1742465    .5905848    12.44439   -.9864497    1.334943
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =   0.2950
+Ho: mean = 0                                     degrees of freedom =      443
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.6159         Pr(|T| > |t|) = 0.7681          Pr(T > t) = 0.3841
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+   post_mspe |      1,147    154.5445    268.9388   3.124769   1483.746
+
+. //22, 34
+. 
+. //mean=-.1812726, t-stat:-0.9543  (dof=683)
+. //24.69864
+. 
+. //mean=.3479216, t-stat:0.5997  (dof=431)
+. //145.1905
+. 
+. rename (pre_rmspe post_rmspe lead effect cigsale_synth) spfull_=
+
+. 
+. // XF V
+. run_synth_xf_Vs_file , fname("`vmatdir'xf_fits_full.txt")
+
+. show_summ_xf
+(62 missing values generated)
+Pre: Bias and MSE
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     703   -2.541612    .5921419    15.70014   -3.704194   -1.379031
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =  -4.2922
+Ho: mean = 0                                     degrees of freedom =      702
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.0000         Pr(|T| > |t|) = 0.0000          Pr(T > t) = 1.0000
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+         spe |        703    252.6035    990.1176   4.83e-06   13642.24
+Pre: Bias and MSE (dropping NH outlier)
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     684    -3.98999    .4637393    12.12836   -4.900516   -3.079465
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =  -8.6040
+Ho: mean = 0                                     degrees of freedom =      683
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.0000         Pr(|T| > |t|) = 0.0000          Pr(T > t) = 1.0000
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+         spe |        684     162.802    434.8996   4.83e-06    5512.56
+Post: Bias and MSE
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     444    2.032937    .6488111     13.6713    .7578065    3.308067
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =   3.1333
+Ho: mean = 0                                     degrees of freedom =      443
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.9991         Pr(|T| > |t|) = 0.0018          Pr(T > t) = 0.0009
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+         spe |        444    190.6163    288.5722   .0007344   1893.381
+Post: Bias and MSE (dropping NH outlier)
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     432     2.46788    .6482765    13.47417    1.193703    3.742056
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =   3.8068
+Ho: mean = 0                                     degrees of freedom =      431
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.9999         Pr(|T| > |t|) = 0.0002          Pr(T > t) = 0.0001
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+         spe |        432    187.2235    288.2255   .0007344   1893.381
+
+. rename (effect cigsale_synth) spfull_xf_=
+
+. 
+. // XF2 V
+. run_synth_xf_Vs_file , fname("`vmatdir'xf_fits_full2.txt")
+control units: for 37 of out 37 units missing obs for predictor beer in period 1980 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1981 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1982 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1983 -ignored fo
+> r averaging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1980 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1981 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1982 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1983 -ignored for a
+> veraging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1980 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1981 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1982 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1983 -ignored fo
+> r averaging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1980 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1981 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1982 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1983 -ignored for a
+> veraging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1980 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1981 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1982 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1983 -ignored fo
+> r averaging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1980 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1981 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1982 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1983 -ignored for a
+> veraging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1980 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1981 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1982 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1983 -ignored fo
+> r averaging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1980 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1981 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1982 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1983 -ignored for a
+> veraging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1980 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1981 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1982 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1983 -ignored fo
+> r averaging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1980 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1981 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1982 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1983 -ignored for a
+> veraging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1980 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1981 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1982 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1983 -ignored fo
+> r averaging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1980 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1981 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1982 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1983 -ignored for a
+> veraging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1980 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1981 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1982 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1983 -ignored fo
+> r averaging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1980 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1981 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1982 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1983 -ignored for a
+> veraging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1980 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1981 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1982 -ignored fo
+> r averaging
+control units: for 37 of out 37 units missing obs for predictor beer in period 1983 -ignored fo
+> r averaging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1980 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1981 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1982 -ignored for a
+> veraging
+treated unit: for 1 of out 1 units missing obs for predictor beer in period 1983 -ignored for a
+> veraging
+
+. show_summ_xf
+(62 missing values generated)
+Pre: Bias and MSE
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     703   -1.717791    .5445881    14.43929   -2.787008   -.6485749
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =  -3.1543
+Ho: mean = 0                                     degrees of freedom =      702
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.0008         Pr(|T| > |t|) = 0.0017          Pr(T > t) = 0.9992
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+         spe |        703    211.1473    982.2983   1.68e-06   13642.24
+Pre: Bias and MSE (dropping NH outlier)
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     684   -3.143286     .401888    10.51073    -3.93237   -2.354201
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =  -7.8213
+Ho: mean = 0                                     degrees of freedom =      683
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.0000         Pr(|T| > |t|) = 0.0000          Pr(T > t) = 1.0000
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+         spe |        684    120.1943    406.9065   1.68e-06   5464.613
+Post: Bias and MSE
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     444    1.319546    .6152703    12.96455    .1103349    2.528757
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =   2.1447
+Ho: mean = 0                                     degrees of freedom =      443
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.9837         Pr(|T| > |t|) = 0.0325          Pr(T > t) = 0.0163
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+         spe |        444    169.4422    253.7054    .000605   1902.269
+Post: Bias and MSE (dropping NH outlier)
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     432    1.734672    .6139374    12.76045    .5279888    2.941356
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =   2.8255
+Ho: mean = 0                                     degrees of freedom =      431
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.9975         Pr(|T| > |t|) = 0.0049          Pr(T > t) = 0.0025
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+         spe |        432    165.4612    251.9507    .000605   1902.269
+
+. rename (effect cigsale_synth) spfull_xf2_=
+
+. 
+. // ----------- Nested Version --------------//
+. synth_runner cigsale beer(1984(1)1988) lnincome retprice age15to24 cigsale(1988) cigsale(1980
+> ) cigsale(1975), xperiod(1980(1)1988) trunit(3) trperiod(1989) nested gen_vars
+Estimating the treatment effects
+Estimating the possible placebo effects (one set for each of the 1 treatment periods)
+|                                    | Total: 38
+................................x....| 24.60m elapsed. 
+
+Conducting inference: 5 steps, and 37 placebo averages
+Step 1... Finished
+Step 2... Finished
+Step 3... Finished
+Step 4... Finished
+Step 5... Finished
+
+Post-treatment results: Effects, p-values, standardized p-values
+
+             | estimates      pvals  pvals_std 
+-------------+---------------------------------
+          c1 | -7.565297   .1891892          0 
+          c2 | -9.672598   .2432432          0 
+          c3 |  -13.4457   .1891892   .0540541 
+          c4 |  -14.0759   .1351351          0 
+          c5 |  -17.7599   .0540541          0 
+          c6 |  -22.0971   .0810811          0 
+          c7 |  -22.0638   .0810811    .027027 
+          c8 |  -22.9494   .0810811          0 
+          c9 |  -23.8804   .1081081          0 
+         c10 |  -22.0508   .1081081    .027027 
+         c11 |  -26.3324   .1081081          0 
+         c12 |  -25.7202   .1081081    .027027 
+(31 missing values generated)
+
+. show_summ
+
+e(failed_opt_targets)[1,2]
+    tper  unit
+r1  1989    34
+Pre: Bias and MSE
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     703    1.076577    .4103861    10.88104    .2708454    1.882308
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =   2.6233
+Ho: mean = 0                                     degrees of freedom =      702
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.9956         Pr(|T| > |t|) = 0.0089          Pr(T > t) = 0.0044
+(31 missing values generated)
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+    pre_mspe |      1,147    119.3197    557.3717   1.227908   3436.595
+Pre: Bias and MSE (dropping NH outlier)
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     684   -.3477074    .1992741    5.211693   -.7389708    .0435559
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =  -1.7449
+Ho: mean = 0                                     degrees of freedom =      683
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.0407         Pr(|T| > |t|) = 0.0815          Pr(T > t) = 0.9593
+(31 missing values generated)
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+    pre_mspe |      1,116    27.17314    69.65753   1.227908   416.7761
+Post: Bias and MSE
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     444    .5225635    .6313586    13.30355   -.7182667    1.763394
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =   0.8277
+Ho: mean = 0                                     degrees of freedom =      443
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.7959         Pr(|T| > |t|) = 0.4083          Pr(T > t) = 0.2041
+(31 missing values generated)
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+   post_mspe |      1,147     176.859    340.2786   6.430727   1640.729
+Post: Bias and MSE (dropping NH outlier)
+
+One-sample t test
+------------------------------------------------------------------------------
+Variable |     Obs        Mean    Std. Err.   Std. Dev.   [95% Conf. Interval]
+---------+--------------------------------------------------------------------
+  effect |     432    .5290662     .642184    13.34754   -.7331357    1.791268
+------------------------------------------------------------------------------
+    mean = mean(effect)                                           t =   0.8239
+Ho: mean = 0                                     degrees of freedom =      431
+
+    Ha: mean < 0                 Ha: mean != 0                 Ha: mean > 0
+ Pr(T < t) = 0.7948         Pr(|T| > |t|) = 0.4105          Pr(T > t) = 0.2052
+(31 missing values generated)
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+   post_mspe |      1,116    178.0244    344.9035   6.430727   1640.729
+
+. //34
+. /*
+> //Utah=34 has an error with nested
+> //preserve
+> drop if state==3
+> synth cigsale beer(1984(1)1988) lnincome retprice age15to24 cigsale(1988) cigsale(1980) cigsa
+> le(1975), xperiod(1980(1)1988)  trunit(34) trperiod(1989) nested
+> //restore
+> 
+> Nested optimization requested
+> Starting nested optimization module
+> could not calculate numerical derivatives
+> flat or discontinuous region encountered
+> r(430);
+> */
+. //mean=1.076577, t-stat: 2.6233 (dof=702)
+. //119.3197
+. 
+. //mean=.5225635, t-stat: 0.8277 (dof=443)
+. //176.859
+. 
+. rename (pre_rmspe post_rmspe lead effect cigsale_synth) nested_=
+
+. 
+. // ----------- End --------------//
+. 
+. //save out
+. keep state year cigsale *effect
+
+. save "`dta_dir'smoking_statafits.dta", replace
+file dta_dir/smoking_statafits.dta saved
+
+. 
+. loc pe_varnames "nested flat55 spfast spfast_xf spfast_xf2 spfull spfull_xf spfull_xf2"
+
+. loc pe_titles `""Standard SC" "Standard SC (v=I_55)" "Standard SC (v=SparseSC Fast)" "Standar
+> d SC (v=SparseSC Fast XF)" "Standard SC (v=SparseSC Fast XF RE)" "Standard SC (v=SparseSC)" "
+> Standard SC (v=SparseSC XF)" "Standard SC (v=SparseSC XF RE)""'
+
+. 
+. //Show the max by year
+. preserve
+
+. drop if state==3
+(31 observations deleted)
+
+. foreach tname of local pe_varnames {
+  2.         qui replace `tname'_effect = abs(`tname'_effect)
+  3. }
+
+. collapse (max) *_effect, by(year)
+
+. 
+. summ *_effect if year<1989
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+spfast_eff~t |         19    111.2847    29.14114    63.6096   153.8752
+spfast_xf_~t |         19    108.0387    28.50031   60.58499   148.8481
+spfast_xf2~t |         19    103.7263    27.23861   58.62149   142.3584
+flat55_eff~t |         19    64.79315    18.16762   38.61101   104.7808
+spfull_eff~t |         19    50.96842    31.40161       21.5      116.8
+-------------+---------------------------------------------------------
+spfull_xf_~t |         19    50.96842    31.40161       21.5      116.8
+spfull_xf2~t |         19    50.96842    31.40161       21.5      116.8
+nested_eff~t |         19    52.59308     26.7738    19.9361   107.2941
+
+. summ *_effect if year>=1989
+
+    Variable |        Obs        Mean    Std. Dev.       Min        Max
+-------------+---------------------------------------------------------
+spfast_eff~t |         12    64.07946    7.374067    54.4536    77.1176
+spfast_xf_~t |         12    62.15937    10.58799   47.05699   78.78519
+spfast_xf2~t |         12    60.97731    10.97524    46.2094    79.2543
+flat55_eff~t |         12    47.61241    6.286261   37.98431    59.1263
+spfull_eff~t |         12    37.90604    7.438962   25.37601   51.74711
+-------------+---------------------------------------------------------
+spfull_xf_~t |         12    34.44316    6.195966       17.4     43.513
+spfull_xf2~t |         12    34.25971    6.118206       17.4   43.61501
+nested_eff~t |         12    42.61915    6.632433   25.36161   49.56561
+
+. restore
+
+. 
+. erase temp_gen.dta
+
+. log close repl2010
+      name:  repl2010
+       log:  F:\bquist\GitHub\SparseSC\replication\repl2010.log
+  log type:  text
+ closed on:  22 Jan 2021, 11:03:25
+-----------------------------------------------------------------------------------------------
