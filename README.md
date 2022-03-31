@@ -69,6 +69,9 @@ Parallelization
 
 To build the documentation see `docs/dev_notes.md`.
 
+## Citation
+Brian Quistorff, Matt Goldman, and Jason Thorpe (2020) [Sparse Synthetic Controls: Unit-Level Counterfactuals from High-Dimensional Data](https://drive.google.com/file/d/1lfH1CK_JZpc0ou7hP60FhQpkeoXhR6fC/view?usp=sharing), Microsoft Journal of Applied Research, 14, pp.155-170.
+
 ## Installation
 Currently you need to download the repo and build and install the package locally. The commands for building the package are in the makefile.
 
