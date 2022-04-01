@@ -1,8 +1,72 @@
 # [Sparse Synthetic Controls](https://sparsesc.readthedocs.io/en/latest/)
 
-### TL;DR:
+SparseSC is a package that implements an ML-enhanced version of Synthetic Control Methodologies, which introduces penalties on the both feature and unit weights.  Specifically it optimizes these two equations: 
 
-SparseSC is a package that implements an ML-enhanced version of Synthetic Control Methodologies. Typically this is used to estimate causal effects from binary treatments on observational panel (longitudinal) data. The functions `fit()` and `fit_fast()` provide basic fitting of the model. If you are estimating treatment effects, fitting and diagnostic information can be done via `estimate_effects()`.
+<img src="https://render.githubusercontent.com/render/math?math={\gamma_0 = \left \| Y_T - W\cdot Y_C \right \|_F^2 %2b \lambda_V \left \| V \right \|_1}#gh-light-mode-only">
+<img src="https://render.githubusercontent.com/render/math?math={\color{white}\gamma_0 = \left \| Y_T - W\cdot Y_C \right \|_F^2 %2b \lambda_V \left \| V \right \|_1}#gh-dark-mode-only">
+
+<img src="https://render.githubusercontent.com/render/math?math={\gamma_1 = \left \| X_T - W\cdot X_C \right \|_V %2b \lambda_W \left \| W - \frac{J}{c} \right \|_F^2}#gh-light-mode-only">
+<img src="https://render.githubusercontent.com/render/math?math={\color{white}\gamma_1 = \left \| X_T - W\cdot X_C \right \|_V %2b \lambda_W \left \| W - \frac{J}{c} \right \|_F^2}#gh-dark-mode-only">
+
+by optimizing 
+<img src="https://render.githubusercontent.com/render/math?math={\lambda_V}#gh-light-mode-only">
+<img src="https://render.githubusercontent.com/render/math?math={\color{white}\lambda_V}#gh-dark-mode-only">
+and 
+<img src="https://render.githubusercontent.com/render/math?math={\lambda_W}#gh-light-mode-only">
+<img src="https://render.githubusercontent.com/render/math?math={\color{white}\lambda_W}#gh-dark-mode-only">
+using cross validation within the control units in the usual way, and where:
+
+- <img src="https://render.githubusercontent.com/render/math?math={X_T}#gh-light-mode-only">
+  <img src="https://render.githubusercontent.com/render/math?math={\color{white}X_T}#gh-dark-mode-only">
+  and
+  <img src="https://render.githubusercontent.com/render/math?math={X_C}#gh-light-mode-only">
+  <img src="https://render.githubusercontent.com/render/math?math={\color{white}X_C}#gh-dark-mode-only">
+  are matrices of features (covariates and/or pre-treatement outcomes) for the treated and control units, respectively
+
+- <img src="https://render.githubusercontent.com/render/math?math={Y_T}#gh-light-mode-only">
+  <img src="https://render.githubusercontent.com/render/math?math={\color{white}Y_T}#gh-dark-mode-only">
+  and
+  <img src="https://render.githubusercontent.com/render/math?math={Y_C}#gh-light-mode-only">
+  <img src="https://render.githubusercontent.com/render/math?math={\color{white}Y_C}#gh-dark-mode-only">
+  are matrices of post-treatement outcomes on the treated and control units, respectively
+
+- <img src="https://render.githubusercontent.com/render/math?math={W}#gh-light-mode-only">
+  <img src="https://render.githubusercontent.com/render/math?math={\color{white}W}#gh-dark-mode-only">
+  is a matrix of weights such that 
+  <img src="https://render.githubusercontent.com/render/math?math={W \cdot (X_C \left |Y_C \right)}#gh-light-mode-only">
+  <img src="https://render.githubusercontent.com/render/math?math={\color{white}W \cdot (X_C \left |Y_C \right)}#gh-dark-mode-only">
+  forms a matrix of synthetic controls for all units
+
+- <img src="https://render.githubusercontent.com/render/math?math={V}#gh-light-mode-only">
+  <img src="https://render.githubusercontent.com/render/math?math={\color{white}V}#gh-dark-mode-only">
+  is a diagnoal matrix of weights applied to the covariates / pre-treatment outcomes.
+
+Note that all matrices are formated with one row per unit and one column per feature / outcome. Breaking down the two main equations, we have:
+
+- <img src="https://render.githubusercontent.com/render/math?math={\left \| Y_T - W\cdot Y_C \right \|_F^2}#gh-light-mode-only">
+  <img src="https://render.githubusercontent.com/render/math?math={\color{white}\left \| Y_T - W\cdot Y_C \right \|_F^2 }#gh-dark-mode-only"> 
+  is the out-of-sample squared prediction error (i.e. the squared Frobenius Norm), measured within the control units under cross validation
+
+- <img src="https://render.githubusercontent.com/render/math?math={\left \| V \right \|_1}#gh-light-mode-only">   
+  <img src="https://render.githubusercontent.com/render/math?math={\color{white}\left \| V \right \|_1}#gh-dark-mode-only">
+  represents how much the model depends on the features
+
+- <img src="https://render.githubusercontent.com/render/math?math={\left \| X_T - W\cdot X_C \right \|_V}#gh-light-mode-only">
+  <img src="https://render.githubusercontent.com/render/math?math={\color{white}\left \| X_T - W\cdot X_C \right \|_V}#gh-dark-mode-only"> 
+  is the difference between synthetic and observed units in the the feature space weighted by 
+  <img src="https://render.githubusercontent.com/render/math?math={V}#gh-light-mode-only">
+  <img src="https://render.githubusercontent.com/render/math?math={\color{white}V}#gh-dark-mode-only">. Specifically, 
+  <img src="https://render.githubusercontent.com/render/math?math={\left \| A \right \|_V = AVA^T}#gh-light-mode-only">
+  <img src="https://render.githubusercontent.com/render/math?math={\color{white}\left \| A \right \|_V = AVA^T}#gh-dark-mode-only">
+
+- <img src="https://render.githubusercontent.com/render/math?math={\left \| W - \frac{J}{c} \right \|_F^2}#gh-light-mode-only">
+  <img src="https://render.githubusercontent.com/render/math?math={\color{white}\left \| W - \frac{J}{c} \right \|_F^2}#gh-dark-mode-only"> is the difference between optimistic weights and simple (
+  <img src="https://render.githubusercontent.com/render/math?math={1/N_c}#gh-light-mode-only">
+  <img src="https://render.githubusercontent.com/render/math?math={\color{white}1/N_c}#gh-dark-mode-only">
+  ) weighted averages of the control units.
+
+
+Typically this is used to estimate causal effects from binary treatments on observational panel (longitudinal) data. The functions `fit()` and `fit_fast()` provide basic fitting of the model. If you are estimating treatment effects, fitting and diagnostic information can be done via `estimate_effects()`.
 
 Though the fitting methods do not require such structure, the typical setup is where we have panel data of an outcome variable `Y` for `T` time periods for `N` observation units (customer, computers, etc.). We may additionally have some baseline characteristics `X` about the units. In the treatment effect setting, we will also have a discrete change in treatment status (e.g. some policy change) at time, `T0`, for a select group of units. When there is treatment, we can think of the pre-treatment data as [`X`, `Y_pre`] and post-treatment data as [`Y_post`].
 
@@ -26,9 +90,11 @@ fitted_estimates.pl_res_post.avg_joint_effect.CI
 fitted_model = fitted_estimates.fit
 ```
 
+See [the docs](https://sparsesc.readthedocs.io/en/latest/) for more details
+
 ## Overview 
 
-See [here](https://en.wikipedia.org/wiki/Synthetic_control_method) for more info on Synthetic Controls. In essence, it is a type of matching estimator. For each unit it will find a weighted average of untreated units that is similar on key pre-treatment data. The goal of Synthetic controls is find out which variables are important to match on (the `V` matrix) and then, given those, to find a vector of per-unit weights that combine the control units into its synthtic control. The synthetic control acts as the counterfactual for a unit, and the estimate of a treatment effect is the difference between the observed outcome in the post-treatment period and the synthetic control's outcome.
+See [here](https://en.wikipedia.org/wiki/Synthetic_control_method) for more info on Synthetic Controls. In essence, it is a type of matching estimator. For each unit it will find a weighted average of untreated units that is similar on key pre-treatment data. The goal of Synthetic controls is find out which variables are important to match on (the `V` matrix) and then, given those, to find a vector of per-unit weights that combine the control units into its synthetic control. The synthetic control acts as the counterfactual for a unit, and the estimate of a treatment effect is the difference between the observed outcome in the post-treatment period and the synthetic control's outcome.
 
 SparseSC makes a number of changes to Synthetic Controls. It uses regularization and feature learning to avoid overfitting, ensure uniqueness of the solution, automate researcher decisions, and allow for estimation on large datasets. See the docs for more details.
 
