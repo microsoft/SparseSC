@@ -1,7 +1,5 @@
 # [Sparse Synthetic Controls](https://sparsesc.readthedocs.io/en/latest/)
 
-### TL;DR:
-
 SparseSC is a package that implements an ML-enhanced version of Synthetic Control Methodologies, which introduces penalties on the both feature and unit weights.  Specifically it optimizes these two equations: 
 
 <img src="https://render.githubusercontent.com/render/math?math={\gamma_0 = \left \| Y_T - W\cdot Y_C \right \|_F^2 %2b \lambda_V \left \| V \right \|_1}#gh-light-mode-only">
@@ -91,6 +89,8 @@ fitted_estimates.pl_res_post.avg_joint_effect.CI
 # access the fitted Synthetic Controls model:
 fitted_model = fitted_estimates.fit
 ```
+
+See [the docs](https://sparsesc.readthedocs.io/en/latest/) for more details
 
 ## Overview 
 
