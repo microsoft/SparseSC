@@ -43,6 +43,10 @@ using cross validation within the control units in the usual way, and where:
 
 [^1]: matrices are formated with one row per unit and one column per feature / outcome
 
+Here is a simple footnote[^2]. With some additional text after it.
+
+[^2]: My reference.
+
 Breaking down the two main equations, we have:
 
 - <img src="https://render.githubusercontent.com/render/math?math={\left \| Y_T - W\cdot Y_C \right \|_F^2}#gh-light-mode-only">
