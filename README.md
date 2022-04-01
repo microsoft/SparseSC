@@ -139,7 +139,14 @@ To build the documentation see `docs/dev_notes.md`.
 Brian Quistorff, Matt Goldman, and Jason Thorpe (2020) [Sparse Synthetic Controls: Unit-Level Counterfactuals from High-Dimensional Data](https://drive.google.com/file/d/1lfH1CK_JZpc0ou7hP60FhQpkeoXhR6fC/view?usp=sharing), Microsoft Journal of Applied Research, 14, pp.155-170.
 
 ## Installation
-Currently you need to download the repo and build and install the package locally. The commands for building the package are in the makefile.
+
+The easiest way to install `SparseSC` is with: 
+
+```sh
+pip install git+https://github.com/microsoft/SparseSC.git
+```
+
+Additional commands to run tests and examples are in the makefile.
 
 ## Contributing
 
