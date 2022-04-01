@@ -21,14 +21,14 @@ using cross validation within the control units in the usual way, and where:
   and
   <img src="https://render.githubusercontent.com/render/math?math={X_C}#gh-light-mode-only">
   <img src="https://render.githubusercontent.com/render/math?math={\color{white}X_C}#gh-dark-mode-only">
-  are covariates and/or pre-treatement outcomes on the treated and control units, respectively
+  are matrices[^1] of features (covariates and/or pre-treatement outcomes) for the treated and control units, respectively
 
 - <img src="https://render.githubusercontent.com/render/math?math={Y_T}#gh-light-mode-only">
   <img src="https://render.githubusercontent.com/render/math?math={\color{white}Y_T}#gh-dark-mode-only">
   and
   <img src="https://render.githubusercontent.com/render/math?math={Y_C}#gh-light-mode-only">
   <img src="https://render.githubusercontent.com/render/math?math={\color{white}Y_C}#gh-dark-mode-only">
-  are post-treatement outcomes on the treated and control units, respectively
+  are matrices[^1] of post-treatement outcomes on the treated and control units, respectively
 
 - <img src="https://render.githubusercontent.com/render/math?math={W}#gh-light-mode-only">
   <img src="https://render.githubusercontent.com/render/math?math={\color{white}W}#gh-dark-mode-only">
@@ -40,6 +40,8 @@ using cross validation within the control units in the usual way, and where:
 - <img src="https://render.githubusercontent.com/render/math?math={V}#gh-light-mode-only">
   <img src="https://render.githubusercontent.com/render/math?math={\color{white}V}#gh-dark-mode-only">
   is a diagnoal matrix of weights applied to the covariates / pre-treatment outcomes.
+
+[^1]: matrices are formated with one row per unit and one column per feature / outcome
 
 Breaking down the two main equations, we have:
 
