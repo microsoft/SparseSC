@@ -21,14 +21,14 @@ using cross validation within the control units in the usual way, and where:
   and
   <img src="https://render.githubusercontent.com/render/math?math={X_C}#gh-light-mode-only">
   <img src="https://render.githubusercontent.com/render/math?math={\color{white}X_C}#gh-dark-mode-only">
-  are matrices[^1] of features (covariates and/or pre-treatement outcomes) for the treated and control units, respectively
+  are matrices of features (covariates and/or pre-treatement outcomes) for the treated and control units, respectively
 
 - <img src="https://render.githubusercontent.com/render/math?math={Y_T}#gh-light-mode-only">
   <img src="https://render.githubusercontent.com/render/math?math={\color{white}Y_T}#gh-dark-mode-only">
   and
   <img src="https://render.githubusercontent.com/render/math?math={Y_C}#gh-light-mode-only">
   <img src="https://render.githubusercontent.com/render/math?math={\color{white}Y_C}#gh-dark-mode-only">
-  are matrices[^1] of post-treatement outcomes on the treated and control units, respectively
+  are matrices of post-treatement outcomes on the treated and control units, respectively
 
 - <img src="https://render.githubusercontent.com/render/math?math={W}#gh-light-mode-only">
   <img src="https://render.githubusercontent.com/render/math?math={\color{white}W}#gh-dark-mode-only">
@@ -41,17 +41,11 @@ using cross validation within the control units in the usual way, and where:
   <img src="https://render.githubusercontent.com/render/math?math={\color{white}V}#gh-dark-mode-only">
   is a diagnoal matrix of weights applied to the covariates / pre-treatment outcomes.
 
-[^1]: matrices are formated with one row per unit and one column per feature / outcome
-
-Here is a simple footnote[^2]. With some additional text after it.
-
-[^2]: My reference.
-
-Breaking down the two main equations, we have:
+Note that all matrices are formated with one row per unit and one column per feature / outcome. Breaking down the two main equations, we have:
 
 - <img src="https://render.githubusercontent.com/render/math?math={\left \| Y_T - W\cdot Y_C \right \|_F^2}#gh-light-mode-only">
   <img src="https://render.githubusercontent.com/render/math?math={\color{white}\left \| Y_T - W\cdot Y_C \right \|_F^2 }#gh-dark-mode-only"> 
-  is the squared prediction error (i.e. the [Frobenius Norm](https://en.wikipedia.org/wiki/Matrix_norm#Frobenius_norm)) within the control units under cross validation
+  is the out-of-sample squared prediction error (i.e. the squared Frobenius Norm), measured within the control units under cross validation
 
 - <img src="https://render.githubusercontent.com/render/math?math={\left \| V \right \|_1}#gh-light-mode-only">   
   <img src="https://render.githubusercontent.com/render/math?math={\color{white}\left \| V \right \|_1}#gh-dark-mode-only">
