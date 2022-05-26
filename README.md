@@ -2,68 +2,30 @@
 
 SparseSC is a package that implements an ML-enhanced version of Synthetic Control Methodologies, which introduces penalties on the both feature and unit weights.  Specifically it optimizes these two equations: 
 
-<img src="https://render.githubusercontent.com/render/math?math={\gamma_0 = \left \| Y_T - W\cdot Y_C \right \|_F^2 %2b \lambda_V \left \| V \right \|_1}#gh-light-mode-only">
-<img src="https://render.githubusercontent.com/render/math?math={\color{white}\gamma_0 = \left \| Y_T - W\cdot Y_C \right \|_F^2 %2b \lambda_V \left \| V \right \|_1}#gh-dark-mode-only">
+$$\gamma_0 = \left\Vert Y_T - W\cdot Y_C \right\Vert_F^2 + \lambda_V \left\Vert V \right\Vert_1 $$
 
-<img src="https://render.githubusercontent.com/render/math?math={\gamma_1 = \left \| X_T - W\cdot X_C \right \|_V %2b \lambda_W \left \| W - \frac{J}{c} \right \|_F^2}#gh-light-mode-only">
-<img src="https://render.githubusercontent.com/render/math?math={\color{white}\gamma_1 = \left \| X_T - W\cdot X_C \right \|_V %2b \lambda_W \left \| W - \frac{J}{c} \right \|_F^2}#gh-dark-mode-only">
+$$\gamma_1 = \left\Vert X_T - W\cdot X_C \right\Vert_V + \lambda_W \left\Vert W - J/c \right\Vert_F^2 $$
 
-by optimizing 
-<img src="https://render.githubusercontent.com/render/math?math={\lambda_V}#gh-light-mode-only">
-<img src="https://render.githubusercontent.com/render/math?math={\color{white}\lambda_V}#gh-dark-mode-only">
-and 
-<img src="https://render.githubusercontent.com/render/math?math={\lambda_W}#gh-light-mode-only">
-<img src="https://render.githubusercontent.com/render/math?math={\color{white}\lambda_W}#gh-dark-mode-only">
-using cross validation within the control units in the usual way, and where:
+by optimizing $\lambda_V$ and $\lambda_W$ using cross validation within the control units in the usual way, and where:
 
-- <img src="https://render.githubusercontent.com/render/math?math={X_T}#gh-light-mode-only">
-  <img src="https://render.githubusercontent.com/render/math?math={\color{white}X_T}#gh-dark-mode-only">
-  and
-  <img src="https://render.githubusercontent.com/render/math?math={X_C}#gh-light-mode-only">
-  <img src="https://render.githubusercontent.com/render/math?math={\color{white}X_C}#gh-dark-mode-only">
-  are matrices of features (covariates and/or pre-treatement outcomes) for the treated and control units, respectively
+- $X_T$ and $X_C$ are matrices of features (covariates and/or pre-treatement outcomes) for the treated and control units, respectively
 
-- <img src="https://render.githubusercontent.com/render/math?math={Y_T}#gh-light-mode-only">
-  <img src="https://render.githubusercontent.com/render/math?math={\color{white}Y_T}#gh-dark-mode-only">
-  and
-  <img src="https://render.githubusercontent.com/render/math?math={Y_C}#gh-light-mode-only">
-  <img src="https://render.githubusercontent.com/render/math?math={\color{white}Y_C}#gh-dark-mode-only">
-  are matrices of post-treatement outcomes on the treated and control units, respectively
+- $Y_T$ and $Y_C$ are matrices of post-treatement outcomes on the treated and control units, respectively
 
-- <img src="https://render.githubusercontent.com/render/math?math={W}#gh-light-mode-only">
-  <img src="https://render.githubusercontent.com/render/math?math={\color{white}W}#gh-dark-mode-only">
-  is a matrix of weights such that 
-  <img src="https://render.githubusercontent.com/render/math?math={W \cdot (X_C \left |Y_C \right)}#gh-light-mode-only">
-  <img src="https://render.githubusercontent.com/render/math?math={\color{white}W \cdot (X_C \left |Y_C \right)}#gh-dark-mode-only">
-  forms a matrix of synthetic controls for all units
+- $W$
+  is a matrix of weights such that $W \cdot (X_C \left |Y_C \right)$ forms a matrix of synthetic controls for all units
 
-- <img src="https://render.githubusercontent.com/render/math?math={V}#gh-light-mode-only">
-  <img src="https://render.githubusercontent.com/render/math?math={\color{white}V}#gh-dark-mode-only">
-  is a diagnoal matrix of weights applied to the covariates / pre-treatment outcomes.
+- $V$ is a diagnoal matrix of weights applied to the covariates / pre-treatment outcomes.
 
 Note that all matrices are formated with one row per unit and one column per feature / outcome. Breaking down the two main equations, we have:
 
-- <img src="https://render.githubusercontent.com/render/math?math={\left \| Y_T - W\cdot Y_C \right \|_F^2}#gh-light-mode-only">
-  <img src="https://render.githubusercontent.com/render/math?math={\color{white}\left \| Y_T - W\cdot Y_C \right \|_F^2 }#gh-dark-mode-only"> 
-  is the out-of-sample squared prediction error (i.e. the squared Frobenius Norm), measured within the control units under cross validation
+- $\left\Vert Y_T - W\cdot Y_C \right\Vert_F^2$ is the out-of-sample squared prediction error (i.e. the squared Frobenius Norm), measured within the control units under cross validation
 
-- <img src="https://render.githubusercontent.com/render/math?math={\left \| V \right \|_1}#gh-light-mode-only">   
-  <img src="https://render.githubusercontent.com/render/math?math={\color{white}\left \| V \right \|_1}#gh-dark-mode-only">
-  represents how much the model depends on the features
+- $\left\Vert V \right\Vert_1$ represents how much the model depends on the features
 
-- <img src="https://render.githubusercontent.com/render/math?math={\left \| X_T - W\cdot X_C \right \|_V}#gh-light-mode-only">
-  <img src="https://render.githubusercontent.com/render/math?math={\color{white}\left \| X_T - W\cdot X_C \right \|_V}#gh-dark-mode-only"> 
-  is the difference between synthetic and observed units in the the feature space weighted by 
-  <img src="https://render.githubusercontent.com/render/math?math={V}#gh-light-mode-only">
-  <img src="https://render.githubusercontent.com/render/math?math={\color{white}V}#gh-dark-mode-only">. Specifically, 
-  <img src="https://render.githubusercontent.com/render/math?math={\left \| A \right \|_V = AVA^T}#gh-light-mode-only">
-  <img src="https://render.githubusercontent.com/render/math?math={\color{white}\left \| A \right \|_V = AVA^T}#gh-dark-mode-only">
+- $\left\Vert X_T - W\cdot X_C \right\Vert_V$ is the difference between synthetic and observed units in the the feature space weighted by $V$. Specifically, $\left\Vert A \right\Vert_V = AVA^T$
 
-- <img src="https://render.githubusercontent.com/render/math?math={\left \| W - \frac{J}{c} \right \|_F^2}#gh-light-mode-only">
-  <img src="https://render.githubusercontent.com/render/math?math={\color{white}\left \| W - \frac{J}{c} \right \|_F^2}#gh-dark-mode-only"> is the difference between optimistic weights and simple (
-  <img src="https://render.githubusercontent.com/render/math?math={1/N_c}#gh-light-mode-only">
-  <img src="https://render.githubusercontent.com/render/math?math={\color{white}1/N_c}#gh-dark-mode-only">
-  ) weighted averages of the control units.
+- $\left\Vert W - J/c \right\Vert_F^2$ is the difference between optimistic weights and simple ($1/N_c$) weighted averages of the control units.
 
 
 Typically this is used to estimate causal effects from binary treatments on observational panel (longitudinal) data. The functions `fit()` and `fit_fast()` provide basic fitting of the model. If you are estimating treatment effects, fitting and diagnostic information can be done via `estimate_effects()`.
