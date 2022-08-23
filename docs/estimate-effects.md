@@ -1,4 +1,4 @@
-# Synthetic Differences in Differences
+# Treatment Effects 
 
 The `estimate_effects()` function can be used to conduct
 [DID](https://en.wikipedia.org/wiki/Difference_in_differences) style

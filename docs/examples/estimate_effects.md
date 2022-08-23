@@ -1,3 +1,3 @@
-# Synthetic Differences in Differences
+# Treatment effects
 
 [ Coming soon ]
