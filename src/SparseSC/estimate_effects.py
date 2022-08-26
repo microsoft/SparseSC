@@ -91,6 +91,7 @@ def estimate_effects(
     fast = True,
     model_type = "retrospective",
     T2 = None,
+    cv_folds = 10,
     cf_folds = 10, #sync with helper
     cf_seed=110011, #sync with helper
     **kwargs
@@ -112,7 +113,8 @@ def estimate_effects(
     :type T1: int, Optional (Default is post-period for last treatment)
     :param covariates: Additional pre-treatment features
     :type covariates: np.array or pd.DataFrame with shape (N,K), Optional
-    :param max_n_pl: The full number of placebos is choose(N0,N1). If N1=1
+    :param max_n_pl: After honest placebo effects have been calculated for control units, this is the number that will be used to calculate statistical significance.
+            The full number of placebos to calculate is choose(N0,N1). If N1=1
             then this is N0. This number grows quickly with N1 so we can
             set a maximum that we compute and this is drawn at random.
     :type max_n_pl: int, Optional
@@ -126,6 +128,8 @@ def estimate_effects(
     :type fast: bool
     :param model_type: Model type
     :param T2: If model='prospective' then the period of which to evaluate the effect
+    :param cv_folds: Number of CV Folds fit CVed fitting.
+    :param cf_folds: Number of Cross-fit folds for getting honest predictions for control units. Use 1 to re-use the initial fit from whole distribution (not honest). Use "all" for one for every control unit. 
     :param kwargs: Additional parameters passed to fit() or fit_fast()
 
     :returns: An instance of SparseSCEstResults with the fitted results
@@ -284,7 +288,7 @@ def estimate_effects(
             targets=Y_post_fit,
             model_type=model_type,
             treated_units=treated_units,
-            cv_folds=cf_folds,
+            cv_folds=cv_folds,
             cv_seed=cf_seed,
             **kwargs
         )
@@ -305,9 +309,10 @@ def estimate_effects(
 
         #Get honest predictions (for honest placebo effects)
         Y_sc = fit_res.predict(Y_local) #doesn't have honest ones for the control units
-        Y_sc[control_units,:], _ = get_c_predictions_honest(X_and_Y_pre[c_units_mask_local,:], Y_post_fit[c_units_mask_local,:], Y_local[c_units_mask_local,:], 
-                                                       model_type, cf_folds, cf_seed, w_pen=fit_res.initial_w_pen, v_pen=fit_res.initial_v_pen,
-                                                       cv_seed=cf_seed, **kwargs)
+        if cf_folds!=1:
+            Y_sc[control_units,:], _ = get_c_predictions_honest(X_and_Y_pre[c_units_mask_local,:], Y_post_fit[c_units_mask_local,:], Y_local[c_units_mask_local,:], 
+                                                        model_type, cf_folds if cf_folds!="all" else n_control, cf_seed, w_pen=fit_res.initial_w_pen, v_pen=fit_res.initial_v_pen,
+                                                        cv_seed=cf_seed, **kwargs)
 
 
         #Get statistical significance
