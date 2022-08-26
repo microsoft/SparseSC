@@ -119,7 +119,8 @@ def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
     else:
         custom_donor_pool = np.full((N,N0), True)
     custom_donor_pool = _ensure_good_donor_pool(custom_donor_pool, control_units)
-    match_space_maker = MTLassoCV_MatchSpace_factory() if match_space_maker is None else match_space_maker
+    fit_args = kwargs.get('fit_args', {})
+    match_space_maker = MTLassoCV_MatchSpace_factory(fit_args=fit_args) if match_space_maker is None else match_space_maker
 
     fit_units = _get_fit_units(model_type, control_units, treated_units, N)
     X_v = X[fit_units, :]

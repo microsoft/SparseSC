@@ -119,7 +119,7 @@ def _block_summ_cols(Y, Y_col_block_size):
         print("Can only average target across columns blocks if blocks fit evenly")
     return Y
 
-def MTLassoCV_MatchSpace_factory(v_pens=None, n_v_cv=5, sample_frac=1, Y_col_block_size=None, se_factor=None, normalize=True):
+def MTLassoCV_MatchSpace_factory(v_pens=None, n_v_cv=5, sample_frac=1, Y_col_block_size=None, se_factor=None, normalize=True, fit_args={}):
     """
     Return a MatchSpace function that will fit a MultiTaskLassoCV for Y ~ X
 
@@ -133,14 +133,14 @@ def MTLassoCV_MatchSpace_factory(v_pens=None, n_v_cv=5, sample_frac=1, Y_col_blo
 
     def _MTLassoCV_MatchSpace_wrapper(X, Y, **kwargs):
         return _MTLassoCV_MatchSpace(
-            X, Y, v_pens=v_pens, n_v_cv=n_v_cv, sample_frac=sample_frac, Y_col_block_size=Y_col_block_size, se_factor=se_factor, normalize=normalize, **kwargs
+            X, Y, v_pens=v_pens, n_v_cv=n_v_cv, sample_frac=sample_frac, Y_col_block_size=Y_col_block_size, se_factor=se_factor, normalize=normalize, fit_args=fit_args, **kwargs
         )
 
     return _MTLassoCV_MatchSpace_wrapper
 
 
 def _MTLassoCV_MatchSpace(
-    X, Y, v_pens=None, n_v_cv=5, sample_frac=1, Y_col_block_size=None, se_factor=None, normalize=True, **kwargs
+    X, Y, v_pens=None, n_v_cv=5, sample_frac=1, Y_col_block_size=None, se_factor=None, normalize=True, fit_args={}, **kwargs
 ):  # pylint: disable=missing-param-doc, unused-argument
     # A fake MT would do Lasso on y_mean = Y.mean(axis=1)
     if sample_frac < 1:
@@ -150,7 +150,7 @@ def _MTLassoCV_MatchSpace(
         Y = Y[sample, :]
     if Y_col_block_size is not None:
         Y = _block_summ_cols(Y, Y_col_block_size)
-    varselectorfit = MultiTaskLassoCV(normalize=normalize, cv=n_v_cv, alphas=v_pens).fit(
+    varselectorfit = MultiTaskLassoCV(normalize=normalize, cv=n_v_cv, alphas=v_pens, **fit_args).fit(
         X, Y
     )
     best_v_pen = varselectorfit.alpha_
