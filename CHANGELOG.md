@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 <!-- Separate headings for Added/Changed/Removed/Fixed/Deprecated/Security -->
 ## [Unreleased](https://github.com/Microsoft/SparseSC/compare/v0.2.0...master)
 ### Added
+- Added `fit_args` to `estimate_effect()` that can be used with `fit_fast()` with the default variable weight algorithm (`sklearn`'s [MTLassoCV](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.MultiTaskLassoCV.html)). Common usages would include increasing `max_iter` (if you want to improve convergence) or `n_jobs` (if you want to run in parallel).
+- Separated CV folds from Cross-fitting folds in `estimate_effects()`. `cv_folds` controls the amount of additional estimation done on the control units (this used to be controled by `max_n_pl`, but that parameter now only governs the amount of post-estimation processing that is done). This will do `cv_folds` extra estimations per treatment time period, though if `=1` then no extra work will be done (but control residuals might be biased toward 0).
 - Added additional option `Y_col_block_size` to `MTLassoCV_MatchSpace_factory` to estimate `V` on block-averages of `Y` (e.g. taking a 150 cols down to 5 by doing averages over 30 cols at a time).
 - Added `se_factor` to `MTLassoCV_MatchSpace_factory` to use a different penalty than the MSE min.
 - For large data, approximate the outcomes using a normal distribution (`DescrSet`), and allow for calculating estimates. 
