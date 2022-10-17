@@ -290,7 +290,7 @@ def _gen_placebo_stats_from_diffs(
         # math a bit nicer, I will reject a hypothesis if pval<=(1-level)
         assert 0 < level < 1 and level > 0, "Use a level in [0,1]"
         alpha = 1 - level
-        p2min = 2 / n_pl
+        p2min = 2 / comb_len
         alpha_ind = max((1, round(alpha / p2min))) - 1
         alpha = alpha_ind * p2min
 
