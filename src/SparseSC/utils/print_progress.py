@@ -52,9 +52,9 @@ def print_progress(iteration, total=100, prefix='', suffix='', decimals=1, bar_l
 def it_progressmsg(it, prefix="Loop", file=sys.stdout, count=None):
     for i, item in enumerate(it):
         if count is None:
-            file.write(prefix + ": " + i + "\n")
+            file.write(f"{prefix}: {i}\n")
         else:
-            file.write(prefix + ": " + i + " of " + count + "\n")
+            file.write(f"{prefix}: {i} of {count}\n")
         file.flush()
         yield item
     file.write(prefix + ": FINISHED\n")
