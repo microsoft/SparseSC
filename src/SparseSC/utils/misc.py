@@ -100,7 +100,7 @@ def _get_fit_units(model_type, control_units, treated_units, N):
         return control_units
     elif model_type == "prospective":
         return range(N)
-    elif model_type == "prospective-restricted:":
+    elif model_type == "prospective-restricted":
         return treated_units
     # model_type=="full":
     return range(N)  # same as control_units
