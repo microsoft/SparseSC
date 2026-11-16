@@ -16,7 +16,7 @@ from .utils.print_progress import print_memory_snapshot, log_if_necessary, print
 def fit_fast(  # pylint: disable=unused-argument, missing-raises-doc
     features,
     targets,
-    model_type="restrospective",
+    model_type="retrospective",
     treated_units=None,
     w_pens = None,
     custom_donor_pool=None,  
@@ -257,7 +257,7 @@ def _fit_fast_inner(
     M,
     Y,
     V,
-    model_type="restrospective",
+    model_type="retrospective",
     treated_units=None,
     best_v_pen = None,
     w_pens = None,
@@ -296,7 +296,7 @@ def _fit_fast_inner(
                 best_w_pen = RidgeCVSolution(M, control_units, True, None, V, w_pens, separate=separate_calcs)
             elif model_type=="prospective":
                 best_w_pen = RidgeCVSolution(M, control_units, True, treated_units, V, w_pens, separate=separate_calcs)
-            elif model_type=="prospective-restricted:":
+            elif model_type=="prospective-restricted":
                 best_w_pen = RidgeCVSolution(M, control_units, False, treated_units, V, w_pens, separate=separate_calcs)
             else: #model_type=="full"
                 best_w_pen = RidgeCVSolution(M, control_units, True, None, V, w_pens, separate=separate_calcs)
@@ -321,7 +321,7 @@ def _fit_fast_match(
     M,
     Y,
     V,
-    model_type="restrospective",
+    model_type="retrospective",
     treated_units=None,
     best_v_pen = None,
     best_w_pen = None,
